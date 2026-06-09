@@ -1,20 +1,20 @@
-# Valuable Data Specification v1
+# Data Sketch Specification v1
 
 ## Purpose
 
-Valuable Data Specification v1 is a YAML-based specification for describing
+Data Sketch Specification v1 is a YAML-based specification for describing
 data this service currently considers valuable enough to keep, based
 on customer conversation and feedback.
 
-A Valuable Data Specification YAML document can be called a Data Sketch when
+A Data Sketch Specification YAML document can be called a Data Sketch when
 describing the disposable document created from the specification. A Data Sketch is
 expected to be rewritten or discarded when user stories or team learning change.
 
-Valuable Data Specification v1 is intentionally designed as a single, self-contained document.
+Data Sketch Specification v1 is intentionally designed as a single, self-contained document.
 
 A true agile team prioritizes completing the most important user story and obtaining real feedback from its completion before expanding design work for later stories. Under that premise, the team does not need to split the Data Sketch for parallel authoring. Following Don't DRY Your Code Prematurely, splitting the document only for the convenience of parallel work can also create premature abstractions. If a customer sees the demo of the current user story and significantly changes the underlying assumptions, all of that fragmented abstraction work can become waste.
 
-For this reason, Valuable Data Specification v1 does not define `$ref`, include, or partial-document composition semantics. A Data Sketch must be written as a complete canonical document, not as a graph of referenced fragments.
+For this reason, Data Sketch Specification v1 does not define `$ref`, include, or partial-document composition semantics. A Data Sketch must be written as a complete canonical document, not as a graph of referenced fragments.
 
 The `reason` and `trace` fields make the document AI First: they preserve enough
 context for AI to understand why each data item exists and which user-facing
@@ -81,7 +81,7 @@ stores:
 
 Rules:
 
-- Valuable Data Specification v1 does not define a database engine selector.
+- Data Sketch Specification v1 does not define a database engine selector.
 - A `stores` map key is a logical store ID. It is separate from `store.name`.
 
 ---
@@ -244,7 +244,7 @@ type:
 
 | Field | Required | Description |
 |---|---:|---|
-| `name` | yes | Valuable Data Specification v1 type name. |
+| `name` | yes | Data Sketch Specification v1 type name. |
 | `length` | no | Length for character types. |
 | `precision` | no | Precision for numeric types. |
 | `scale` | no | Scale for decimal or numeric types. |
@@ -292,7 +292,7 @@ Rules:
 
 Keys express data integrity constraints.
 
-In Valuable Data Specification v1, keys describe persistence requirements such as identity, uniqueness, and references. Storage-specific generators decide how those requirements are projected into a concrete database engine.
+In Data Sketch Specification v1, keys describe persistence requirements such as identity, uniqueness, and references. Storage-specific generators decide how those requirements are projected into a concrete database engine.
 
 ```yaml
 keys:
@@ -405,7 +405,7 @@ noAction
 
 Indexes express lookup or performance intent.
 
-In Valuable Data Specification v1, indexes describe access-path intent. Storage-specific generators decide whether and how to create concrete indexes for their target database engine.
+In Data Sketch Specification v1, indexes describe access-path intent. Storage-specific generators decide whether and how to create concrete indexes for their target database engine.
 
 ```yaml
 indexes:
@@ -469,7 +469,7 @@ A Data Sketch is valid only if:
 
 ## Source OpenAPI Example
 
-The following OpenAPI document is the source context for the Valuable Data Specification example below.
+The following OpenAPI document is the source context for the Data Sketch Specification example below.
 
 ```yaml
 openapi: 3.0.3

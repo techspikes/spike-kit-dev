@@ -2,8 +2,8 @@
 
 ## Purpose
 
-A db projection snapshot is the database-focused shape produced from a Valuable
-Data Specification. It is an intermediate representation for commands that need
+A db projection snapshot is the database-focused shape produced from a Data
+Sketch Specification. It is an intermediate representation for commands that need
 database-facing names and constraints.
 
 The snapshot uses implementation-facing names only. Logical store IDs and field

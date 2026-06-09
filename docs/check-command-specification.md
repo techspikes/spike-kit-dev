@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`shot spec-check <spec file>` validates a Valuable Data Specification v1 YAML or
+`shot spec-check <spec file>` validates a Data Sketch Specification v1 YAML or
 JSON file.
 
 ## Usage

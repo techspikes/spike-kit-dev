@@ -14,7 +14,7 @@ const usage = () =>
   [
     'Usage: shot table-spec <spec file> --output <table spec file>',
     '',
-    'Validate a Valuable Data Specification v1 YAML or JSON file and write a Markdown table specification.',
+    'Validate a Data Sketch Specification v1 YAML or JSON file and write a Markdown table specification.',
     '',
     'Options:',
     '  -o, --output <table spec file>  Output Markdown file path',

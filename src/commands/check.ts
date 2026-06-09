@@ -6,7 +6,7 @@ const usage = () =>
   [
     'Usage: shot spec-check <spec file>',
     '',
-    'Validate a Valuable Data Specification v1 YAML or JSON file.',
+    'Validate a Data Sketch Specification v1 YAML or JSON file.',
     '',
     'Options:',
     '  -h, --help  Show this help'

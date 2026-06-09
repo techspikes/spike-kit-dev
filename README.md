@@ -5,13 +5,13 @@
 Specification and tools for agile teams to quickly sketch disposable data
 stores for user stories.
 
-Valuable Data Specification v1 is a YAML or JSON format for describing data this service
+Data Sketch Specification v1 is a YAML or JSON format for describing data this service
 currently considers valuable enough to keep, based on customer
 conversation and feedback. `reason` and `trace` make the document AI First by
 giving AI enough context to understand why the data exists. The
 `table-spec` command projects the specification into database-focused
 documentation artifacts. See
-[docs/valuable-data-specification-v1.md](docs/valuable-data-specification-v1.md) for the full
+[docs/data-sketch-specification-v1.md](docs/data-sketch-specification-v1.md) for the full
 specification.
 
 A disposable YAML document written in the specification can be called a Data Sketch.
@@ -115,9 +115,9 @@ npm test
 
 ## Documentation
 
-- [Valuable Data Specification v1](docs/valuable-data-specification-v1.md)
-- [`check` command specification](docs/check-command-spec.md)
-- [Db Projection Specification](docs/db-projection-spec.md)
-- [`table-spec` command specification](docs/table-spec-command-spec.md)
+- [Data Sketch Specification v1](docs/data-sketch-specification-v1.md)
+- [`check` command specification](docs/check-command-specification.md)
+- [Db Projection Specification](docs/db-projection-specification.md)
+- [`table-spec` command specification](docs/table-spec-command-specification.md)
 - [Online shop example Data Sketch](docs/examples/online-shop-example.yaml)
 - [Online shop example table specification](docs/examples/online-shop-example.table-spec.md)

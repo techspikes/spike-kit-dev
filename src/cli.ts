@@ -13,7 +13,7 @@ const usage = () =>
     'Usage: shot <command> [options]',
     '',
     'Commands:',
-    '  spec-check   Validate a Valuable Data Specification v1 YAML or JSON file.',
+    '  spec-check   Validate a Data Sketch Specification v1 YAML or JSON file.',
     '  table-spec   Write a Markdown table specification.'
   ].join('\n')
 

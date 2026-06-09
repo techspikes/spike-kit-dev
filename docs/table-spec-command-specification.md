@@ -2,8 +2,8 @@
 
 ## Purpose
 
-`shot table-spec <spec file> --output <table spec file>` validates a Valuable
-Data Specification v1 YAML or JSON file and writes a Markdown table
+`shot table-spec <spec file> --output <table spec file>` validates a Data Sketch
+Specification v1 YAML or JSON file and writes a Markdown table
 specification.
 
 ## Usage
@@ -263,7 +263,7 @@ CREATE INDEX ix_orders_status ON orders (status);
 ## Db Projection Snapshot
 
 The command projects the Specification into a db projection snapshot before
-rendering Markdown. See [Db Projection Specification](db-projection-spec.md) for
+rendering Markdown. See [Db Projection Specification](db-projection-specification.md) for
 the snapshot shape and projection rules.
 
 ## Markdown Output
