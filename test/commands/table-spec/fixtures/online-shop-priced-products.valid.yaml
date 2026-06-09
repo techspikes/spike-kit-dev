@@ -1,0 +1,146 @@
+data-sketch: 1.0.0-draft.0
+
+info:
+  name: online-shop
+
+stores:
+  priceNote:
+    name: price_notes
+    reason: Product managers keep pricing notes before publishing products.
+    trace:
+      operations:
+        - listProducts
+
+    fields:
+      note:
+        name: note
+        type:
+          name: varchar
+          length: 100
+        nullable: false
+        default: draft
+
+  category:
+    name: categories
+    reason: Product catalog groups products by category.
+    trace:
+      operations:
+        - listProducts
+
+    fields:
+      id:
+        name: id
+        type:
+          name: integer
+        nullable: false
+
+      name:
+        name: name
+        type:
+          name: varchar
+          length: 100
+        nullable: false
+
+    keys:
+      primary:
+        name: pk_categories
+        fields:
+          - id
+
+  product:
+    name: products
+    reason: Product catalog needs prices for online checkout.
+    trace:
+      operations:
+        - listProducts
+
+    fields:
+      id:
+        name: id
+        type:
+          name: integer
+        nullable: false
+
+      categoryId:
+        name: category_id
+        type:
+          name: integer
+        nullable: false
+
+      price:
+        name: price
+        type:
+          name: decimal
+          precision: 10
+          scale: 2
+        nullable: false
+        default: 0
+        aliases:
+          - checkout price
+
+      taxRate:
+        name: tax_rate
+        type:
+          name: numeric
+          precision: 5
+        nullable: false
+        default: 8
+        aliases:
+          - sales tax rate
+
+      status:
+        name: status
+        type:
+          name: varchar
+          length: 20
+        nullable: false
+        default: available
+        aliases:
+          - product availability
+
+      featured:
+        name: featured
+        type:
+          name: boolean
+        nullable: false
+        default: true
+        aliases:
+          - promoted product
+
+      discontinued:
+        name: discontinued
+        type:
+          name: boolean
+        nullable: false
+        default: false
+        aliases:
+          - retired product
+
+      saleEndsAt:
+        name: sale_ends_at
+        type:
+          name: timestamp
+        nullable: true
+        default: null
+        aliases:
+          - sale end date
+
+    keys:
+      primary:
+        name: pk_products
+        fields:
+          - id
+
+      foreign:
+        - name: fk_products_category
+          fields:
+            - categoryId
+          references:
+            store: category
+            fields:
+              - id
+
+    indexes:
+      - name: ix_products_price
+        fields:
+          - price

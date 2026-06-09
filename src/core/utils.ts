@@ -1,11 +1,19 @@
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
 
-export function readCwdRelativePathSync(path: string) {
-  return readFileSync(join(process.cwd(), path))
+export function resolveCwdRelativePath(path: string) {
+  return isAbsolute(path) ? path : join(process.cwd(), path)
 }
 
-export function readResolvedPathSync(basePath: string, path: string) {
+export function readCwdRelativePathSync(path: string) {
+  return readFileSync(resolveCwdRelativePath(path))
+}
+
+export function writeCwdRelativePathSync(path: string, data: string) {
+  writeFileSync(resolveCwdRelativePath(path), data)
+}
+
+export function readBaseRelativePathSync(basePath: string, path: string) {
   if (isAbsolute(path)) {
     return readFileSync(path)
   }
@@ -28,7 +36,9 @@ export function extractErrorMessages(error: unknown): string {
 }
 
 export default {
+  resolveCwdRelativePath,
   readCwdRelativePathSync,
-  readResolvedPathSync,
+  writeCwdRelativePathSync,
+  readBaseRelativePathSync,
   extractErrorMessages
 }

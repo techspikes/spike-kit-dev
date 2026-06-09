@@ -67,4 +67,23 @@ describe('check command', () => {
       /stores\.customer\.fields\.id\.type\.name/
     )
   })
+
+  it('Given a specification with a missing traced operation, When the command executes, Then it prints the trace validation error', () => {
+    const options = parseArgs({
+      ...config,
+      args: [
+        'test/commands/check/fixtures/online-shop-missing-traced-operation.invalid.yaml'
+      ]
+    })
+
+    const result = runAndCaptureSync(() => {
+      execute(options)
+    })
+
+    assert.deepEqual(result.stdout, [])
+    assert.match(
+      result.stderr.join(''),
+      /trace operation missingOperation does not exist in OpenAPI operationId/
+    )
+  })
 })

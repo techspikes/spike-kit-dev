@@ -6,14 +6,14 @@ const logStderr = new AsyncLocalStorage<string[]>()
 const originalStdoutWrite = process.stdout.write
 const originalStderrWrite = process.stderr.write
 
-interface CaptureOptions {
-  stdout?: boolean
-  stderr?: boolean
+type CaptureOptions = {
+  readonly stdout?: boolean
+  readonly stderr?: boolean
 }
 
-interface CaptureResult {
-  stdout: string[]
-  stderr: string[]
+type CaptureResult = {
+  readonly stdout: string[]
+  readonly stderr: string[]
 }
 
 export async function runAndCapture(

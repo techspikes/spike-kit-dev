@@ -21,8 +21,9 @@ shot spec-check <spec file>
 - When `<spec file>` is not provided, the command prints usage to stdout.
 - When `<spec file>` is valid, the command prints `Specification is valid.` to
   stdout.
-- When reading or validation fails, the command prints the error message to
-  stderr.
+- When reading, validation, or OpenAPI trace validation fails, the command prints
+  the error message to stderr.
 
-The command validates the file as a Specification. It does not validate OpenAPI
-traceability.
+The command validates the file as a Specification. When `sources.openapi` is
+present, it also validates store trace operations against OpenAPI Operation
+Object `operationId` values.

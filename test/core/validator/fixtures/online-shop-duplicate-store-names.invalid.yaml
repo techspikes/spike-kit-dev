@@ -1,0 +1,31 @@
+data-sketch: 1.0.0-draft.0
+
+info:
+  name: online-shop
+
+stores:
+  customer:
+    name: customers
+    reason: Persist customer information.
+    trace:
+      operations:
+        - createCustomer
+    fields:
+      id:
+        name: id
+        type:
+          name: integer
+        nullable: false
+
+  duplicateCustomer:
+    name: customers
+    reason: Persist duplicate customer information.
+    trace:
+      operations:
+        - getCustomer
+    fields:
+      id:
+        name: id
+        type:
+          name: integer
+        nullable: false

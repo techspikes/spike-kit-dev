@@ -1,0 +1,39 @@
+data-sketch: 1.0.0-draft.0
+
+info:
+  name: online-shop
+
+stores:
+  cartItem:
+    name: cart_items
+    reason: Persist products added to shopping carts.
+    trace:
+      operations:
+        - getCart
+
+    fields:
+      cartId:
+        name: cart_id
+        type:
+          name: integer
+        nullable: false
+
+      productId:
+        name: product_id
+        type:
+          name: integer
+        nullable: false
+
+      quantity:
+        name: quantity
+        type:
+          name: integer
+        nullable: false
+        default: 1
+
+    keys:
+      primary:
+        name: pk_cart_items
+        fields:
+          - cartId
+          - productId

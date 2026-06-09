@@ -169,7 +169,7 @@ function loadOpenApiOperationIds(
 
   try {
     openApi = load(
-      utils.readResolvedPathSync(basePath, openApiPath).toString('utf-8')
+      utils.readBaseRelativePathSync(basePath, openApiPath).toString('utf-8')
     )
   } catch (error) {
     if (error instanceof YAMLException) {
@@ -305,6 +305,18 @@ function getStoreIssues(
       `field name in store ${storeId}`
     )
   )
+
+  for (const [fieldId, field] of fieldEntries) {
+    if (
+      !field.nullable &&
+      Object.hasOwn(field, 'default') &&
+      field.default === null
+    ) {
+      issues.push(
+        `stores.${storeId}.fields.${fieldId} default cannot be null when nullable is false`
+      )
+    }
+  }
 
   if (store.keys?.primary) {
     issues.push(

@@ -359,6 +359,48 @@ describe('core validator', () => {
     )
   })
 
+  it('parseSpecification rejects duplicate store names', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-duplicate-store-names.invalid.yaml'
+            )
+            .toString('utf-8')
+        ),
+      /store name customers is duplicated/
+    )
+  })
+
+  it('parseSpecification rejects duplicate field names in the same store', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-duplicate-field-names.invalid.yaml'
+            )
+            .toString('utf-8')
+        ),
+      /field name in store customer id is duplicated/
+    )
+  })
+
+  it('parseSpecification rejects null default for a not nullable field', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-not-nullable-field-null-default.invalid.yaml'
+            )
+            .toString('utf-8')
+        ),
+      /stores\.customer\.fields\.id default cannot be null when nullable is false/
+    )
+  })
+
   it('parseSpecification rejects invalid key and index field references', () => {
     assert.throws(
       () =>
