@@ -4,7 +4,7 @@ import utils from '../../../src/core/utils.ts'
 import { parseSpecification } from '../../../src/core/validator.ts'
 
 describe('core validator', () => {
-  it('parseSpecification accepts a minimal valid YAML specification', () => {
+  it('parseSpecification accepts a valid YAML example specification', () => {
     const specification = parseSpecification(
       utils
         .readCwdRelativePathSync(
@@ -24,7 +24,7 @@ describe('core validator', () => {
     )
   })
 
-  it('parseSpecification accepts a minimal valid JSON specification', () => {
+  it('parseSpecification accepts a valid JSON example specification', () => {
     const specification = parseSpecification(
       utils
         .readCwdRelativePathSync(

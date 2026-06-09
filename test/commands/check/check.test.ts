@@ -8,7 +8,7 @@ describe('check command', () => {
   it('Given a valid YAML specification, When the command executes, Then it prints a success message', () => {
     const options = parseArgs({
       ...config,
-      args: ['test/commands/check/fixtures/online-shop-minimal.valid.yaml']
+      args: ['test/commands/check/fixtures/online-shop-example.valid.yaml']
     })
 
     const result = runAndCaptureSync(() => {
