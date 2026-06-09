@@ -50,7 +50,7 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
   }
 }
 
-function renderMarkdownTableSpec(
+export function renderMarkdownTableSpec(
   spec: Specification,
   snapshot: DbProjectionSnapshot,
   specPath: string,
