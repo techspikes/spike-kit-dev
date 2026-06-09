@@ -4,7 +4,7 @@ import { parseSpecification } from '../core/validator.ts'
 
 const usage = () =>
   [
-    'Usage: spike-kit validate <file>',
+    'Usage: shot spec-check <spec file>',
     '',
     'Validate a Valuable Data Specification v1 YAML or JSON file.',
     '',
@@ -28,6 +28,7 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
       parseSpecification(
         utils.readCwdRelativePathSync(options.positionals[0]).toString('utf-8')
       )
+      console.log('Specification is valid.')
     }
   } catch (error) {
     console.error(utils.extractErrorMessages(error))

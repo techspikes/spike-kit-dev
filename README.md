@@ -33,7 +33,7 @@ The CLI is installed as `shot`, named after the shot used when making espresso.
 ## Usage
 
 ```sh
-shot check <file>
+shot spec-check <spec file>
 shot kysely-migration <file> --output <file>
 shot table-spec <file> --output <file>
 ```
@@ -55,7 +55,7 @@ import { check, kyselyMigration, tableSpec } from '@techspikes/spike-kit'
 ### Validate a Data Sketch
 
 ```sh
-npx shot check path/to/data-sketch.yaml
+npx shot spec-check path/to/data-sketch.yaml
 ```
 
 The command validates a Data Sketch and exits with
@@ -153,6 +153,6 @@ affected `dist` files when source changes affect the CLI or library output.
 ## Documentation
 
 - [Valuable Data Specification v1](docs/valuable-data-specification-v1.md)
-- [`check` command specification](docs/shot-check-command-spec.md)
+- [`check` command specification](docs/check-command-spec.md)
 - [`kysely-migration` command specification](docs/shot-kysely-migration-command-spec.md)
 - [`table-spec` command specification](docs/shot-table-spec-command-spec.md)

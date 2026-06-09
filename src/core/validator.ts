@@ -1,5 +1,6 @@
 import { load, YAMLException } from 'js-yaml'
 import * as v from 'valibot'
+import utils from './utils.ts'
 
 const dataSketchVersion = '1.0.0-draft.0'
 
@@ -106,12 +107,19 @@ export type ValidationResult =
   | { readonly success: true; readonly output: Specification }
   | { readonly success: false; readonly issues: readonly string[] }
 
+export type ParseSpecificationOptions =
+  | { readonly trace: true; readonly specPath: string }
+  | { readonly trace: false }
 
-export function parseSpecification(input: string): Specification {
+export function parseSpecification(
+  input: string,
+  options?: ParseSpecificationOptions
+): Specification {
   try {
     const result = validateSpecification(load(input))
 
     if (result.success) {
+      validateOpenApiTraceIfEnabled(result.output, options)
       return result.output
     } else {
       throw new Error(result.issues.join('\n'))
@@ -122,6 +130,112 @@ export function parseSpecification(input: string): Specification {
     } else {
       throw error
     }
+  }
+}
+
+function validateOpenApiTraceIfEnabled(
+  spec: Specification,
+  options?: ParseSpecificationOptions
+) {
+  if (!options?.trace || !spec.sources?.openapi) {
+    return
+  }
+
+  const operationIds = loadOpenApiOperationIds(
+    options.specPath,
+    spec.sources.openapi
+  )
+
+  const issues = Object.values(spec.stores).flatMap(store =>
+    store.trace.operations.flatMap(operationId =>
+      operationIds.has(operationId)
+        ? []
+        : [
+            `trace operation ${operationId} does not exist in OpenAPI operationId`
+          ]
+    )
+  )
+
+  if (issues.length > 0) {
+    throw new Error(issues.join('\n'))
+  }
+}
+
+function loadOpenApiOperationIds(
+  basePath: string,
+  openApiPath: string
+): Set<string> {
+  let openApi: unknown
+
+  try {
+    openApi = load(
+      utils.readResolvedPathSync(basePath, openApiPath).toString('utf-8')
+    )
+  } catch (error) {
+    if (error instanceof YAMLException) {
+      throw new Error(`Failed to parse OpenAPI: ${error.message}`)
+    }
+
+    throw new Error(`Failed to read OpenAPI: ${String(error)}`)
+  }
+
+  return extractOpenApiOperationIds(openApi)
+}
+
+function extractOpenApiOperationIds(openApi: unknown): Set<string> {
+  if (!isRecord(openApi)) {
+    throw new Error('OpenAPI root must be an object')
+  }
+
+  if (!isRecord(openApi.paths)) {
+    throw new Error('OpenAPI paths must be an object')
+  }
+
+  const methods = new Set([
+    'get',
+    'put',
+    'post',
+    'delete',
+    'options',
+    'head',
+    'patch',
+    'trace'
+  ])
+
+  const operationIdValues = Object.values(openApi.paths)
+    .filter(isRecord)
+    .flatMap(pathItem =>
+      Object.entries(pathItem)
+        .filter(isOpenApiOperationEntry(methods))
+        .map(([, operation]) => operation.operationId)
+        .filter(
+          (operationId): operationId is string =>
+            typeof operationId === 'string'
+        )
+    )
+  const operationIds = new Set<string>()
+
+  for (const operationId of operationIdValues) {
+    if (operationIds.has(operationId)) {
+      throw new Error(`OpenAPI operationId ${operationId} is duplicated`)
+    }
+
+    operationIds.add(operationId)
+  }
+
+  return operationIds
+}
+
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === 'object' && input !== null && !Array.isArray(input)
+}
+
+function isOpenApiOperationEntry(methods: Set<string>) {
+  return (
+    entry: [string, unknown]
+  ): entry is [string, Record<string, unknown>] => {
+    const [method, operation] = entry
+    return methods.has(method) && isRecord(operation)
   }
 }
 
@@ -145,118 +259,134 @@ function validateSpecification(spec: unknown): ValidationResult {
 }
 
 function validateSpecReferences(spec: Specification): string[] {
-  const issues: string[] = []
   const storeEntries = Object.entries(spec.stores)
+  const issues: string[] = []
 
   if (storeEntries.length === 0) {
-    issues.push('stores must contain at least one store')
-    return issues
+    return ['stores must contain at least one store']
   }
 
-  addDuplicateIssues(
-    issues,
-    storeEntries.map(([logicalId, store]) => ({
-      owner: logicalId,
-      value: store.name
-    })),
-    'store name'
+  issues.push(
+    ...getDuplicateIssues(
+      storeEntries.map(([logicalId, store]) => ({
+        owner: logicalId,
+        value: store.name
+      })),
+      'store name'
+    )
   )
 
   for (const [storeId, store] of storeEntries) {
-    const fieldEntries = Object.entries(store.fields)
-    const fieldIds = new Set(fieldEntries.map(([fieldId]) => fieldId))
+    issues.push(...getStoreIssues(spec, storeId, store))
+  }
 
-    if (fieldEntries.length === 0) {
-      issues.push(`stores.${storeId}.fields must contain at least one field`)
-      continue
-    }
+  return issues
+}
 
-    addDuplicateIssues(
-      issues,
+function getStoreIssues(
+  spec: Specification,
+  storeId: string,
+  store: Specification['stores'][string]
+): string[] {
+  const fieldEntries = Object.entries(store.fields)
+  const fieldIds = new Set(fieldEntries.map(([fieldId]) => fieldId))
+  const issues: string[] = []
+
+  if (fieldEntries.length === 0) {
+    return [`stores.${storeId}.fields must contain at least one field`]
+  }
+
+  issues.push(
+    ...getDuplicateIssues(
       fieldEntries.map(([fieldId, field]) => ({
         owner: `stores.${storeId}.fields.${fieldId}`,
         value: field.name
       })),
       `field name in store ${storeId}`
     )
+  )
 
-    if (store.keys?.primary) {
-      addMissingFieldIssues(
-        issues,
+  if (store.keys?.primary) {
+    issues.push(
+      ...getMissingFieldIssues(
         storeId,
         fieldIds,
         store.keys.primary.fields,
         `stores.${storeId}.keys.primary.fields`
       )
-    }
+    )
+  }
 
-    for (const [uniqueIndex, uniqueKey] of store.keys?.unique?.entries() ??
-      []) {
-      addMissingFieldIssues(
-        issues,
+  for (const [uniqueIndex, uniqueKey] of (store.keys?.unique ?? []).entries()) {
+    issues.push(
+      ...getMissingFieldIssues(
         storeId,
         fieldIds,
         uniqueKey.fields,
         `stores.${storeId}.keys.unique.${uniqueIndex}.fields`
       )
-    }
+    )
+  }
 
-    for (const [foreignIndex, foreignKey] of store.keys?.foreign?.entries() ??
-      []) {
-      const basePath = `stores.${storeId}.keys.foreign.${foreignIndex}`
+  for (const [foreignIndex, foreignKey] of (
+    store.keys?.foreign ?? []
+  ).entries()) {
+    const basePath = `stores.${storeId}.keys.foreign.${foreignIndex}`
+    const referencedStore = spec.stores[foreignKey.references.store]
 
-      addMissingFieldIssues(
-        issues,
+    issues.push(
+      ...getMissingFieldIssues(
         storeId,
         fieldIds,
         foreignKey.fields,
         `${basePath}.fields`
       )
+    )
 
-      const referencedStore = spec.stores[foreignKey.references.store]
-
-      if (!referencedStore) {
-        issues.push(
-          `${basePath}.references.store references missing store ${foreignKey.references.store}`
-        )
-      } else {
-        addMissingFieldIssues(
-          issues,
+    if (referencedStore) {
+      issues.push(
+        ...getMissingFieldIssues(
           foreignKey.references.store,
           new Set(Object.keys(referencedStore.fields)),
           foreignKey.references.fields,
           `${basePath}.references.fields`
         )
-      }
-
-      if (foreignKey.fields.length !== foreignKey.references.fields.length) {
-        issues.push(`${basePath} local and referenced field counts must match`)
-      }
+      )
+    } else {
+      issues.push(
+        `${basePath}.references.store references missing store ${foreignKey.references.store}`
+      )
     }
 
-    for (const [indexIndex, index] of store.indexes?.entries() ?? []) {
-      const referencedFields = index.fields.map(field =>
-        typeof field === 'string' ? field : field.field
-      )
-      addMissingFieldIssues(
-        issues,
+    if (foreignKey.fields.length !== foreignKey.references.fields.length) {
+      issues.push(`${basePath} local and referenced field counts must match`)
+    }
+  }
+
+  for (const [indexIndex, index] of (store.indexes ?? []).entries()) {
+    const referencedFields = index.fields.map(field =>
+      typeof field === 'string' ? field : field.field
+    )
+
+    issues.push(
+      ...getMissingFieldIssues(
         storeId,
         fieldIds,
         referencedFields,
         `stores.${storeId}.indexes.${indexIndex}.fields`
       )
-    }
+    )
   }
 
   return issues
 }
 
-function addDuplicateIssues(
-  issues: string[],
+function getDuplicateIssues(
   values: Array<{ owner: string; value: string }>,
   label: string
-) {
+): string[] {
   const firstOwnerByValue = new Map<string, string>()
+  const issues: string[] = []
 
   for (const { owner, value } of values) {
     const firstOwner = firstOwnerByValue.get(value)
@@ -269,22 +399,21 @@ function addDuplicateIssues(
       firstOwnerByValue.set(value, owner)
     }
   }
+
+  return issues
 }
 
-function addMissingFieldIssues(
-  issues: string[],
+function getMissingFieldIssues(
   storeId: string,
   fieldIds: Set<string>,
   references: readonly string[],
   path: string
-) {
-  for (const fieldId of references) {
-    if (!fieldIds.has(fieldId)) {
-      issues.push(
-        `${path} references missing field ${fieldId} in store ${storeId}`
-      )
-    }
-  }
+): string[] {
+  return references.flatMap(fieldId =>
+    fieldIds.has(fieldId)
+      ? []
+      : [`${path} references missing field ${fieldId} in store ${storeId}`]
+  )
 }
 
 function formatValibotIssue(

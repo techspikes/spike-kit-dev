@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import utils from '../../../src/core/utils.ts'
 import { parseSpecification } from '../../../src/core/validator.ts'
 
-describe('validator', () => {
+describe('core validator', () => {
   it('parseSpecification accepts a minimal valid YAML specification', () => {
     const specification = parseSpecification(
       utils
@@ -55,6 +55,216 @@ describe('validator', () => {
     const indexField = specification.stores.order.indexes?.[1]?.fields[0]
 
     assert.deepEqual(indexField, { field: 'createdAt', order: 'desc' })
+  })
+
+  it('parseSpecification does not validate OpenAPI trace by default', () => {
+    const specification = parseSpecification(
+      utils
+        .readCwdRelativePathSync(
+          'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
+        )
+        .toString('utf-8')
+    )
+
+    assert.equal(specification.sources?.openapi, './openapi/missing.yaml')
+  })
+
+  it('parseSpecification does not validate OpenAPI trace when trace is false', () => {
+    const specification = parseSpecification(
+      utils
+        .readCwdRelativePathSync(
+          'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
+        )
+        .toString('utf-8'),
+      { trace: false }
+    )
+
+    assert.equal(specification.sources?.openapi, './openapi/missing.yaml')
+  })
+
+  it('parseSpecification accepts trace true when sources.openapi is omitted', () => {
+    const specification = parseSpecification(
+      utils
+        .readCwdRelativePathSync(
+          'test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'
+        )
+        .toString('utf-8'),
+      {
+        trace: true,
+        specPath:
+          'test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'
+      }
+    )
+
+    assert.equal(specification.sources, undefined)
+  })
+
+  it('parseSpecification validates traced operations against sources.openapi', () => {
+    const specification = parseSpecification(
+      utils
+        .readCwdRelativePathSync(
+          'test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'
+        )
+        .toString('utf-8'),
+      {
+        trace: true,
+        specPath:
+          'test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'
+      }
+    )
+
+    assert.equal(specification.sources?.openapi, './openapi/openapi.yaml')
+  })
+
+  it('parseSpecification validates traced operations against an absolute sources.openapi', () => {
+    const specification = parseSpecification(
+      utils
+        .readCwdRelativePathSync(
+          'test/core/validator/fixtures/online-shop-example-trace-absolute-openapi.valid.yaml'
+        )
+        .toString('utf-8'),
+      {
+        trace: true,
+        specPath:
+          'test/core/validator/fixtures/online-shop-example-trace-absolute-openapi.valid.yaml'
+      }
+    )
+
+    assert.match(specification.sources?.openapi ?? '', /^\/workspaces\//)
+  })
+
+  it('parseSpecification rejects missing OpenAPI files', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
+            )
+            .toString('utf-8'),
+          {
+            trace: true,
+            specPath:
+              'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
+          }
+        ),
+      /Failed to read OpenAPI:/
+    )
+  })
+
+  it('parseSpecification rejects missing traced operationId', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-example-trace-missing-operation.invalid.yaml'
+            )
+            .toString('utf-8'),
+          {
+            trace: true,
+            specPath:
+              'test/core/validator/fixtures/online-shop-example-trace-missing-operation.invalid.yaml'
+          }
+        ),
+      /trace operation missingOperation does not exist in OpenAPI operationId/
+    )
+  })
+
+  it('parseSpecification rejects duplicate OpenAPI operationId', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-example-trace-duplicate-operation.invalid.yaml'
+            )
+            .toString('utf-8'),
+          {
+            trace: true,
+            specPath:
+              'test/core/validator/fixtures/online-shop-example-trace-duplicate-operation.invalid.yaml'
+          }
+        ),
+      /OpenAPI operationId createCustomer is duplicated/
+    )
+  })
+
+  it('parseSpecification rejects invalid OpenAPI syntax', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-example-trace-invalid-openapi.invalid.yaml'
+            )
+            .toString('utf-8'),
+          {
+            trace: true,
+            specPath:
+              'test/core/validator/fixtures/online-shop-example-trace-invalid-openapi.invalid.yaml'
+          }
+        ),
+      /Failed to parse OpenAPI:/
+    )
+  })
+
+  it('parseSpecification rejects OpenAPI root values that are not objects', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-example-trace-root-null-openapi.invalid.yaml'
+            )
+            .toString('utf-8'),
+          {
+            trace: true,
+            specPath:
+              'test/core/validator/fixtures/online-shop-example-trace-root-null-openapi.invalid.yaml'
+          }
+        ),
+      /OpenAPI root must be an object/
+    )
+  })
+
+  it('parseSpecification rejects OpenAPI without object paths', () => {
+    assert.throws(
+      () =>
+        parseSpecification(
+          utils
+            .readCwdRelativePathSync(
+              'test/core/validator/fixtures/online-shop-example-trace-missing-paths.invalid.yaml'
+            )
+            .toString('utf-8'),
+          {
+            trace: true,
+            specPath:
+              'test/core/validator/fixtures/online-shop-example-trace-missing-paths.invalid.yaml'
+          }
+        ),
+      /OpenAPI paths must be an object/
+    )
+  })
+
+  it('parseSpecification ignores non-operation OpenAPI members while collecting operationIds', () => {
+    const specification = parseSpecification(
+      utils
+        .readCwdRelativePathSync(
+          'test/core/validator/fixtures/online-shop-example-trace-ignored-openapi-members.valid.yaml'
+        )
+        .toString('utf-8'),
+      {
+        trace: true,
+        specPath:
+          'test/core/validator/fixtures/online-shop-example-trace-ignored-openapi-members.valid.yaml'
+      }
+    )
+
+    assert.equal(
+      specification.stores.customer.trace.operations[0],
+      'createCustomer'
+    )
   })
 
   it('parseSpecification rejects invalid YAML syntax', () => {

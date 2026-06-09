@@ -1,0 +1,106 @@
+openapi: 3.0.3
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /customers:
+    parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: createCustomer
+      summary: Create a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Customer created
+    get:
+      summary: Missing operationId is ignored.
+      responses:
+        '200':
+          description: Customer detail without operationId
+    summary:
+      operationId: ignoredSummary
+
+  /customers/{customerId}:
+    get:
+      operationId: getCustomer
+      summary: Get a customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer detail
+
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List orders
+      responses:
+        '200':
+          description: Order list
+    post:
+      operationId: createOrder
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customerId]
+              properties:
+                customerId:
+                  type: string
+      responses:
+        '201':
+          description: Order created
+
+  /orders/{orderId}:
+    get:
+      operationId: getOrderDetail
+      summary: Get an order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order detail
+
+  /orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancel an order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order cancelled
+
+  /ignored:
+    - invalidPathItem

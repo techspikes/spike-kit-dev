@@ -20,7 +20,7 @@
   "files": [
     "dist",
     "docs/valuable-data-specification-v1.md",
-    "docs/shot-check-command-spec.md",
+    "docs/check-command-spec.md",
     "docs/shot-kysely-migration-command-spec.md",
     "docs/shot-table-spec-command-spec.md"
   ],
