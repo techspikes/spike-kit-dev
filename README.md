@@ -68,7 +68,7 @@ projection snapshot before rendering Markdown.
 ## Data Sketch Example
 
 ```yaml
-data-sketch: 1.0.0-draft.0
+data-sketch: 1.0.0-draft.1
 
 info:
   name: online-shop
@@ -111,7 +111,6 @@ stores:
 npm install
 npm run lint
 npm test
-npm run test:c8
 ```
 
 ## Documentation

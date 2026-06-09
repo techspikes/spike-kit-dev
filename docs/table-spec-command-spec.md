@@ -24,7 +24,7 @@ shot table-spec online-shop-example.yaml --output online-shop-example.table-spec
 Input `online-shop-example.yaml`:
 
 ```yaml
-data-sketch: 1.0.0-draft.0
+data-sketch: 1.0.0-draft.1
 
 info:
   name: online-shop

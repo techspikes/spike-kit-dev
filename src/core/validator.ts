@@ -2,7 +2,7 @@ import { load, YAMLException } from 'js-yaml'
 import * as v from 'valibot'
 import utils from './utils.ts'
 
-const dataSketchVersion = '1.0.0-draft.0'
+const dataSketchVersion = '1.0.0-draft.1'
 
 const nonEmptyString = v.pipe(v.string(), v.nonEmpty())
 const fieldReferenceList = v.pipe(v.array(nonEmptyString), v.nonEmpty())

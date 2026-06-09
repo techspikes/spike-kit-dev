@@ -13,7 +13,7 @@ IDs are used to resolve references, but they are not included in the output.
 
 ```json
 {
-  "data-sketch/db-projection-snapshot": "1.0.0-draft.0",
+  "data-sketch/db-projection-snapshot": "1.0.0-draft.1",
   "tables": []
 }
 ```
@@ -137,7 +137,7 @@ this shape:
 Input:
 
 ```yaml
-data-sketch: 1.0.0-draft.0
+data-sketch: 1.0.0-draft.1
 
 info:
   name: online-shop
@@ -243,7 +243,7 @@ Output:
 
 ```json
 {
-  "data-sketch/db-projection-snapshot": "1.0.0-draft.0",
+  "data-sketch/db-projection-snapshot": "1.0.0-draft.1",
   "tables": [
     {
       "name": "customers",

@@ -44,7 +44,7 @@ This specification is also intended to be used as:
 ## Root Structure
 
 ```yaml
-data-sketch: 1.0.0-draft.0
+data-sketch: 1.0.0-draft.1
 
 info:
   name: online-shop
@@ -74,7 +74,7 @@ stores:
 
 | Field | Required | Description |
 |---|---:|---|
-| `data-sketch` | yes | Must be `1.0.0-draft.0`. |
+| `data-sketch` | yes | Must be `1.0.0-draft.1`. |
 | `info` | yes | Information about the Data Sketch. |
 | `sources` | no | External sources used for operation trace validation. |
 | `stores` | yes | Map of logical store IDs to store definitions. |
@@ -450,7 +450,7 @@ Rules:
 
 A Data Sketch is valid only if:
 
-- `data-sketch` is `1.0.0-draft.0`.
+- `data-sketch` is `1.0.0-draft.1`.
 - `info.name` is a non-empty string.
 - `stores` is not empty.
 - Every store has `name`, `reason`, `trace.operations`, and `fields`.
@@ -571,7 +571,7 @@ paths:
 The following Data Sketch is derived from the OpenAPI example above.
 
 ```yaml
-data-sketch: 1.0.0-draft.0
+data-sketch: 1.0.0-draft.1
 
 info:
   name: online-shop

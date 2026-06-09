@@ -2,7 +2,7 @@
 import type { Specification } from './validator.ts'
 
 export interface DbProjectionSnapshot {
-  readonly 'data-sketch/db-projection-snapshot': '1.0.0-draft.0'
+  readonly 'data-sketch/db-projection-snapshot': '1.0.0-draft.1'
   readonly tables: readonly DbProjectionTable[]
 }
 
@@ -64,7 +64,7 @@ export function createDbProjectionSnapshot(
   spec: Specification
 ): DbProjectionSnapshot {
   return {
-    'data-sketch/db-projection-snapshot': '1.0.0-draft.0',
+    'data-sketch/db-projection-snapshot': '1.0.0-draft.1',
     tables: Object.entries(spec.stores).map(([, store]) => {
       const fields = Object.entries(store.fields)
       const fieldNameById = new Map(

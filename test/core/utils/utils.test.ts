@@ -41,7 +41,7 @@ describe('core utils', () => {
       'test/core/utils/fixtures/online-shop-example.valid.yaml'
     ).toString('utf-8')
 
-    assert.match(content, /data-sketch: 1\.0\.0-draft\.0/)
+    assert.match(content, /data-sketch: 1\.0\.0-draft\.1/)
   })
 
   it('writeCwdRelativePathSync writes content to a path relative to the current working directory', () => {
@@ -70,7 +70,7 @@ describe('core utils', () => {
       )
     ).toString('utf-8')
 
-    assert.match(content, /data-sketch: 1\.0\.0-draft\.0/)
+    assert.match(content, /data-sketch: 1\.0\.0-draft\.1/)
   })
 
   it('readBaseRelativePathSync reads a fixture path relative to a base path', () => {
@@ -79,7 +79,7 @@ describe('core utils', () => {
       'online-shop-example.valid.yaml'
     ).toString('utf-8')
 
-    assert.match(content, /data-sketch: 1\.0\.0-draft\.0/)
+    assert.match(content, /data-sketch: 1\.0\.0-draft\.1/)
   })
 
   it('readBaseRelativePathSync reads a fixture path relative to a base file path', () => {
@@ -88,7 +88,7 @@ describe('core utils', () => {
       'online-shop-example.valid.yaml'
     ).toString('utf-8')
 
-    assert.match(content, /data-sketch: 1\.0\.0-draft\.0/)
+    assert.match(content, /data-sketch: 1\.0\.0-draft\.1/)
   })
 
   it('extractErrorMessages returns an Error message', () => {

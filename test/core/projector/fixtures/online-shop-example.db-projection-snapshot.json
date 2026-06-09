@@ -1,5 +1,5 @@
 {
-  "data-sketch/db-projection-snapshot": "1.0.0-draft.0",
+  "data-sketch/db-projection-snapshot": "1.0.0-draft.1",
   "tables": [
     {
       "name": "customers",

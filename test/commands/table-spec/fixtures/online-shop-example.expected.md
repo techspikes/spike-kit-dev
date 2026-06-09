@@ -1,6 +1,6 @@
 ---
 source: online-shop-example.valid.yaml
-source_sha256: bd3cecbcf9c446333904e5d68e3bca849cec2aa5e04602b19c74e1c2ce0490f5
+source_sha256: 699645ff97fb70a32f1625e9c2450e1872630e8b7a841099c032083dba8ee9de
 generated_at: <generated-at>
 ---
 
