@@ -2,23 +2,14 @@
 
 ## Purpose
 
-A db projection snapshot is the database-focused representation projected from a
-Valuable Data Specification. Commands that render database-facing artifacts use
-this snapshot as their input.
+A db projection snapshot is the database-focused shape produced from a Valuable
+Data Specification. It is an intermediate representation for commands that need
+database-facing names and constraints.
 
-## Projection Rules
+The snapshot uses implementation-facing names only. Logical store IDs and field
+IDs are used to resolve references, but they are not included in the output.
 
-- Stores become tables.
-- Fields become columns.
-- Primary keys, unique constraints, foreign keys, indexes, and check constraints
-  are projected from the Specification.
-- Field `enum` values become check constraints.
-- A check constraint name is `ck_<table name>_<column name>`.
-
-## Snapshot Shape
-
-The snapshot root contains the db projection snapshot version and the projected
-tables.
+## Root Shape
 
 ```json
 {
@@ -27,10 +18,111 @@ tables.
 }
 ```
 
-Projected tables and columns use implementation-facing `name` values only. The
-snapshot does not include logical store or field IDs.
+- `data-sketch/db-projection-snapshot`: snapshot format version.
+- `tables`: projected tables in the same order as `stores`.
 
-A check constraint uses this shape:
+## Projection Rules
+
+- Each store becomes one table.
+- Each field becomes one column.
+- Store and field `name` values become table and column names.
+- Field `type`, `nullable`, and `default` are preserved for database rendering.
+- Omitted defaults become `{ "kind": "omitted" }`.
+- Present defaults become `{ "kind": "value", "value": ... }`.
+- Primary keys, unique constraints, foreign keys, and indexes use projected
+  column names.
+- Foreign key references use projected table and column names.
+- Field `enum` values become named check constraints.
+
+## Table Shape
+
+```json
+{
+  "name": "orders",
+  "columns": [],
+  "uniqueConstraints": [],
+  "foreignKeys": [],
+  "indexes": [],
+  "checkConstraints": [],
+  "primaryKey": {
+    "name": "pk_orders",
+    "columns": ["id"]
+  }
+}
+```
+
+- `name`: projected table name.
+- `columns`: projected columns in field order.
+- `uniqueConstraints`: unique constraints in specification order.
+- `foreignKeys`: foreign keys in specification order.
+- `indexes`: indexes in specification order.
+- `checkConstraints`: enum-derived check constraints in field order.
+- `primaryKey`: omitted when the store has no primary key.
+
+## Column Shape
+
+```json
+{
+  "name": "status",
+  "type": {
+    "name": "varchar",
+    "length": 20
+  },
+  "nullable": false,
+  "default": {
+    "kind": "value",
+    "value": "active"
+  }
+}
+```
+
+`type` has the same shape as the source field type.
+
+## Constraint And Index Shapes
+
+Primary keys and unique constraints use the same shape:
+
+```json
+{
+  "name": "pk_cart_items",
+  "columns": ["cart_id", "product_id"]
+}
+```
+
+Foreign keys use projected local and referenced names:
+
+```json
+{
+  "name": "fk_orders_customer",
+  "columns": ["customer_id"],
+  "references": {
+    "table": "customers",
+    "columns": ["id"]
+  },
+  "onDelete": "restrict",
+  "onUpdate": "restrict"
+}
+```
+
+Indexes contain projected columns. Ordered index fields preserve `order`.
+
+```json
+{
+  "name": "ix_orders_customer_created_at",
+  "columns": [
+    {
+      "name": "customer_id"
+    },
+    {
+      "name": "created_at",
+      "order": "desc"
+    }
+  ]
+}
+```
+
+Enum-derived check constraints are named `ck_<table name>_<column name>` and use
+this shape:
 
 ```json
 {
@@ -42,7 +134,7 @@ A check constraint uses this shape:
 
 ## Example
 
-Input `online-shop-example.yaml`:
+Input:
 
 ```yaml
 data-sketch: 1.0.0-draft.0
@@ -50,127 +142,57 @@ data-sketch: 1.0.0-draft.0
 info:
   name: online-shop
 
-sources:
-  openapi: ./openapi.yaml
-
 stores:
   customer:
     name: customers
     reason: Persist customer information.
     trace:
       operations:
-        - createCustomer
         - getCustomer
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
-      publicId:
-        name: public_id
-        type:
-          name: char
-          length: 26
-        nullable: false
-        format: ulid
-        aliases:
-          - customer number
-          - customer code
-
-      name:
-        name: name
-        type:
-          name: varchar
-          length: 100
-        nullable: false
-        aliases:
-          - customer full name
-
     keys:
       primary:
         name: pk_customers
         fields:
           - id
 
-      unique:
-        - name: ux_customers_public_id
-          fields:
-            - publicId
-
   order:
     name: orders
-    reason: Order operations need to create, read, list, and cancel orders.
+    reason: Persist customer orders.
     trace:
       operations:
         - createOrder
-        - getOrderDetail
-        - cancelOrder
-        - listOrders
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
-      publicId:
-        name: public_id
-        type:
-          name: char
-          length: 26
-        nullable: false
-        format: ulid
-        aliases:
-          - order number
-
       customerId:
         name: customer_id
         type:
           name: integer
         nullable: false
-        aliases:
-          - buyer customer
-
       status:
         name: status
         type:
           name: varchar
           length: 20
         nullable: false
-        aliases:
-          - order state
-          - fulfillment status
+        default: created
         enum:
           - created
           - cancelled
-
-      createdAt:
-        name: created_at
-        type:
-          name: timestamp
-        nullable: false
-
-      updatedAt:
-        name: updated_at
-        type:
-          name: timestamp
-        nullable: false
-
     keys:
       primary:
         name: pk_orders
         fields:
           - id
-
-      unique:
-        - name: ux_orders_public_id
-          fields:
-            - publicId
-
       foreign:
         - name: fk_orders_customer
           fields:
@@ -181,21 +203,43 @@ stores:
               - id
           onDelete: restrict
           onUpdate: restrict
-
     indexes:
       - name: ix_orders_status
         fields:
           - status
-        reason: Used to search orders by status.
 
-      - name: ix_orders_customer_created_at
+  cartItem:
+    name: cart_items
+    reason: Persist products added to shopping carts.
+    trace:
+      operations:
+        - getCart
+    fields:
+      cartId:
+        name: cart_id
+        type:
+          name: integer
+        nullable: false
+      productId:
+        name: product_id
+        type:
+          name: integer
+        nullable: false
+      quantity:
+        name: quantity
+        type:
+          name: integer
+        nullable: false
+        default: 1
+    keys:
+      primary:
+        name: pk_cart_items
         fields:
-          - customerId
-          - createdAt
-        reason: Used to list orders for a customer.
+          - cartId
+          - productId
 ```
 
-Output `online-shop-example.db-projection-snapshot.json`:
+Output:
 
 ```json
 {
@@ -213,36 +257,9 @@ Output `online-shop-example.db-projection-snapshot.json`:
           "default": {
             "kind": "omitted"
           }
-        },
-        {
-          "name": "public_id",
-          "type": {
-            "name": "char",
-            "length": 26
-          },
-          "nullable": false,
-          "default": {
-            "kind": "omitted"
-          }
-        },
-        {
-          "name": "name",
-          "type": {
-            "name": "varchar",
-            "length": 100
-          },
-          "nullable": false,
-          "default": {
-            "kind": "omitted"
-          }
         }
       ],
-      "uniqueConstraints": [
-        {
-          "name": "ux_customers_public_id",
-          "columns": ["public_id"]
-        }
-      ],
+      "uniqueConstraints": [],
       "foreignKeys": [],
       "indexes": [],
       "checkConstraints": [],
@@ -258,17 +275,6 @@ Output `online-shop-example.db-projection-snapshot.json`:
           "name": "id",
           "type": {
             "name": "integer"
-          },
-          "nullable": false,
-          "default": {
-            "kind": "omitted"
-          }
-        },
-        {
-          "name": "public_id",
-          "type": {
-            "name": "char",
-            "length": 26
           },
           "nullable": false,
           "default": {
@@ -293,36 +299,12 @@ Output `online-shop-example.db-projection-snapshot.json`:
           },
           "nullable": false,
           "default": {
-            "kind": "omitted"
-          }
-        },
-        {
-          "name": "created_at",
-          "type": {
-            "name": "timestamp"
-          },
-          "nullable": false,
-          "default": {
-            "kind": "omitted"
-          }
-        },
-        {
-          "name": "updated_at",
-          "type": {
-            "name": "timestamp"
-          },
-          "nullable": false,
-          "default": {
-            "kind": "omitted"
+            "kind": "value",
+            "value": "created"
           }
         }
       ],
-      "uniqueConstraints": [
-        {
-          "name": "ux_orders_public_id",
-          "columns": ["public_id"]
-        }
-      ],
+      "uniqueConstraints": [],
       "foreignKeys": [
         {
           "name": "fk_orders_customer",
@@ -343,17 +325,6 @@ Output `online-shop-example.db-projection-snapshot.json`:
               "name": "status"
             }
           ]
-        },
-        {
-          "name": "ix_orders_customer_created_at",
-          "columns": [
-            {
-              "name": "customer_id"
-            },
-            {
-              "name": "created_at"
-            }
-          ]
         }
       ],
       "checkConstraints": [
@@ -366,6 +337,50 @@ Output `online-shop-example.db-projection-snapshot.json`:
       "primaryKey": {
         "name": "pk_orders",
         "columns": ["id"]
+      }
+    },
+    {
+      "name": "cart_items",
+      "columns": [
+        {
+          "name": "cart_id",
+          "type": {
+            "name": "integer"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "omitted"
+          }
+        },
+        {
+          "name": "product_id",
+          "type": {
+            "name": "integer"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "omitted"
+          }
+        },
+        {
+          "name": "quantity",
+          "type": {
+            "name": "integer"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "value",
+            "value": 1
+          }
+        }
+      ],
+      "uniqueConstraints": [],
+      "foreignKeys": [],
+      "indexes": [],
+      "checkConstraints": [],
+      "primaryKey": {
+        "name": "pk_cart_items",
+        "columns": ["cart_id", "product_id"]
       }
     }
   ]

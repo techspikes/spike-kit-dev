@@ -254,6 +254,8 @@ CREATE INDEX ix_orders_status ON orders (status);
 - When `<spec file>` is valid, the command parses it as a Specification,
   creates a db projection snapshot, renders a Markdown table specification with
   a SQL-92 DDL block, and writes it to the output file.
+- When a store has `tentative: true`, the command writes a warning before that
+  table section's column table.
 - When the output file already exists, the command overwrites it.
 - When reading, validation, projection, rendering, or writing fails, the command
   prints the error message to stderr.
@@ -279,6 +281,7 @@ Each table section includes:
 
 - Table name.
 - Store reason.
+- Warning message when the store has `tentative: true`.
 - Column table with `Column`, `Data Type`, `Nullable`, `Default`, `Format`, and
   `Description` columns.
 - Primary key section when present.
@@ -289,6 +292,14 @@ Each table section includes:
 
 The column table does not include check values. Check values are rendered only in
 the `Check Constraints` section.
+
+When a store has `tentative: true`, the table section includes this warning
+after the store reason and before the column table:
+
+```md
+> [!CAUTION]
+> This table is tentative and needs human review.
+```
 
 The DDL section includes one `sql` fence block after all table sections. The DDL
 uses SQL-92 compatible syntax:

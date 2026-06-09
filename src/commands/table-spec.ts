@@ -72,6 +72,15 @@ function renderMarkdownTableSpec(
     const fieldEntries = Object.entries(store.fields)
 
     lines.push('', `## ${table.name}`, '', store.reason)
+
+    if (store.tentative === true) {
+      lines.push(
+        '',
+        '> [!CAUTION]',
+        '> This table is tentative and needs human review.'
+      )
+    }
+
     lines.push(
       '',
       '| Column | Data Type | Nullable | Default | Format | Description |',

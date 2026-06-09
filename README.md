@@ -9,8 +9,8 @@ Valuable Data Specification v1 is a YAML or JSON format for describing data this
 currently considers valuable enough to keep, based on customer
 conversation and feedback. `reason` and `trace` make the document AI First by
 giving AI enough context to understand why the data exists. The
-`kysely-migration` and `table-spec` commands project the specification into implementation
-and documentation artifacts. See
+`table-spec` command projects the specification into database-focused
+documentation artifacts. See
 [docs/valuable-data-specification-v1.md](docs/valuable-data-specification-v1.md) for the full
 specification.
 
@@ -34,7 +34,6 @@ The CLI is installed as `shot`, named after the shot used when making espresso.
 
 ```sh
 shot spec-check <spec file>
-shot kysely-migration <file> --output <file>
 shot table-spec <file> --output <file>
 ```
 
@@ -42,12 +41,6 @@ After installation, run the CLI through npm:
 
 ```sh
 npx shot --help
-```
-
-The package also exposes a small library API for programmatic use:
-
-```ts
-import { check, kyselyMigration, tableSpec } from '@techspikes/spike-kit'
 ```
 
 ## Commands
@@ -58,37 +51,19 @@ import { check, kyselyMigration, tableSpec } from '@techspikes/spike-kit'
 npx shot spec-check path/to/data-sketch.yaml
 ```
 
-The command validates a Data Sketch and exits with
-status `0` when it is valid.
-
-### Generate a Kysely migration
-
-```sh
-npx shot kysely-migration path/to/data-sketch.yaml --output migrations/001_initial.ts
-```
-
-By default, the command generates an initial migration. To generate a diff
-migration, pass a previously generated migration that contains an embedded
-snapshot:
-
-```sh
-npx shot kysely-migration path/to/data-sketch.yaml \
-  --previous-migration migrations/001_initial.ts \
-  --output migrations/002_update.ts
-```
-
-Useful options:
-
-- `--types-output <file.d.ts>` writes a `Database` declaration file.
-- `--iso-prefix` prefixes the output file name with the current ISO timestamp.
-- `--include-tentative` explicitly includes stores marked with `tentative: true`.
-- `--dry-run` validates and renders without writing files.
+The command validates a Data Sketch. When `sources.openapi` is present, it also
+validates store trace operations against OpenAPI Operation Object `operationId`
+values.
 
 ### Generate Markdown table documentation
 
 ```sh
 npx shot table-spec path/to/data-sketch.yaml --output docs/tables.md
 ```
+
+The command writes Markdown table documentation and appends a SQL-92 compatible
+DDL block in a `sql` fence. The command projects the Data Sketch into a db
+projection snapshot before rendering Markdown.
 
 ## Data Sketch Example
 
@@ -134,25 +109,16 @@ stores:
 
 ```sh
 npm install
-npm run build
 npm run lint
 npm test
-npm run test:smoke
+npm run test:c8
 ```
-
-When working from this repository, run the built CLI with Node:
-
-```sh
-node dist/cli.mjs --help
-```
-
-`npm run build` updates `dist/cli.mjs`, `dist/index.mjs`, and
-`dist/index.d.ts`. Because this project distributes bundled files, include the
-affected `dist` files when source changes affect the CLI or library output.
 
 ## Documentation
 
 - [Valuable Data Specification v1](docs/valuable-data-specification-v1.md)
 - [`check` command specification](docs/check-command-spec.md)
-- [`kysely-migration` command specification](docs/shot-kysely-migration-command-spec.md)
-- [`table-spec` command specification](docs/shot-table-spec-command-spec.md)
+- [Db Projection Specification](docs/db-projection-spec.md)
+- [`table-spec` command specification](docs/table-spec-command-spec.md)
+- [Online shop example Data Sketch](docs/examples/online-shop-example.yaml)
+- [Online shop example table specification](docs/examples/online-shop-example.table-spec.md)

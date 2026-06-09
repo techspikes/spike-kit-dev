@@ -135,6 +135,36 @@ describe('table-spec command', () => {
     )
   })
 
+  it('Given a specification with a tentative store, When the command executes, Then it writes a warning before the column table', () => {
+    const outputPath = createTemporaryPath(
+      temporaryDirectory,
+      'online-shop-tentative-cart-items.md'
+    )
+    const options = parseArgs({
+      ...config,
+      args: [
+        'test/commands/table-spec/fixtures/online-shop-tentative-cart-items.valid.yaml',
+        '--output',
+        outputPath
+      ]
+    })
+
+    const result = runAndCaptureSync(() => {
+      execute(options)
+    })
+
+    assert.deepEqual(result.stdout, [])
+    assert.deepEqual(result.stderr, [])
+    assert.equal(
+      normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
+      utils
+        .readCwdRelativePathSync(
+          'test/commands/table-spec/fixtures/online-shop-tentative-cart-items.expected.md'
+        )
+        .toString('utf-8')
+    )
+  })
+
   it('Given the output file already exists, When the command executes, Then it overwrites the file', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'overwrite.md')
     writeFileSync(outputPath, 'old content')
