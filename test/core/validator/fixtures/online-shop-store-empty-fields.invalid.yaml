@@ -3,6 +3,9 @@ data-sketch: 1.0.0-draft.0
 info:
   name: online-shop
 
+sources:
+  openapi: ./openapi.yaml
+
 stores:
   customer:
     name: customers
@@ -10,6 +13,16 @@ stores:
     trace:
       operations:
         - createCustomer
+        - getCustomer
+    fields: {}
+
+  order:
+    name: orders
+    reason: Order operations need to create, read, list, and cancel orders.
+    trace:
+      operations:
+        - createOrder
+        - listOrders
     fields:
       id:
         name: id

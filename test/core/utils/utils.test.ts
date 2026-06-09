@@ -8,7 +8,7 @@ import utils, {
 describe('utils', () => {
   it('readCwdRelativePathSync reads a fixture file relative to the current working directory', () => {
     const content = readCwdRelativePathSync(
-      'test/core/utils/fixtures/online-shop-minimal.valid.yaml'
+      'test/core/utils/fixtures/online-shop-example.valid.yaml'
     ).toString('utf-8')
 
     assert.match(content, /data-sketch: 1\.0\.0-draft\.0/)

@@ -1,0 +1,67 @@
+data-sketch: 1.0.0-draft.0
+
+info:
+  name: online-shop
+
+sources:
+  openapi: ./openapi.yaml
+
+stores:
+  customer:
+    name: customers
+    reason: Persist customer information.
+    trace:
+      operations:
+        - createCustomer
+        - getCustomer
+    fields:
+      id:
+        name: id
+        type:
+          name: integer
+        nullable: false
+
+  order:
+    name: orders
+    reason: Order operations need to create, read, list, and cancel orders.
+    trace:
+      operations:
+        - createOrder
+        - listOrders
+    fields:
+      id:
+        name: id
+        type:
+          name: integer
+        nullable: false
+      customerId:
+        name: customer_id
+        type:
+          name: integer
+        nullable: false
+      createdAt:
+        name: created_at
+        type:
+          name: timestamp
+        nullable: false
+    keys:
+      primary:
+        name: pk_orders
+        fields:
+          - missingPrimaryId
+      unique:
+        - name: ux_orders_public_id
+          fields:
+            - missingPublicId
+      foreign:
+        - name: fk_orders_customer
+          fields:
+            - missingCustomerId
+          references:
+            store: customer
+            fields:
+              - id
+    indexes:
+      - name: ix_orders_status
+        fields:
+          - missingStatus

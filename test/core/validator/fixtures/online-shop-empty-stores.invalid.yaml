@@ -1,0 +1,9 @@
+data-sketch: 1.0.0-draft.0
+
+info:
+  name: online-shop
+
+sources:
+  openapi: ./openapi.yaml
+
+stores: {}
