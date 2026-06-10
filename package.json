@@ -8,8 +8,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && node scripts/esbuild.ts",
-    "lint": "biome check . && eslint . --flag unstable_native_nodejs_ts_config",
-    "lint:fix": "biome check --fix . && eslint . --fix --flag unstable_native_nodejs_ts_config",
+    "lint": "eslint . --flag unstable_native_nodejs_ts_config && biome check .",
+    "lint:fix": "eslint . --fix --flag unstable_native_nodejs_ts_config && biome check --fix .",
     "test": "tsc --noEmit && c8 --100 node --test  test/**/*.test.ts"
   },
   "bin": {
