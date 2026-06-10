@@ -7,41 +7,25 @@ describe('core validator', () => {
   it('parseSpecification accepts a valid YAML example specification', () => {
     const specification = parseSpecification(
       utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example.valid.yaml'
-        )
+        .readCwdRelativePathSync('test/core/validator/fixtures/online-shop-example.valid.yaml')
         .toString('utf-8')
     )
 
     assert.equal(specification.info.name, 'online-shop')
-    assert.equal(
-      specification.stores.customer.fields.publicId.type.name,
-      'char'
-    )
-    assert.equal(
-      specification.stores.order.keys?.foreign?.[0]?.references.store,
-      'customer'
-    )
+    assert.equal(specification.stores.customer.fields.publicId.type.name, 'char')
+    assert.equal(specification.stores.order.keys?.foreign?.[0]?.references.store, 'customer')
   })
 
   it('parseSpecification accepts a valid JSON example specification', () => {
     const specification = parseSpecification(
       utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example.valid.json'
-        )
+        .readCwdRelativePathSync('test/core/validator/fixtures/online-shop-example.valid.json')
         .toString('utf-8')
     )
 
     assert.equal(specification.info.name, 'online-shop')
-    assert.equal(
-      specification.stores.customer.fields.publicId.type.name,
-      'char'
-    )
-    assert.equal(
-      specification.stores.order.keys?.foreign?.[0]?.references.store,
-      'customer'
-    )
+    assert.equal(specification.stores.customer.fields.publicId.type.name, 'char')
+    assert.equal(specification.stores.order.keys?.foreign?.[0]?.references.store, 'customer')
   })
 
   it('parseSpecification accepts an ordered index field specification', () => {
@@ -91,8 +75,7 @@ describe('core validator', () => {
         .toString('utf-8'),
       {
         trace: true,
-        specPath:
-          'test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'
+        specPath: 'test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'
       }
     )
 
@@ -108,8 +91,7 @@ describe('core validator', () => {
         .toString('utf-8'),
       {
         trace: true,
-        specPath:
-          'test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'
+        specPath: 'test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'
       }
     )
 
@@ -144,8 +126,7 @@ describe('core validator', () => {
             .toString('utf-8'),
           {
             trace: true,
-            specPath:
-              'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
+            specPath: 'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
           }
         ),
       /Failed to read OpenAPI:/
@@ -261,10 +242,7 @@ describe('core validator', () => {
       }
     )
 
-    assert.equal(
-      specification.stores.customer.trace.operations[0],
-      'createCustomer'
-    )
+    assert.equal(specification.stores.customer.trace.operations[0], 'createCustomer')
   })
 
   it('parseSpecification rejects invalid YAML syntax', () => {
@@ -350,10 +328,8 @@ describe('core validator', () => {
       error => {
         assert.ok(error instanceof Error)
         assert.match(error.message, /store name customers is duplicated/)
-        assert.match(
-          error.message,
-          /field name in store customer id is duplicated/
-        )
+        assert.match(error.message, /field name in store customer id is duplicated/)
+
         return true
       }
     )
@@ -425,10 +401,8 @@ describe('core validator', () => {
           error.message,
           /keys\.foreign\.0\.fields references missing field missingCustomerId/
         )
-        assert.match(
-          error.message,
-          /indexes\.0\.fields references missing field missingStatus/
-        )
+        assert.match(error.message, /indexes\.0\.fields references missing field missingStatus/)
+
         return true
       }
     )
@@ -446,14 +420,9 @@ describe('core validator', () => {
         ),
       error => {
         assert.ok(error instanceof Error)
-        assert.match(
-          error.message,
-          /references\.store references missing store missingCustomer/
-        )
-        assert.match(
-          error.message,
-          /local and referenced field counts must match/
-        )
+        assert.match(error.message, /references\.store references missing store missingCustomer/)
+        assert.match(error.message, /local and referenced field counts must match/)
+
         return true
       }
     )

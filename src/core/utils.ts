@@ -18,9 +18,7 @@ export function readBaseRelativePathSync(basePath: string, path: string) {
     return readFileSync(path)
   }
 
-  const resolvedBasePath = statSync(basePath).isDirectory()
-    ? basePath
-    : dirname(basePath)
+  const resolvedBasePath = statSync(basePath).isDirectory() ? basePath : dirname(basePath)
 
   return readFileSync(join(resolvedBasePath, path))
 }

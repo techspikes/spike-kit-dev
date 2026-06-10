@@ -1,7 +1,7 @@
 import { chmod, rm } from 'node:fs/promises'
 import { build } from 'esbuild'
 
-await rm('dist', { recursive: true, force: true })
+await rm('bin', { recursive: true, force: true })
 
 await build({
   bundle: true,
@@ -10,10 +10,10 @@ await build({
   format: 'esm',
   minify: true,
   entryPoints: ['src/cli.ts'],
-  outfile: 'dist/cli.mjs',
+  outfile: 'bin/cli.mjs',
   banner: {
     js: '#!/usr/bin/env node'
   }
 })
 
-await chmod('dist/cli.mjs', 0o755)
+await chmod('bin/cli.mjs', 0o755)

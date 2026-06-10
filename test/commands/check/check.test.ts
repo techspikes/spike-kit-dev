@@ -52,9 +52,7 @@ describe('check command', () => {
   it('Given an invalid specification, When the command executes, Then it prints the validation error', () => {
     const options = parseArgs({
       ...config,
-      args: [
-        'test/commands/check/fixtures/online-shop-unsupported-field-type.invalid.yaml'
-      ]
+      args: ['test/commands/check/fixtures/online-shop-unsupported-field-type.invalid.yaml']
     })
 
     const result = runAndCaptureSync(() => {
@@ -62,18 +60,13 @@ describe('check command', () => {
     })
 
     assert.deepEqual(result.stdout, [])
-    assert.match(
-      result.stderr.join(''),
-      /stores\.customer\.fields\.id\.type\.name/
-    )
+    assert.match(result.stderr.join(''), /stores\.customer\.fields\.id\.type\.name/)
   })
 
   it('Given a specification with a missing traced operation, When the command executes, Then it prints the trace validation error', () => {
     const options = parseArgs({
       ...config,
-      args: [
-        'test/commands/check/fixtures/online-shop-missing-traced-operation.invalid.yaml'
-      ]
+      args: ['test/commands/check/fixtures/online-shop-missing-traced-operation.invalid.yaml']
     })
 
     const result = runAndCaptureSync(() => {

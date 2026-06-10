@@ -29,6 +29,7 @@ export async function runAndCapture(
         await targetFn()
       })
     }
+
     return targetFn()
   }
 
@@ -38,6 +39,7 @@ export async function runAndCapture(
         await executeWithStderr()
       })
     }
+
     return executeWithStderr()
   }
 
@@ -62,6 +64,7 @@ export function runAndCaptureSync(
         targetFn()
       })
     }
+
     return targetFn()
   }
 
@@ -71,6 +74,7 @@ export function runAndCaptureSync(
         executeWithStderr()
       })
     }
+
     return executeWithStderr()
   }
 
@@ -96,6 +100,7 @@ function createCapturedWrite(
 
     if (store) {
       store.push(chunk.toString())
+
       return true
     }
 
@@ -107,13 +112,5 @@ function createCapturedWrite(
   }
 }
 
-process.stdout.write = createCapturedWrite(
-  originalStdoutWrite,
-  process.stdout,
-  logStdout
-)
-process.stderr.write = createCapturedWrite(
-  originalStderrWrite,
-  process.stderr,
-  logStderr
-)
+process.stdout.write = createCapturedWrite(originalStdoutWrite, process.stdout, logStdout)
+process.stderr.write = createCapturedWrite(originalStderrWrite, process.stderr, logStderr)

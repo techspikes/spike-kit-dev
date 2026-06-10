@@ -11,6 +11,7 @@
       "**",
       "!node_modules",
       "!.tmp",
+      "!bin",
       "!dist",
       "!coverage",
       "!test/commands/kysely-migration/fixtures/expected/*.ts"
@@ -20,7 +21,7 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 80
+    "lineWidth": 100
   },
   "linter": {
     "enabled": true,

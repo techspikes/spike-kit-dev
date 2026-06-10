@@ -8,9 +8,7 @@ describe('core projector', () => {
   it('createDbProjectionSnapshot projects an online shop specification into a name-based db snapshot', () => {
     const specification = parseSpecification(
       utils
-        .readCwdRelativePathSync(
-          'test/core/projector/fixtures/online-shop-example.valid.yaml'
-        )
+        .readCwdRelativePathSync('test/core/projector/fixtures/online-shop-example.valid.yaml')
         .toString('utf-8')
     )
     const expected = JSON.parse(

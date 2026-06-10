@@ -74,11 +74,7 @@ export function renderMarkdownTableSpec(
     lines.push('', `## ${table.name}`, '', store.reason)
 
     if (store.tentative === true) {
-      lines.push(
-        '',
-        '> [!CAUTION]',
-        '> This table is tentative and needs human review.'
-      )
+      lines.push('', '> [!CAUTION]', '> This table is tentative and needs human review.')
     }
 
     lines.push(
@@ -115,13 +111,7 @@ export function renderMarkdownTableSpec(
     }
 
     if (table.uniqueConstraints.length > 0) {
-      lines.push(
-        '',
-        '### Unique Constraints',
-        '',
-        '| Constraint Name | Columns |',
-        '| --- | --- |'
-      )
+      lines.push('', '### Unique Constraints', '', '| Constraint Name | Columns |', '| --- | --- |')
 
       for (const uniqueConstraint of table.uniqueConstraints) {
         lines.push(
@@ -183,6 +173,7 @@ export function renderMarkdownTableSpec(
 
       for (const [indexIndex, index] of table.indexes.entries()) {
         const indexSpec = store.indexes?.[indexIndex]
+
         lines.push(
           `| ${escapeTableText(index.name)} | ${escapeTableText(
             index.columns.map(column => column.name).join(', ')
@@ -224,8 +215,5 @@ function formatDefault(column: DbProjectionColumn) {
 }
 
 function escapeTableText(value: string) {
-  return value
-    .replaceAll('\\', '\\\\')
-    .replaceAll('|', '\\|')
-    .replaceAll('_', '\\_')
+  return value.replaceAll('\\', '\\\\').replaceAll('|', '\\|').replaceAll('_', '\\_')
 }

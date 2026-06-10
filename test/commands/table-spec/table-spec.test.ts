@@ -23,10 +23,7 @@ describe('table-spec command', () => {
   })
 
   it('Given a valid YAML specification, When the command executes, Then it writes a Markdown table specification', () => {
-    const outputPath = createTemporaryPath(
-      temporaryDirectory,
-      'online-shop-example.md'
-    )
+    const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-example.md')
     const options = parseArgs({
       ...config,
       args: [
@@ -53,17 +50,10 @@ describe('table-spec command', () => {
   })
 
   it('Given a valid YAML specification and short output option, When the command executes, Then it writes a Markdown table specification', () => {
-    const outputPath = createTemporaryPath(
-      temporaryDirectory,
-      'online-shop-example-short.md'
-    )
+    const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-example-short.md')
     const options = parseArgs({
       ...config,
-      args: [
-        'test/commands/table-spec/fixtures/online-shop-example.valid.yaml',
-        '-o',
-        outputPath
-      ]
+      args: ['test/commands/table-spec/fixtures/online-shop-example.valid.yaml', '-o', outputPath]
     })
 
     const result = runAndCaptureSync(() => {
@@ -76,10 +66,7 @@ describe('table-spec command', () => {
   })
 
   it('Given a specification with priced products, When the command executes, Then it writes decimal types and defaults', () => {
-    const outputPath = createTemporaryPath(
-      temporaryDirectory,
-      'online-shop-priced-products.md'
-    )
+    const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-priced-products.md')
     const options = parseArgs({
       ...config,
       args: [
@@ -106,10 +93,7 @@ describe('table-spec command', () => {
   })
 
   it('Given a specification with cart items identified by a composite primary key, When the command executes, Then it writes the composite primary key', () => {
-    const outputPath = createTemporaryPath(
-      temporaryDirectory,
-      'online-shop-cart-items.md'
-    )
+    const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-cart-items.md')
     const options = parseArgs({
       ...config,
       args: [
@@ -167,6 +151,7 @@ describe('table-spec command', () => {
 
   it('Given the output file already exists, When the command executes, Then it overwrites the file', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'overwrite.md')
+
     writeFileSync(outputPath, 'old content')
     const options = parseArgs({
       ...config,
@@ -254,10 +239,7 @@ describe('table-spec command', () => {
     })
 
     assert.deepEqual(result.stdout, [])
-    assert.match(
-      result.stderr.join(''),
-      /stores\.customer\.fields\.id\.type\.name/
-    )
+    assert.match(result.stderr.join(''), /stores\.customer\.fields\.id\.type\.name/)
     assert.throws(() => readFileSync(outputPath, 'utf-8'), /ENOENT/)
   })
 })

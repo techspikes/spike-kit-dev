@@ -1,12 +1,6 @@
 import { parseArgs } from 'node:util'
-import {
-  config as checkConfig,
-  execute as executeCheck
-} from './commands/check.ts'
-import {
-  execute as executeTableSpec,
-  config as tableSpecConfig
-} from './commands/table-spec.ts'
+import { config as checkConfig, execute as executeCheck } from './commands/check.ts'
+import { execute as executeTableSpec, config as tableSpecConfig } from './commands/table-spec.ts'
 
 const usage = () =>
   [

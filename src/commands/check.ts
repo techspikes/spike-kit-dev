@@ -25,10 +25,10 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
     if (options.values.help || !options.positionals[0]) {
       console.log(usage())
     } else {
-      parseSpecification(
-        utils.readCwdRelativePathSync(options.positionals[0]).toString('utf-8'),
-        { trace: true, specPath: options.positionals[0] }
-      )
+      parseSpecification(utils.readCwdRelativePathSync(options.positionals[0]).toString('utf-8'), {
+        trace: true,
+        specPath: options.positionals[0]
+      })
       console.log('Specification is valid.')
     }
   } catch (error) {

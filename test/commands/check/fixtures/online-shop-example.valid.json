@@ -58,12 +58,7 @@
       "name": "orders",
       "reason": "Order operations need to create, read, list, and cancel orders.",
       "trace": {
-        "operations": [
-          "createOrder",
-          "getOrderDetail",
-          "cancelOrder",
-          "listOrders"
-        ]
+        "operations": ["createOrder", "getOrderDetail", "cancelOrder", "listOrders"]
       },
       "fields": {
         "id": {

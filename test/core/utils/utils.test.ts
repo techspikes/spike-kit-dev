@@ -17,21 +17,13 @@ import {
 describe('core utils', () => {
   it('resolveCwdRelativePath resolves a fixture path relative to the current working directory', () => {
     assert.equal(
-      resolveCwdRelativePath(
-        'test/core/utils/fixtures/online-shop-example.valid.yaml'
-      ),
-      join(
-        process.cwd(),
-        'test/core/utils/fixtures/online-shop-example.valid.yaml'
-      )
+      resolveCwdRelativePath('test/core/utils/fixtures/online-shop-example.valid.yaml'),
+      join(process.cwd(), 'test/core/utils/fixtures/online-shop-example.valid.yaml')
     )
   })
 
   it('resolveCwdRelativePath returns an absolute fixture path unchanged', () => {
-    const path = join(
-      process.cwd(),
-      'test/core/utils/fixtures/online-shop-example.valid.yaml'
-    )
+    const path = join(process.cwd(), 'test/core/utils/fixtures/online-shop-example.valid.yaml')
 
     assert.equal(resolveCwdRelativePath(path), path)
   })
@@ -52,10 +44,7 @@ describe('core utils', () => {
 
       writeCwdRelativePathSync(path, 'online shop output')
 
-      assert.equal(
-        readCwdRelativePathSync(path).toString('utf-8'),
-        'online shop output'
-      )
+      assert.equal(readCwdRelativePathSync(path).toString('utf-8'), 'online shop output')
     } finally {
       deleteTemporaryDirectory(directory)
     }
@@ -64,10 +53,7 @@ describe('core utils', () => {
   it('readBaseRelativePathSync reads an absolute fixture path', () => {
     const content = readBaseRelativePathSync(
       'unused-base-path',
-      join(
-        process.cwd(),
-        'test/core/utils/fixtures/online-shop-example.valid.yaml'
-      )
+      join(process.cwd(), 'test/core/utils/fixtures/online-shop-example.valid.yaml')
     ).toString('utf-8')
 
     assert.match(content, /data-sketch: 1\.0\.0-draft\.1/)
@@ -92,10 +78,7 @@ describe('core utils', () => {
   })
 
   it('extractErrorMessages returns an Error message', () => {
-    assert.equal(
-      extractErrorMessages(new Error('validation failed')),
-      'validation failed'
-    )
+    assert.equal(extractErrorMessages(new Error('validation failed')), 'validation failed')
   })
 
   it('extractErrorMessages returns a string unchanged', () => {
@@ -104,10 +87,7 @@ describe('core utils', () => {
 
   it('extractErrorMessages returns unknown error for unsupported values', () => {
     assert.equal(extractErrorMessages(null), 'unknown error')
-    assert.equal(
-      extractErrorMessages({ reason: 'not an error' }),
-      'unknown error'
-    )
+    assert.equal(extractErrorMessages({ reason: 'not an error' }), 'unknown error')
   })
 
   it('default export exposes the utility functions', () => {

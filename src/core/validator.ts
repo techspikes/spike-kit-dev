@@ -48,12 +48,8 @@ const foreignKeySchema = v.strictObject({
     store: nonEmptyString,
     fields: fieldReferenceList
   }),
-  onDelete: v.optional(
-    v.picklist(['restrict', 'cascade', 'setNull', 'setDefault', 'noAction'])
-  ),
-  onUpdate: v.optional(
-    v.picklist(['restrict', 'cascade', 'setNull', 'setDefault', 'noAction'])
-  )
+  onDelete: v.optional(v.picklist(['restrict', 'cascade', 'setNull', 'setDefault', 'noAction'])),
+  onUpdate: v.optional(v.picklist(['restrict', 'cascade', 'setNull', 'setDefault', 'noAction']))
 })
 
 const keysSchema = v.strictObject({
@@ -120,6 +116,7 @@ export function parseSpecification(
 
     if (result.success) {
       validateOpenApiTraceIfEnabled(result.output, options)
+
       return result.output
     } else {
       throw new Error(result.issues.join('\n'))
@@ -133,26 +130,18 @@ export function parseSpecification(
   }
 }
 
-function validateOpenApiTraceIfEnabled(
-  spec: Specification,
-  options?: ParseSpecificationOptions
-) {
+function validateOpenApiTraceIfEnabled(spec: Specification, options?: ParseSpecificationOptions) {
   if (!options?.trace || !spec.sources?.openapi) {
     return
   }
 
-  const operationIds = loadOpenApiOperationIds(
-    options.specPath,
-    spec.sources.openapi
-  )
+  const operationIds = loadOpenApiOperationIds(options.specPath, spec.sources.openapi)
 
   const issues = Object.values(spec.stores).flatMap(store =>
     store.trace.operations.flatMap(operationId =>
       operationIds.has(operationId)
         ? []
-        : [
-            `trace operation ${operationId} does not exist in OpenAPI operationId`
-          ]
+        : [`trace operation ${operationId} does not exist in OpenAPI operationId`]
     )
   )
 
@@ -161,16 +150,11 @@ function validateOpenApiTraceIfEnabled(
   }
 }
 
-function loadOpenApiOperationIds(
-  basePath: string,
-  openApiPath: string
-): Set<string> {
+function loadOpenApiOperationIds(basePath: string, openApiPath: string): Set<string> {
   let openApi: unknown
 
   try {
-    openApi = load(
-      utils.readBaseRelativePathSync(basePath, openApiPath).toString('utf-8')
-    )
+    openApi = load(utils.readBaseRelativePathSync(basePath, openApiPath).toString('utf-8'))
   } catch (error) {
     if (error instanceof YAMLException) {
       throw new Error(`Failed to parse OpenAPI: ${error.message}`)
@@ -191,16 +175,7 @@ function extractOpenApiOperationIds(openApi: unknown): Set<string> {
     throw new Error('OpenAPI paths must be an object')
   }
 
-  const methods = new Set([
-    'get',
-    'put',
-    'post',
-    'delete',
-    'options',
-    'head',
-    'patch',
-    'trace'
-  ])
+  const methods = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'])
 
   const operationIdValues = Object.values(openApi.paths)
     .filter(isRecord)
@@ -208,10 +183,7 @@ function extractOpenApiOperationIds(openApi: unknown): Set<string> {
       Object.entries(pathItem)
         .filter(isOpenApiOperationEntry(methods))
         .map(([, operation]) => operation.operationId)
-        .filter(
-          (operationId): operationId is string =>
-            typeof operationId === 'string'
-        )
+        .filter((operationId): operationId is string => typeof operationId === 'string')
     )
   const operationIds = new Set<string>()
 
@@ -231,10 +203,9 @@ function isRecord(input: unknown): input is Record<string, unknown> {
 }
 
 function isOpenApiOperationEntry(methods: Set<string>) {
-  return (
-    entry: [string, unknown]
-  ): entry is [string, Record<string, unknown>] => {
+  return (entry: [string, unknown]): entry is [string, Record<string, unknown>] => {
     const [method, operation] = entry
+
     return methods.has(method) && isRecord(operation)
   }
 }
@@ -307,11 +278,7 @@ function getStoreIssues(
   )
 
   for (const [fieldId, field] of fieldEntries) {
-    if (
-      !field.nullable &&
-      Object.hasOwn(field, 'default') &&
-      field.default === null
-    ) {
+    if (!field.nullable && Object.hasOwn(field, 'default') && field.default === null) {
       issues.push(
         `stores.${storeId}.fields.${fieldId} default cannot be null when nullable is false`
       )
@@ -340,19 +307,12 @@ function getStoreIssues(
     )
   }
 
-  for (const [foreignIndex, foreignKey] of (
-    store.keys?.foreign ?? []
-  ).entries()) {
+  for (const [foreignIndex, foreignKey] of (store.keys?.foreign ?? []).entries()) {
     const basePath = `stores.${storeId}.keys.foreign.${foreignIndex}`
     const referencedStore = spec.stores[foreignKey.references.store]
 
     issues.push(
-      ...getMissingFieldIssues(
-        storeId,
-        fieldIds,
-        foreignKey.fields,
-        `${basePath}.fields`
-      )
+      ...getMissingFieldIssues(storeId, fieldIds, foreignKey.fields, `${basePath}.fields`)
     )
 
     if (referencedStore) {
@@ -404,9 +364,7 @@ function getDuplicateIssues(
     const firstOwner = firstOwnerByValue.get(value)
 
     if (firstOwner) {
-      issues.push(
-        `${label} ${value} is duplicated by ${firstOwner} and ${owner}`
-      )
+      issues.push(`${label} ${value} is duplicated by ${firstOwner} and ${owner}`)
     } else {
       firstOwnerByValue.set(value, owner)
     }
@@ -422,15 +380,11 @@ function getMissingFieldIssues(
   path: string
 ): string[] {
   return references.flatMap(fieldId =>
-    fieldIds.has(fieldId)
-      ? []
-      : [`${path} references missing field ${fieldId} in store ${storeId}`]
+    fieldIds.has(fieldId) ? [] : [`${path} references missing field ${fieldId} in store ${storeId}`]
   )
 }
 
-function formatValibotIssue(
-  issue: v.InferIssue<typeof specificationSchema>
-): string {
+function formatValibotIssue(issue: v.InferIssue<typeof specificationSchema>): string {
   const path = issue.path?.map(item => String(item.key)).join('.')
 
   if (path) {

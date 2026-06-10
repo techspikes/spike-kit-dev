@@ -1,12 +1,7 @@
-import type {
-  DbProjectionColumn,
-  DbProjectionSnapshot
-} from '../core/projector.ts'
+import type { DbProjectionColumn, DbProjectionSnapshot } from '../core/projector.ts'
 
 export function renderSqlDdl(snapshot: DbProjectionSnapshot) {
-  const tableStatements = snapshot.tables.map(table =>
-    renderCreateTableSql(table).join('\n')
-  )
+  const tableStatements = snapshot.tables.map(table => renderCreateTableSql(table).join('\n'))
   const indexStatements = snapshot.tables.flatMap(table =>
     table.indexes.map(
       index =>
@@ -37,18 +32,12 @@ function renderCreateTableSql(table: DbProjectionSnapshot['tables'][number]) {
       : []),
     ...table.uniqueConstraints.map(
       uniqueConstraint =>
-        `  CONSTRAINT ${uniqueConstraint.name} UNIQUE (${uniqueConstraint.columns.join(
-          ', '
-        )})`
+        `  CONSTRAINT ${uniqueConstraint.name} UNIQUE (${uniqueConstraint.columns.join(', ')})`
     ),
     ...table.foreignKeys.map(foreignKey => {
       const actions = [
-        foreignKey.onDelete
-          ? ` ON DELETE ${formatReferentialActionSql(foreignKey.onDelete)}`
-          : '',
-        foreignKey.onUpdate
-          ? ` ON UPDATE ${formatReferentialActionSql(foreignKey.onUpdate)}`
-          : ''
+        foreignKey.onDelete ? ` ON DELETE ${formatReferentialActionSql(foreignKey.onDelete)}` : '',
+        foreignKey.onUpdate ? ` ON UPDATE ${formatReferentialActionSql(foreignKey.onUpdate)}` : ''
       ].join('')
 
       return `  CONSTRAINT ${foreignKey.name} FOREIGN KEY (${foreignKey.columns.join(
@@ -80,9 +69,7 @@ function formatColumnDefinitionSql(column: DbProjectionColumn) {
   return [
     column.name,
     formatTypeSql(column).toUpperCase(),
-    column.default.kind === 'value'
-      ? `DEFAULT ${formatDefaultValueSql(column.default.value)}`
-      : '',
+    column.default.kind === 'value' ? `DEFAULT ${formatDefaultValueSql(column.default.value)}` : '',
     column.nullable ? '' : 'NOT NULL'
   ]
     .filter(value => value !== '')

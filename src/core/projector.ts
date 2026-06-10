@@ -60,16 +60,12 @@ interface DbProjectionCheckConstraint {
   readonly values: readonly string[]
 }
 
-export function createDbProjectionSnapshot(
-  spec: Specification
-): DbProjectionSnapshot {
+export function createDbProjectionSnapshot(spec: Specification): DbProjectionSnapshot {
   return {
     'data-sketch/db-projection-snapshot': '1.0.0-draft.1',
     tables: Object.entries(spec.stores).map(([, store]) => {
       const fields = Object.entries(store.fields)
-      const fieldNameById = new Map(
-        fields.map(([fieldId, field]) => [fieldId, field.name])
-      )
+      const fieldNameById = new Map(fields.map(([fieldId, field]) => [fieldId, field.name]))
 
       return {
         name: store.name,
@@ -88,17 +84,12 @@ export function createDbProjectionSnapshot(
         foreignKeys: (store.keys?.foreign ?? []).map(foreignKey => {
           const referencedStore = spec.stores[foreignKey.references.store]
           const referencedFieldNameById = new Map(
-            Object.entries(referencedStore.fields).map(([fieldId, field]) => [
-              fieldId,
-              field.name
-            ])
+            Object.entries(referencedStore.fields).map(([fieldId, field]) => [fieldId, field.name])
           )
 
           return {
             name: foreignKey.name,
-            columns: foreignKey.fields.map(
-              fieldId => fieldNameById.get(fieldId)!
-            ),
+            columns: foreignKey.fields.map(fieldId => fieldNameById.get(fieldId)!),
             references: {
               table: referencedStore.name,
               columns: foreignKey.references.fields.map(
@@ -137,9 +128,7 @@ export function createDbProjectionSnapshot(
           ? {
               primaryKey: {
                 name: store.keys.primary.name,
-                columns: store.keys.primary.fields.map(
-                  fieldId => fieldNameById.get(fieldId)!
-                )
+                columns: store.keys.primary.fields.map(fieldId => fieldNameById.get(fieldId)!)
               }
             }
           : {})
