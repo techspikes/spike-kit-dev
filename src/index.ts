@@ -1,4 +1,4 @@
-export { renderMarkdownTableSpec } from './commands/table-spec.ts'
+export { renderMarkdownTablesDoc } from './commands/tables-doc.ts'
 export {
   createDbProjectionSnapshot,
   type DbProjectionColumn,

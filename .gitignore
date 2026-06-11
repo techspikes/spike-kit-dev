@@ -10,6 +10,7 @@ coverage/
 .claude
 .codex/
 AGENTS.md
+CLAUDE.md
 
 # Local workspace files
 .devcontainer/

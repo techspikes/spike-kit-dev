@@ -8,11 +8,11 @@ import {
 } from '../core/projector.ts'
 import utils from '../core/utils.ts'
 import { parseSpecification, type Specification } from '../core/validator.ts'
-import { renderSqlDdl } from './table-spec.ddl.ts'
+import { renderSqlDdl } from './tables-doc.ddl.ts'
 
 const usage = () =>
   [
-    'Usage: shot table-spec <spec file> --output <table spec file>',
+    'Usage: shot tables-doc <spec file> --output <table spec file>',
     '',
     'Validate a Data Sketch Specification v1 YAML or JSON file and write a Markdown table specification.',
     '',
@@ -41,7 +41,7 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
       const source = utils.readCwdRelativePathSync(specPath).toString('utf-8')
       const spec = parseSpecification(source)
       const snapshot = createDbProjectionSnapshot(spec)
-      const markdown = renderMarkdownTableSpec(spec, snapshot, specPath, source)
+      const markdown = renderMarkdownTablesDoc(spec, snapshot, specPath, source)
 
       utils.writeCwdRelativePathSync(outputPath, markdown)
     }
@@ -50,7 +50,7 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
   }
 }
 
-export function renderMarkdownTableSpec(
+export function renderMarkdownTablesDoc(
   spec: Specification,
   snapshot: DbProjectionSnapshot,
   specPath: string,

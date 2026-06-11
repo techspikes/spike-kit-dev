@@ -9,7 +9,7 @@ Data Sketch Specification v1 is a YAML or JSON format for describing data this s
 currently considers valuable enough to keep, based on customer
 conversation and feedback. `reason` and `trace` make the document AI First by
 giving AI enough context to understand why the data exists. The
-`table-spec` command projects the specification into database-focused
+`tables-doc` command projects the specification into database-focused
 documentation artifacts. See
 [docs/data-sketch-specification-v1.md](docs/data-sketch-specification-v1.md) for the full
 specification.
@@ -34,7 +34,7 @@ The CLI is installed as `shot`, named after the shot used when making espresso.
 
 ```sh
 shot spec-check <spec file>
-shot table-spec <file> --output <file>
+shot tables-doc <file> --output <file>
 ```
 
 After installation, run the CLI through npm:
@@ -58,7 +58,7 @@ values.
 ### Generate Markdown table documentation
 
 ```sh
-npx shot table-spec path/to/data-sketch.yaml --output docs/tables.md
+npx shot tables-doc path/to/data-sketch.yaml --output docs/tables.md
 ```
 
 The command writes Markdown table documentation and appends a SQL-92 compatible
@@ -118,6 +118,6 @@ npm test
 - [Data Sketch Specification v1](docs/data-sketch-specification-v1.md)
 - [`check` command specification](docs/check-command-specification.md)
 - [Db Projection Specification](docs/db-projection-specification.md)
-- [`table-spec` command specification](docs/table-spec-command-specification.md)
+- [`tables-doc` command specification](docs/tables-doc-command-specification.md)
 - [Online shop example Data Sketch](docs/examples/online-shop-example.yaml)
-- [Online shop example table specification](docs/examples/online-shop-example.table-spec.md)
+- [Online shop example table specification](docs/examples/online-shop-example.tables-doc.md)

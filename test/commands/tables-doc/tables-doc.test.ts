@@ -2,7 +2,7 @@ import assert from 'node:assert'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { after, before, describe, it } from 'node:test'
 import { parseArgs } from 'node:util'
-import { config, execute } from '../../../src/commands/table-spec.ts'
+import { config, execute } from '../../../src/commands/tables-doc.ts'
 import utils from '../../../src/core/utils.ts'
 import { runAndCaptureSync } from '../../test-helper/logger.ts'
 import {
@@ -11,11 +11,11 @@ import {
   deleteTemporaryDirectory
 } from '../../test-helper/output.ts'
 
-describe('table-spec command', () => {
+describe('tables-doc command', () => {
   let temporaryDirectory = ''
 
   before(() => {
-    temporaryDirectory = createTemporaryDirectory('table-spec-command-')
+    temporaryDirectory = createTemporaryDirectory('tables-doc-command-')
   })
 
   after(() => {
@@ -27,7 +27,7 @@ describe('table-spec command', () => {
     const options = parseArgs({
       ...config,
       args: [
-        'test/commands/table-spec/fixtures/online-shop-example.valid.yaml',
+        'test/commands/tables-doc/fixtures/online-shop-example.valid.yaml',
         '--output',
         outputPath
       ]
@@ -43,7 +43,7 @@ describe('table-spec command', () => {
       normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
       utils
         .readCwdRelativePathSync(
-          'test/commands/table-spec/fixtures/online-shop-example.expected.md'
+          'test/commands/tables-doc/fixtures/online-shop-example.expected.md'
         )
         .toString('utf-8')
     )
@@ -53,7 +53,7 @@ describe('table-spec command', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-example-short.md')
     const options = parseArgs({
       ...config,
-      args: ['test/commands/table-spec/fixtures/online-shop-example.valid.yaml', '-o', outputPath]
+      args: ['test/commands/tables-doc/fixtures/online-shop-example.valid.yaml', '-o', outputPath]
     })
 
     const result = runAndCaptureSync(() => {
@@ -70,7 +70,7 @@ describe('table-spec command', () => {
     const options = parseArgs({
       ...config,
       args: [
-        'test/commands/table-spec/fixtures/online-shop-priced-products.valid.yaml',
+        'test/commands/tables-doc/fixtures/online-shop-priced-products.valid.yaml',
         '--output',
         outputPath
       ]
@@ -86,7 +86,7 @@ describe('table-spec command', () => {
       normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
       utils
         .readCwdRelativePathSync(
-          'test/commands/table-spec/fixtures/online-shop-priced-products.expected.md'
+          'test/commands/tables-doc/fixtures/online-shop-priced-products.expected.md'
         )
         .toString('utf-8')
     )
@@ -97,7 +97,7 @@ describe('table-spec command', () => {
     const options = parseArgs({
       ...config,
       args: [
-        'test/commands/table-spec/fixtures/online-shop-cart-items.valid.yaml',
+        'test/commands/tables-doc/fixtures/online-shop-cart-items.valid.yaml',
         '--output',
         outputPath
       ]
@@ -113,7 +113,7 @@ describe('table-spec command', () => {
       normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
       utils
         .readCwdRelativePathSync(
-          'test/commands/table-spec/fixtures/online-shop-cart-items.expected.md'
+          'test/commands/tables-doc/fixtures/online-shop-cart-items.expected.md'
         )
         .toString('utf-8')
     )
@@ -127,7 +127,7 @@ describe('table-spec command', () => {
     const options = parseArgs({
       ...config,
       args: [
-        'test/commands/table-spec/fixtures/online-shop-tentative-cart-items.valid.yaml',
+        'test/commands/tables-doc/fixtures/online-shop-tentative-cart-items.valid.yaml',
         '--output',
         outputPath
       ]
@@ -143,7 +143,7 @@ describe('table-spec command', () => {
       normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
       utils
         .readCwdRelativePathSync(
-          'test/commands/table-spec/fixtures/online-shop-tentative-cart-items.expected.md'
+          'test/commands/tables-doc/fixtures/online-shop-tentative-cart-items.expected.md'
         )
         .toString('utf-8')
     )
@@ -156,7 +156,7 @@ describe('table-spec command', () => {
     const options = parseArgs({
       ...config,
       args: [
-        'test/commands/table-spec/fixtures/online-shop-example.valid.yaml',
+        'test/commands/tables-doc/fixtures/online-shop-example.valid.yaml',
         '--output',
         outputPath
       ]
@@ -183,7 +183,7 @@ describe('table-spec command', () => {
 
     assert.match(
       result.stdout.join(''),
-      /Usage: shot table-spec <spec file> --output <table spec file>/
+      /Usage: shot tables-doc <spec file> --output <table spec file>/
     )
     assert.match(result.stdout.join(''), /-o, --output/)
     assert.deepEqual(result.stderr, [])
@@ -201,7 +201,7 @@ describe('table-spec command', () => {
 
     assert.match(
       result.stdout.join(''),
-      /Usage: shot table-spec <spec file> --output <table spec file>/
+      /Usage: shot tables-doc <spec file> --output <table spec file>/
     )
     assert.deepEqual(result.stderr, [])
   })
@@ -209,7 +209,7 @@ describe('table-spec command', () => {
   it('Given no output is provided, When the command executes, Then it prints usage', () => {
     const options = parseArgs({
       ...config,
-      args: ['test/commands/table-spec/fixtures/online-shop-example.valid.yaml']
+      args: ['test/commands/tables-doc/fixtures/online-shop-example.valid.yaml']
     })
 
     const result = runAndCaptureSync(() => {
@@ -218,7 +218,7 @@ describe('table-spec command', () => {
 
     assert.match(
       result.stdout.join(''),
-      /Usage: shot table-spec <spec file> --output <table spec file>/
+      /Usage: shot tables-doc <spec file> --output <table spec file>/
     )
     assert.deepEqual(result.stderr, [])
   })
@@ -228,7 +228,7 @@ describe('table-spec command', () => {
     const options = parseArgs({
       ...config,
       args: [
-        'test/commands/table-spec/fixtures/online-shop-unsupported-field-type.invalid.yaml',
+        'test/commands/tables-doc/fixtures/online-shop-unsupported-field-type.invalid.yaml',
         '--output',
         outputPath
       ]

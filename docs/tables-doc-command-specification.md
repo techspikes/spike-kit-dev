@@ -1,16 +1,16 @@
-# Table Spec Command Specification
+# Tables Doc Command Specification
 
 ## Purpose
 
-`shot table-spec <spec file> --output <table spec file>` validates a Data Sketch
+`shot tables-doc <spec file> --output <table spec file>` validates a Data Sketch
 Specification v1 YAML or JSON file and writes a Markdown table
 specification.
 
 ## Usage
 
 ```sh
-shot table-spec <spec file> --output <table spec file>
-shot table-spec <spec file> -o <table spec file>
+shot tables-doc <spec file> --output <table spec file>
+shot tables-doc <spec file> -o <table spec file>
 ```
 
 ## Example
@@ -18,7 +18,7 @@ shot table-spec <spec file> -o <table spec file>
 Command:
 
 ```sh
-shot table-spec online-shop-example.yaml --output online-shop-example.table-spec.md
+shot tables-doc online-shop-example.yaml --output online-shop-example.tables-doc.md
 ```
 
 Input `online-shop-example.yaml`:
@@ -140,7 +140,7 @@ stores:
         reason: Used to search orders by status.
 ```
 
-Output `online-shop-example.table-spec.md`:
+Output `online-shop-example.tables-doc.md`:
 
 ````md
 ---
