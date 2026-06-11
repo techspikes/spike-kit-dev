@@ -55,10 +55,10 @@ sources:
 stores:
   storeLogicalId:
     name: implementation_store_name
+    reason: The business context that makes this store's data worth persisting.
     traces:
       operations:
         - someOperationId
-    reason: The business context that makes this store's data worth persisting.
     fields:
       fieldLogicalId:
         name: implementation_field_name
@@ -126,11 +126,11 @@ Rules:
 stores:
   order:
     name: orders
+    reason: Customers need to view their order details right after placing an order.
     traces:
       operations:
         - createOrder
         - getOrderDetail
-    reason: Customers need to view their order details right after placing an order.
     fields:
       id:
         name: id
@@ -143,8 +143,8 @@ stores:
 |---|---:|---|
 | `name` | yes | Implementation-facing store name. |
 | `tentative` | no | Whether this store is tentative and needs human review. Defaults to false. |
-| `traces` | yes | OpenAPI operation trace metadata. |
 | `reason` | yes | The business context that makes this store's data worth persisting. |
+| `traces` | yes | OpenAPI operation trace metadata. |
 | `fields` | yes | Map of logical field IDs to field definitions. |
 | `keys` | no | Data integrity key definitions. |
 | `indexes` | no | Lookup or access-path intent definitions. |
@@ -199,9 +199,9 @@ Rules:
 fields:
   status:
     name: status
+    reason: Customers and support staff need to know and filter by an order's current lifecycle state.
     aliases:
       - order status
-    reason: Customers and support staff need to know and filter by an order's current lifecycle state.
     type:
       name: varchar
       length: 20
@@ -214,8 +214,8 @@ fields:
 | Field | Required | Description |
 |---|---:|---|
 | `name` | yes | Implementation-facing field name. |
-| `aliases` | no | Business-facing names or other aliases for the field. |
 | `reason` | no | The business context that makes this field's data worth persisting. |
+| `aliases` | no | Business-facing names or other aliases for the field. |
 | `type` | yes | Field type definition. |
 | `format` | no | Optional semantic hint such as `ulid`, `uuid`, or `email`. |
 | `nullable` | yes | Whether the field may be null. |
@@ -584,31 +584,28 @@ sources:
 stores:
   customer:
     name: customers
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     traces:
       operations:
         - createCustomer
         - getCustomer
-    reason: Customer profiles need to be looked up when handling orders and support requests.
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
       publicId:
         name: public_id
+        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
         aliases:
           - customer number
           - customer code
-        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
         type:
           name: char
           length: 26
         format: ulid
         nullable: false
-
       name:
         name: name
         aliases:
@@ -617,35 +614,30 @@ stores:
           name: varchar
           length: 100
         nullable: false
-
     keys:
       primary:
         name: pk_customers
         fields:
           - id
-
       unique:
         - name: ux_customers_public_id
           fields:
             - publicId
-
   order:
     name: orders
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
     traces:
       operations:
         - createOrder
         - getOrderDetail
         - cancelOrder
         - listOrders
-    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
       publicId:
         name: public_id
         aliases:
@@ -655,7 +647,6 @@ stores:
           length: 26
         format: ulid
         nullable: false
-
       customerId:
         name: customer_id
         aliases:
@@ -663,7 +654,6 @@ stores:
         type:
           name: integer
         nullable: false
-
       status:
         name: status
         aliases:
@@ -676,30 +666,25 @@ stores:
         enum:
           - created
           - cancelled
-
       createdAt:
         name: created_at
         type:
           name: timestamp
         nullable: false
-
       updatedAt:
         name: updated_at
         type:
           name: timestamp
         nullable: false
-
     keys:
       primary:
         name: pk_orders
         fields:
           - id
-
       unique:
         - name: ux_orders_public_id
           fields:
             - publicId
-
       foreign:
         - name: fk_orders_customer
           fields:
@@ -710,13 +695,11 @@ stores:
               - id
           onDelete: restrict
           onUpdate: restrict
-
     indexes:
       - name: ix_orders_status
         fields:
           - status
         reason: Used to search orders by status.
-
       - name: ix_orders_customer_created_at
         fields:
           - customerId

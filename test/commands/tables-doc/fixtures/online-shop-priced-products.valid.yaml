@@ -6,11 +6,10 @@ info:
 stores:
   priceNote:
     name: price_notes
+    reason: Product managers keep pricing notes before publishing products.
     traces:
       operations:
         - listProducts
-    reason: Product managers keep pricing notes before publishing products.
-
     fields:
       note:
         name: note
@@ -19,54 +18,46 @@ stores:
           length: 100
         nullable: false
         default: draft
-
   category:
     name: categories
+    reason: Customers need to browse the product catalog by category.
     traces:
       operations:
         - listProducts
-    reason: Customers need to browse the product catalog by category.
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
       name:
         name: name
         type:
           name: varchar
           length: 100
         nullable: false
-
     keys:
       primary:
         name: pk_categories
         fields:
           - id
-
   product:
     name: products
+    reason: Product catalog needs prices for online checkout.
     traces:
       operations:
         - listProducts
-    reason: Product catalog needs prices for online checkout.
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
       categoryId:
         name: category_id
         type:
           name: integer
         nullable: false
-
       price:
         name: price
         aliases:
@@ -77,7 +68,6 @@ stores:
           scale: 2
         nullable: false
         default: 0
-
       taxRate:
         name: tax_rate
         aliases:
@@ -87,7 +77,6 @@ stores:
           precision: 5
         nullable: false
         default: 8
-
       status:
         name: status
         aliases:
@@ -97,7 +86,6 @@ stores:
           length: 20
         nullable: false
         default: available
-
       featured:
         name: featured
         aliases:
@@ -106,7 +94,6 @@ stores:
           name: boolean
         nullable: false
         default: true
-
       discontinued:
         name: discontinued
         aliases:
@@ -115,7 +102,6 @@ stores:
           name: boolean
         nullable: false
         default: false
-
       saleEndsAt:
         name: sale_ends_at
         aliases:
@@ -124,13 +110,11 @@ stores:
           name: timestamp
         nullable: true
         default: null
-
     keys:
       primary:
         name: pk_products
         fields:
           - id
-
       foreign:
         - name: fk_products_category
           fields:
@@ -139,7 +123,6 @@ stores:
             store: category
             fields:
               - id
-
     indexes:
       - name: ix_products_price
         fields:

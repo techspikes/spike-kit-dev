@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,4 +12,12 @@ export function deleteTemporaryDirectory(path: string) {
 
 export function createTemporaryPath(directory: string, fileName: string) {
   return join(directory, fileName)
+}
+
+export function readTextFile(path: string) {
+  return readFileSync(path, 'utf-8')
+}
+
+export function writeTextFile(path: string, text: string) {
+  writeFileSync(path, text)
 }

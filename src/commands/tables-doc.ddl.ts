@@ -2,6 +2,7 @@ import type { DbProjectionColumn, DbProjectionSnapshot } from '../core/projector
 
 export function renderSqlDdl(snapshot: DbProjectionSnapshot) {
   const tableStatements = snapshot.tables.map(table => renderCreateTableSql(table).join('\n'))
+
   const indexStatements = snapshot.tables.flatMap(table =>
     table.indexes.map(
       index =>
@@ -10,6 +11,7 @@ export function renderSqlDdl(snapshot: DbProjectionSnapshot) {
           .join(', ')});`
     )
   )
+
   const statements = [
     ...tableStatements,
     ...(indexStatements.length > 0 ? [indexStatements.join('\n')] : [])

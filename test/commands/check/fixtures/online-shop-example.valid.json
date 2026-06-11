@@ -9,10 +9,10 @@
   "stores": {
     "customer": {
       "name": "customers",
+      "reason": "Customer profiles need to be looked up when handling orders and support requests.",
       "traces": {
         "operations": ["createCustomer", "getCustomer"]
       },
-      "reason": "Customer profiles need to be looked up when handling orders and support requests.",
       "fields": {
         "id": {
           "name": "id",
@@ -23,8 +23,8 @@
         },
         "publicId": {
           "name": "public_id",
-          "aliases": ["customer number", "customer code"],
           "reason": "Customers need a stable public identifier that doesn't reveal the internal sequential id.",
+          "aliases": ["customer number", "customer code"],
           "type": {
             "name": "char",
             "length": 26
@@ -57,10 +57,10 @@
     },
     "order": {
       "name": "orders",
+      "reason": "Customers need to view their order history and cancel orders that haven't shipped yet.",
       "traces": {
         "operations": ["createOrder", "getOrderDetail", "cancelOrder", "listOrders"]
       },
-      "reason": "Customers need to view their order history and cancel orders that haven't shipped yet.",
       "fields": {
         "id": {
           "name": "id",

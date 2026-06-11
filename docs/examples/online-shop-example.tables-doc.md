@@ -1,6 +1,6 @@
 ---
 source: online-shop-example.yaml
-source_sha256: <sha256>
+sha256: <sha256>
 generated_at: <generated-at>
 ---
 

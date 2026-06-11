@@ -8,125 +8,125 @@ sources:
 
 stores:
   customer:
-    name: customers
-    reason: Customer profiles need to be looked up when handling orders and support requests.
+    fields:
+      id:
+        type:
+          name: integer
+        nullable: false
+        name: id
+      publicId:
+        aliases:
+          - customer number
+          - customer code
+        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
+        type:
+          length: 26
+          name: char
+        format: ulid
+        nullable: false
+        name: public_id
+      name:
+        aliases:
+          - customer full name
+        type:
+          length: 100
+          name: varchar
+        nullable: false
+        name: name
     traces:
       operations:
         - createCustomer
         - getCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
+    name: customers
+    keys:
+      primary:
+        fields:
+          - id
+        name: pk_customers
+      unique:
+        - fields:
+            - publicId
+          name: ux_customers_public_id
+  order:
     fields:
       id:
-        name: id
         type:
           name: integer
         nullable: false
+        name: id
       publicId:
-        name: public_id
-        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
         aliases:
-          - customer number
-          - customer code
+          - order number
         type:
-          name: char
           length: 26
+          name: char
         format: ulid
         nullable: false
-      name:
-        name: name
+        name: public_id
+      customerId:
         aliases:
-          - customer full name
+          - buyer customer
         type:
-          name: varchar
-          length: 100
+          name: integer
         nullable: false
-    keys:
-      primary:
-        name: pk_customers
-        fields:
-          - id
-      unique:
-        - name: ux_customers_public_id
-          fields:
-            - publicId
-  order:
-    name: orders
-    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
+        name: customer_id
+      status:
+        aliases:
+          - order state
+          - fulfillment status
+        type:
+          length: 20
+          name: varchar
+        enum:
+          - created
+          - cancelled
+        nullable: false
+        name: status
+      createdAt:
+        type:
+          name: timestamp
+        nullable: false
+        name: created_at
+      updatedAt:
+        type:
+          name: timestamp
+        nullable: false
+        name: updated_at
     traces:
       operations:
         - createOrder
         - getOrderDetail
         - cancelOrder
         - listOrders
-    fields:
-      id:
-        name: id
-        type:
-          name: integer
-        nullable: false
-      publicId:
-        name: public_id
-        aliases:
-          - order number
-        type:
-          name: char
-          length: 26
-        format: ulid
-        nullable: false
-      customerId:
-        name: customer_id
-        aliases:
-          - buyer customer
-        type:
-          name: integer
-        nullable: false
-      status:
-        name: status
-        aliases:
-          - order state
-          - fulfillment status
-        type:
-          name: varchar
-          length: 20
-        nullable: false
-        enum:
-          - created
-          - cancelled
-      createdAt:
-        name: created_at
-        type:
-          name: timestamp
-        nullable: false
-      updatedAt:
-        name: updated_at
-        type:
-          name: timestamp
-        nullable: false
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
+    name: orders
     keys:
       primary:
-        name: pk_orders
         fields:
           - id
+        name: pk_orders
       unique:
-        - name: ux_orders_public_id
-          fields:
+        - fields:
             - publicId
+          name: ux_orders_public_id
       foreign:
-        - name: fk_orders_customer
-          fields:
+        - fields:
             - customerId
           references:
-            store: customer
             fields:
               - id
+            store: customer
           onDelete: restrict
           onUpdate: restrict
+          name: fk_orders_customer
     indexes:
-      - name: ix_orders_status
-        fields:
+      - fields:
           - status
         reason: Used to search orders by status.
-      - name: ix_orders_customer_created_at
-        fields:
+        name: ix_orders_status
+      - fields:
           - customerId
           - createdAt
         reason: Used to list orders for a customer.
+        name: ix_orders_customer_created_at

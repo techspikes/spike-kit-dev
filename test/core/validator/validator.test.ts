@@ -1,14 +1,12 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
-import * as utils from '../../../src/core/utils.ts'
 import { parseSpecification } from '../../../src/core/validator.ts'
+import { readTextFile } from '../../test-helper/output.ts'
 
 describe('core validator', () => {
   it('parseSpecification accepts a valid YAML example specification', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync('test/core/validator/fixtures/online-shop-example.valid.yaml')
-        .toString('utf-8')
+      readTextFile('test/core/validator/fixtures/online-shop-example.valid.yaml')
     )
 
     assert.equal(specification.info.name, 'online-shop')
@@ -22,9 +20,7 @@ describe('core validator', () => {
 
   it('parseSpecification accepts a valid JSON example specification', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync('test/core/validator/fixtures/online-shop-example.valid.json')
-        .toString('utf-8')
+      readTextFile('test/core/validator/fixtures/online-shop-example.valid.json')
     )
 
     assert.equal(specification.info.name, 'online-shop')
@@ -34,12 +30,9 @@ describe('core validator', () => {
 
   it('parseSpecification accepts an ordered index field specification', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example-index-sort-order.valid.yaml'
-        )
-        .toString('utf-8')
+      readTextFile('test/core/validator/fixtures/online-shop-example-index-sort-order.valid.yaml')
     )
+
     const indexField = specification.stores.order.indexes?.[1]?.fields[0]
 
     assert.deepEqual(indexField, { field: 'createdAt', order: 'desc' })
@@ -47,11 +40,7 @@ describe('core validator', () => {
 
   it('parseSpecification does not validate OpenAPI trace by default', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
-        )
-        .toString('utf-8')
+      readTextFile('test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml')
     )
 
     assert.equal(specification.sources?.openapi, './openapi/missing.yaml')
@@ -59,11 +48,7 @@ describe('core validator', () => {
 
   it('parseSpecification does not validate OpenAPI trace when trace is false', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
-        )
-        .toString('utf-8'),
+      readTextFile('test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'),
       { trace: false }
     )
 
@@ -72,11 +57,7 @@ describe('core validator', () => {
 
   it('parseSpecification accepts trace true when sources.openapi is omitted', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'
-        )
-        .toString('utf-8'),
+      readTextFile('test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'),
       {
         trace: true,
         specPath: 'test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'
@@ -88,11 +69,7 @@ describe('core validator', () => {
 
   it('parseSpecification validates traced operations against sources.openapi', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'
-        )
-        .toString('utf-8'),
+      readTextFile('test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'),
       {
         trace: true,
         specPath: 'test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'
@@ -104,11 +81,9 @@ describe('core validator', () => {
 
   it('parseSpecification validates traced operations against an absolute sources.openapi', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example-trace-absolute-openapi.valid.yaml'
-        )
-        .toString('utf-8'),
+      readTextFile(
+        'test/core/validator/fixtures/online-shop-example-trace-absolute-openapi.valid.yaml'
+      ),
       {
         trace: true,
         specPath:
@@ -123,11 +98,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
-            )
-            .toString('utf-8'),
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
+          ),
           {
             trace: true,
             specPath: 'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
@@ -141,11 +114,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-example-trace-missing-operation.invalid.yaml'
-            )
-            .toString('utf-8'),
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-example-trace-missing-operation.invalid.yaml'
+          ),
           {
             trace: true,
             specPath:
@@ -160,11 +131,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-example-trace-duplicate-operation.invalid.yaml'
-            )
-            .toString('utf-8'),
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-example-trace-duplicate-operation.invalid.yaml'
+          ),
           {
             trace: true,
             specPath:
@@ -179,11 +148,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-example-trace-invalid-openapi.invalid.yaml'
-            )
-            .toString('utf-8'),
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-example-trace-invalid-openapi.invalid.yaml'
+          ),
           {
             trace: true,
             specPath:
@@ -198,11 +165,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-example-trace-root-null-openapi.invalid.yaml'
-            )
-            .toString('utf-8'),
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-example-trace-root-null-openapi.invalid.yaml'
+          ),
           {
             trace: true,
             specPath:
@@ -217,11 +182,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-example-trace-missing-paths.invalid.yaml'
-            )
-            .toString('utf-8'),
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-example-trace-missing-paths.invalid.yaml'
+          ),
           {
             trace: true,
             specPath:
@@ -234,11 +197,9 @@ describe('core validator', () => {
 
   it('parseSpecification ignores non-operation OpenAPI members while collecting operationIds', () => {
     const specification = parseSpecification(
-      utils
-        .readCwdRelativePathSync(
-          'test/core/validator/fixtures/online-shop-example-trace-ignored-openapi-members.valid.yaml'
-        )
-        .toString('utf-8'),
+      readTextFile(
+        'test/core/validator/fixtures/online-shop-example-trace-ignored-openapi-members.valid.yaml'
+      ),
       {
         trace: true,
         specPath:
@@ -253,11 +214,7 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-invalid-syntax.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile('test/core/validator/fixtures/online-shop-invalid-syntax.invalid.yaml')
         ),
       /Failed to parse:/
     )
@@ -267,11 +224,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-field-unsupported-type.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-field-unsupported-type.invalid.yaml'
+          )
         ),
       /stores\.customer\.fields\.id\.type\.name/
     )
@@ -281,11 +236,7 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-root-null.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile('test/core/validator/fixtures/online-shop-root-null.invalid.yaml')
         ),
       /Invalid type: Expected Object but received null/
     )
@@ -295,11 +246,7 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-empty-stores.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile('test/core/validator/fixtures/online-shop-empty-stores.invalid.yaml')
         ),
       /stores must contain at least one store/
     )
@@ -309,11 +256,7 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-store-empty-fields.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile('test/core/validator/fixtures/online-shop-store-empty-fields.invalid.yaml')
         ),
       /stores\.customer\.fields must contain at least one field/
     )
@@ -323,11 +266,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-duplicate-store-and-field-names.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-duplicate-store-and-field-names.invalid.yaml'
+          )
         ),
       error => {
         assert.ok(error instanceof Error)
@@ -343,11 +284,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-duplicate-store-names.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-duplicate-store-names.invalid.yaml'
+          )
         ),
       /store name customers is duplicated/
     )
@@ -357,11 +296,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-duplicate-field-names.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-duplicate-field-names.invalid.yaml'
+          )
         ),
       /field name in store customer id is duplicated/
     )
@@ -371,11 +308,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-not-nullable-field-null-default.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-not-nullable-field-null-default.invalid.yaml'
+          )
         ),
       /stores\.customer\.fields\.id default cannot be null when nullable is false/
     )
@@ -385,11 +320,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-missing-local-field-references.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-missing-local-field-references.invalid.yaml'
+          )
         ),
       error => {
         assert.ok(error instanceof Error)
@@ -416,11 +349,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-invalid-foreign-key-references.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-invalid-foreign-key-references.invalid.yaml'
+          )
         ),
       error => {
         assert.ok(error instanceof Error)
@@ -436,11 +367,9 @@ describe('core validator', () => {
     assert.throws(
       () =>
         parseSpecification(
-          utils
-            .readCwdRelativePathSync(
-              'test/core/validator/fixtures/online-shop-missing-referenced-field.invalid.yaml'
-            )
-            .toString('utf-8')
+          readTextFile(
+            'test/core/validator/fixtures/online-shop-missing-referenced-field.invalid.yaml'
+          )
         ),
       /references\.fields references missing field missingId in store customer/
     )

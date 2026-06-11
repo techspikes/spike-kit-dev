@@ -32,11 +32,11 @@ info:
 stores:
   customer:
     name: customers
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     traces:
       operations:
         - createCustomer
         - getCustomer
-    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id
@@ -45,10 +45,10 @@ stores:
         nullable: false
       publicId:
         name: public_id
+        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
         aliases:
           - customer number
           - customer code
-        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
         type:
           name: char
           length: 26
@@ -71,16 +71,15 @@ stores:
         - name: ux_customers_public_id
           fields:
             - publicId
-
   order:
     name: orders
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
     traces:
       operations:
         - createOrder
         - getOrder
         - listOrders
         - cancelOrder
-    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
     fields:
       id:
         name: id
@@ -146,7 +145,7 @@ Output `online-shop-example.tables-doc.md`:
 ````md
 ---
 source: online-shop-example.yaml
-source_sha256: <sha256>
+sha256: <sha256>
 generated_at: <generated-at>
 ---
 
@@ -275,7 +274,7 @@ and a DDL section at the end.
 The frontmatter contains:
 
 - `source`: source Specification file name.
-- `source_sha256`: SHA-256 digest of the source file content.
+- `sha256`: SHA-256 digest of the normalized Specification.
 - `generated_at`: generation timestamp.
 
 Each table section includes:

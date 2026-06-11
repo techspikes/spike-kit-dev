@@ -9,20 +9,19 @@ sources:
 stores:
   customer:
     name: customers
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     traces:
       operations:
         - createCustomer
         - getCustomer
-    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields: {}
-
   order:
     name: orders
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
     traces:
       operations:
         - createOrder
         - listOrders
-    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
     fields:
       id:
         name: id

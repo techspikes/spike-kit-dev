@@ -83,6 +83,7 @@ export function createDbProjectionSnapshot(spec: Specification): DbProjectionSna
         })),
         foreignKeys: (store.keys?.foreign ?? []).map(foreignKey => {
           const referencedStore = spec.stores[foreignKey.references.store]
+
           const referencedFieldNameById = new Map(
             Object.entries(referencedStore.fields).map(([fieldId, field]) => [fieldId, field.name])
           )

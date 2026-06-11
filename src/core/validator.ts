@@ -28,8 +28,8 @@ const fieldTypeSchema = v.strictObject({
 
 const fieldSchema = v.strictObject({
   name: nonEmptyString,
-  aliases: v.optional(v.pipe(v.array(nonEmptyString), v.nonEmpty())),
   reason: v.optional(nonEmptyString),
+  aliases: v.optional(v.pipe(v.array(nonEmptyString), v.nonEmpty())),
   type: fieldTypeSchema,
   format: v.optional(nonEmptyString),
   nullable: v.boolean(),
@@ -76,10 +76,10 @@ const indexSchema = v.strictObject({
 const storeSchema = v.strictObject({
   name: nonEmptyString,
   tentative: v.optional(v.boolean()),
+  reason: nonEmptyString,
   traces: v.strictObject({
     operations: v.pipe(v.array(nonEmptyString), v.nonEmpty())
   }),
-  reason: nonEmptyString,
   fields: v.record(v.string(), fieldSchema),
   keys: v.optional(keysSchema),
   indexes: v.optional(v.pipe(v.array(indexSchema), v.nonEmpty()))
@@ -186,6 +186,7 @@ function extractOpenApiOperationIds(openApi: unknown): Set<string> {
         .map(([, operation]) => operation.operationId)
         .filter((operationId): operationId is string => typeof operationId === 'string')
     )
+
   const operationIds = new Set<string>()
 
   for (const operationId of operationIdValues) {

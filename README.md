@@ -79,11 +79,11 @@ sources:
 stores:
   customer:
     name: customers
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     traces:
       operations:
         - createCustomer
         - getCustomer
-    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id

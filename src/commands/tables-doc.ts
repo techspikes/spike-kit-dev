@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
 import type { ParseArgsConfig, parseArgs } from 'node:util'
+import { dump } from 'js-yaml'
 import {
   createDbProjectionSnapshot,
   type DbProjectionColumn,
@@ -45,7 +46,7 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
       const source = readCwdRelativeTextFile(specPath)
       const spec = parseSpecification(source)
       const snapshot = createDbProjectionSnapshot(spec)
-      const markdown = renderMarkdownTablesDoc(spec, snapshot, specPath, source)
+      const markdown = renderMarkdownTablesDoc(spec, snapshot, specPath)
 
       writeCwdRelativeTextFile(outputPath, markdown)
     }
@@ -57,18 +58,20 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
 export function renderMarkdownTablesDoc(
   spec: Specification,
   snapshot: DbProjectionSnapshot,
-  specPath: string,
-  source: string
+  specPath: string
 ) {
   const lines = [
     '---',
     `source: ${basename(specPath)}`,
-    `source_sha256: ${createHash('sha256').update(source).digest('hex')}`,
+    `sha256: ${createHash('sha256')
+      .update(dump(spec, { sortKeys: true }))
+      .digest('hex')}`,
     `generated_at: ${new Date().toISOString()}`,
     '---',
     '',
     `# ${spec.info.name}`
   ]
+
   const storeEntries = Object.entries(spec.stores)
 
   for (const [tableIndex, table] of snapshot.tables.entries()) {

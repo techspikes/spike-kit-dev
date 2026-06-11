@@ -7,31 +7,27 @@ stores:
   cartItem:
     name: cart_items
     tentative: true
+    reason: Customers need to see which products they've added to their cart.
     traces:
       operations:
         - getCart
-    reason: Customers need to see which products they've added to their cart.
-
     fields:
       cartId:
         name: cart_id
         type:
           name: integer
         nullable: false
-
       productId:
         name: product_id
         type:
           name: integer
         nullable: false
-
       quantity:
         name: quantity
         type:
           name: integer
         nullable: false
         default: 1
-
     keys:
       primary:
         name: pk_cart_items

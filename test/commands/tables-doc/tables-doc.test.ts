@@ -1,14 +1,15 @@
 import assert from 'node:assert'
-import { readFileSync, writeFileSync } from 'node:fs'
 import { after, before, describe, it } from 'node:test'
 import { parseArgs } from 'node:util'
 import { config, execute } from '../../../src/commands/tables-doc.ts'
-import * as utils from '../../../src/core/utils.ts'
 import { runAndCaptureSync } from '../../test-helper/logger.ts'
+import { normalizeMarkdown } from '../../test-helper/normalize.ts'
 import {
   createTemporaryDirectory,
   createTemporaryPath,
-  deleteTemporaryDirectory
+  deleteTemporaryDirectory,
+  readTextFile,
+  writeTextFile
 } from '../../test-helper/output.ts'
 
 describe('tables-doc command', () => {
@@ -24,6 +25,7 @@ describe('tables-doc command', () => {
 
   it('Given a valid YAML specification, When the command executes, Then it writes a Markdown table specification', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-example.md')
+
     const options = parseArgs({
       ...config,
       args: [
@@ -40,17 +42,14 @@ describe('tables-doc command', () => {
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
     assert.equal(
-      normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
-      utils
-        .readCwdRelativePathSync(
-          'test/commands/tables-doc/fixtures/online-shop-example.expected.md'
-        )
-        .toString('utf-8')
+      normalizeMarkdown(readTextFile(outputPath)).markdown,
+      readTextFile('test/commands/tables-doc/fixtures/online-shop-example.expected.md')
     )
   })
 
   it('Given a valid YAML specification and short output option, When the command executes, Then it writes a Markdown table specification', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-example-short.md')
+
     const options = parseArgs({
       ...config,
       args: ['test/commands/tables-doc/fixtures/online-shop-example.valid.yaml', '-o', outputPath]
@@ -62,11 +61,45 @@ describe('tables-doc command', () => {
 
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
-    assert.match(readFileSync(outputPath, 'utf-8'), /^# online-shop/m)
+    assert.match(readTextFile(outputPath), /^# online-shop/m)
+  })
+
+  it('Given a specification with a different key order, When the command executes, Then it writes the same normalized hash', () => {
+    const outputPath = createTemporaryPath(
+      temporaryDirectory,
+      'online-shop-example-different-key-order.md'
+    )
+
+    const options = parseArgs({
+      ...config,
+      args: [
+        'test/commands/tables-doc/fixtures/online-shop-example-different-key-order.valid.yaml',
+        '--output',
+        outputPath
+      ]
+    })
+
+    const result = runAndCaptureSync(() => {
+      execute(options)
+    })
+
+    assert.deepEqual(result.stdout, [])
+    assert.deepEqual(result.stderr, [])
+
+    const actual = normalizeMarkdown(readTextFile(outputPath))
+
+    const expected = normalizeMarkdown(
+      readTextFile('test/commands/tables-doc/fixtures/online-shop-example.expected.md')
+    )
+
+    assert.notEqual(actual.sha256, undefined)
+    assert.notEqual(expected.sha256, undefined)
+    assert.equal(actual.sha256, expected.sha256)
   })
 
   it('Given a specification with priced products, When the command executes, Then it writes decimal types and defaults', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-priced-products.md')
+
     const options = parseArgs({
       ...config,
       args: [
@@ -83,17 +116,14 @@ describe('tables-doc command', () => {
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
     assert.equal(
-      normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
-      utils
-        .readCwdRelativePathSync(
-          'test/commands/tables-doc/fixtures/online-shop-priced-products.expected.md'
-        )
-        .toString('utf-8')
+      normalizeMarkdown(readTextFile(outputPath)).markdown,
+      readTextFile('test/commands/tables-doc/fixtures/online-shop-priced-products.expected.md')
     )
   })
 
   it('Given a specification with cart items identified by a composite primary key, When the command executes, Then it writes the composite primary key', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'online-shop-cart-items.md')
+
     const options = parseArgs({
       ...config,
       args: [
@@ -110,12 +140,8 @@ describe('tables-doc command', () => {
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
     assert.equal(
-      normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
-      utils
-        .readCwdRelativePathSync(
-          'test/commands/tables-doc/fixtures/online-shop-cart-items.expected.md'
-        )
-        .toString('utf-8')
+      normalizeMarkdown(readTextFile(outputPath)).markdown,
+      readTextFile('test/commands/tables-doc/fixtures/online-shop-cart-items.expected.md')
     )
   })
 
@@ -124,6 +150,7 @@ describe('tables-doc command', () => {
       temporaryDirectory,
       'online-shop-tentative-cart-items.md'
     )
+
     const options = parseArgs({
       ...config,
       args: [
@@ -140,19 +167,17 @@ describe('tables-doc command', () => {
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
     assert.equal(
-      normalizeGeneratedMarkdown(readFileSync(outputPath, 'utf-8')),
-      utils
-        .readCwdRelativePathSync(
-          'test/commands/tables-doc/fixtures/online-shop-tentative-cart-items.expected.md'
-        )
-        .toString('utf-8')
+      normalizeMarkdown(readTextFile(outputPath)).markdown,
+      readTextFile(
+        'test/commands/tables-doc/fixtures/online-shop-tentative-cart-items.expected.md'
+      )
     )
   })
 
   it('Given the output file already exists, When the command executes, Then it overwrites the file', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'overwrite.md')
 
-    writeFileSync(outputPath, 'old content')
+    writeTextFile(outputPath, 'old content')
     const options = parseArgs({
       ...config,
       args: [
@@ -168,7 +193,7 @@ describe('tables-doc command', () => {
 
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
-    assert.notEqual(readFileSync(outputPath, 'utf-8'), 'old content')
+    assert.notEqual(readTextFile(outputPath), 'old content')
   })
 
   it('Given help is requested, When the command executes, Then it prints usage', () => {
@@ -225,6 +250,7 @@ describe('tables-doc command', () => {
 
   it('Given an invalid specification, When the command executes, Then it prints the validation error and does not write output', () => {
     const outputPath = createTemporaryPath(temporaryDirectory, 'invalid.md')
+
     const options = parseArgs({
       ...config,
       args: [
@@ -240,10 +266,6 @@ describe('tables-doc command', () => {
 
     assert.deepEqual(result.stdout, [])
     assert.match(result.stderr.join(''), /stores\.customer\.fields\.id\.type\.name/)
-    assert.throws(() => readFileSync(outputPath, 'utf-8'), /ENOENT/)
+    assert.throws(() => readTextFile(outputPath), /ENOENT/)
   })
 })
-
-function normalizeGeneratedMarkdown(markdown: string) {
-  return markdown.replace(/^generated_at: .+$/m, 'generated_at: <generated-at>')
-}

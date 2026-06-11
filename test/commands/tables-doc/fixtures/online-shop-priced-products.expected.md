@@ -1,6 +1,6 @@
 ---
 source: online-shop-priced-products.valid.yaml
-source_sha256: 7a3707807561dede6eda378601648344d23c25ea959f8a45e1e002fa82eea563
+sha256: 2bb682e932e857336ef36b5e6e9b7b67d6c0636852515d831a79a18ee9a2cd92
 generated_at: <generated-at>
 ---
 

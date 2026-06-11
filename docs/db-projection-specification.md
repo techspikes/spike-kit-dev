@@ -145,10 +145,10 @@ info:
 stores:
   customer:
     name: customers
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     traces:
       operations:
         - getCustomer
-    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id
@@ -160,13 +160,12 @@ stores:
         name: pk_customers
         fields:
           - id
-
   order:
     name: orders
+    reason: Customers need to view their order history after placing an order.
     traces:
       operations:
         - createOrder
-    reason: Customers need to view their order history after placing an order.
     fields:
       id:
         name: id
@@ -207,13 +206,12 @@ stores:
       - name: ix_orders_status
         fields:
           - status
-
   cartItem:
     name: cart_items
+    reason: Customers need to see which products they've added to their cart.
     traces:
       operations:
         - getCart
-    reason: Customers need to see which products they've added to their cart.
     fields:
       cartId:
         name: cart_id

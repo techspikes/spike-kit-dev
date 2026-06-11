@@ -9,31 +9,28 @@ sources:
 stores:
   customer:
     name: customers
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     traces:
       operations:
         - createCustomer
         - getCustomer
-    reason: Customer profiles need to be looked up when handling orders and support requests.
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
       publicId:
         name: public_id
+        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
         aliases:
           - customer number
           - customer code
-        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
         type:
           name: char
           length: 26
         format: ulid
         nullable: false
-
       name:
         name: name
         aliases:
@@ -42,35 +39,30 @@ stores:
           name: varchar
           length: 100
         nullable: false
-
     keys:
       primary:
         name: pk_customers
         fields:
           - id
-
       unique:
         - name: ux_customers_public_id
           fields:
             - publicId
-
   order:
     name: orders
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
     traces:
       operations:
         - createOrder
         - getOrderDetail
         - cancelOrder
         - listOrders
-    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
       publicId:
         name: public_id
         aliases:
@@ -80,7 +72,6 @@ stores:
           length: 26
         format: ulid
         nullable: false
-
       customerId:
         name: customer_id
         aliases:
@@ -88,7 +79,6 @@ stores:
         type:
           name: integer
         nullable: false
-
       status:
         name: status
         aliases:
@@ -101,30 +91,25 @@ stores:
         enum:
           - created
           - cancelled
-
       createdAt:
         name: created_at
         type:
           name: timestamp
         nullable: false
-
       updatedAt:
         name: updated_at
         type:
           name: timestamp
         nullable: false
-
     keys:
       primary:
         name: pk_orders
         fields:
           - id
-
       unique:
         - name: ux_orders_public_id
           fields:
             - publicId
-
       foreign:
         - name: fk_orders_customer
           fields:
@@ -135,40 +120,34 @@ stores:
               - id
           onDelete: restrict
           onUpdate: restrict
-
     indexes:
       - name: ix_orders_status
         fields:
           - status
         reason: Used to search orders by status.
-
       - name: ix_orders_customer_created_at
         fields:
           - customerId
           - field: createdAt
             order: desc
         reason: Used to list orders for a customer.
-
   cart:
     name: carts
+    reason: Customers need to view their cart contents before checkout.
     traces:
       operations:
         - getCart
-    reason: Customers need to view their cart contents before checkout.
-
     fields:
       id:
         name: id
         type:
           name: integer
         nullable: false
-
       customerId:
         name: customer_id
         type:
           name: integer
         nullable: false
-
       status:
         name: status
         type:
@@ -176,14 +155,12 @@ stores:
           length: 20
         nullable: false
         default: active
-
       expiresAt:
         name: expires_at
         type:
           name: timestamp
         nullable: true
         default: null
-
     keys:
       foreign:
         - name: fk_carts_customer
@@ -193,34 +170,29 @@ stores:
             store: customer
             fields:
               - id
-
   cartItem:
     name: cart_items
+    reason: Customers need to see which products they've added to their cart.
     traces:
       operations:
         - getCart
-    reason: Customers need to see which products they've added to their cart.
-
     fields:
       cartId:
         name: cart_id
         type:
           name: integer
         nullable: false
-
       productId:
         name: product_id
         type:
           name: integer
         nullable: false
-
       quantity:
         name: quantity
         type:
           name: integer
         nullable: false
         default: 1
-
     keys:
       primary:
         name: pk_cart_items
