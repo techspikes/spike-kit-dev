@@ -1,5 +1,5 @@
 import type { ParseArgsConfig, parseArgs } from 'node:util'
-import utils from '../core/utils.ts'
+import { extractErrorMessages, readCwdRelativeTextFile } from '../core/utils.ts'
 import { parseSpecification } from '../core/validator.ts'
 
 const usage = () =>
@@ -25,13 +25,13 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
     if (options.values.help || !options.positionals[0]) {
       console.log(usage())
     } else {
-      parseSpecification(utils.readCwdRelativePathSync(options.positionals[0]).toString('utf-8'), {
+      parseSpecification(readCwdRelativeTextFile(options.positionals[0]), {
         trace: true,
         specPath: options.positionals[0]
       })
       console.log('Specification is valid.')
     }
   } catch (error) {
-    console.error(utils.extractErrorMessages(error))
+    console.error(extractErrorMessages(error))
   }
 }

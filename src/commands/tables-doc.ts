@@ -6,7 +6,11 @@ import {
   type DbProjectionColumn,
   type DbProjectionSnapshot
 } from '../core/projector.ts'
-import utils from '../core/utils.ts'
+import {
+  extractErrorMessages,
+  readCwdRelativeTextFile,
+  writeCwdRelativeTextFile
+} from '../core/utils.ts'
 import { parseSpecification, type Specification } from '../core/validator.ts'
 import { renderSqlDdl } from './tables-doc.ddl.ts'
 
@@ -38,15 +42,15 @@ export function execute(options: ReturnType<typeof parseArgs<typeof config>>) {
     if (options.values.help || !specPath || typeof outputPath !== 'string') {
       console.log(usage())
     } else {
-      const source = utils.readCwdRelativePathSync(specPath).toString('utf-8')
+      const source = readCwdRelativeTextFile(specPath)
       const spec = parseSpecification(source)
       const snapshot = createDbProjectionSnapshot(spec)
       const markdown = renderMarkdownTablesDoc(spec, snapshot, specPath, source)
 
-      utils.writeCwdRelativePathSync(outputPath, markdown)
+      writeCwdRelativeTextFile(outputPath, markdown)
     }
   } catch (error) {
-    console.error(utils.extractErrorMessages(error))
+    console.error(extractErrorMessages(error))
   }
 }
 

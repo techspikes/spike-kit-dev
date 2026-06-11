@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { after, before, describe, it } from 'node:test'
 import { parseArgs } from 'node:util'
 import { config, execute } from '../../../src/commands/tables-doc.ts'
-import utils from '../../../src/core/utils.ts'
+import * as utils from '../../../src/core/utils.ts'
 import { runAndCaptureSync } from '../../test-helper/logger.ts'
 import {
   createTemporaryDirectory,

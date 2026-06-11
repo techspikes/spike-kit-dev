@@ -1,7 +1,7 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
 import { createDbProjectionSnapshot } from '../../../src/core/projector.ts'
-import utils from '../../../src/core/utils.ts'
+import * as utils from '../../../src/core/utils.ts'
 import { parseSpecification } from '../../../src/core/validator.ts'
 
 describe('core projector', () => {

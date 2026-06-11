@@ -1,6 +1,6 @@
 import { load, YAMLException } from 'js-yaml'
 import * as v from 'valibot'
-import utils from './utils.ts'
+import { readBaseRelativeTextFile } from './utils.ts'
 
 const dataSketchVersion = '1.0.0-draft.1'
 
@@ -155,7 +155,7 @@ function loadOpenApiOperationIds(basePath: string, openApiPath: string): Set<str
   let openApi: unknown
 
   try {
-    openApi = load(utils.readBaseRelativePathSync(basePath, openApiPath).toString('utf-8'))
+    openApi = load(readBaseRelativeTextFile(basePath, openApiPath))
   } catch (error) {
     if (error instanceof YAMLException) {
       throw new Error(`Failed to parse OpenAPI: ${error.message}`)
