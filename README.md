@@ -7,7 +7,7 @@ stores for user stories.
 
 Data Sketch Specification v1 is a YAML or JSON format for describing data this service
 currently considers valuable enough to keep, based on customer
-conversation and feedback. `reason` and `trace` make the document AI First by
+conversation and feedback. `reason` and `traces` make the document AI First by
 giving AI enough context to understand why the data exists. The
 `tables-doc` command projects the specification into database-focused
 documentation artifacts. See
@@ -79,11 +79,11 @@ sources:
 stores:
   customer:
     name: customers
-    reason: Persist customer information.
-    trace:
+    traces:
       operations:
         - createCustomer
         - getCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id
@@ -92,12 +92,12 @@ stores:
         nullable: false
       name:
         name: name
+        aliases:
+          - customer full name
         type:
           name: varchar
           length: 100
         nullable: false
-        aliases:
-          - customer full name
     keys:
       primary:
         name: pk_customers

@@ -16,7 +16,7 @@ A true agile team prioritizes completing the most important user story and obtai
 
 For this reason, Data Sketch Specification v1 does not define `$ref`, include, or partial-document composition semantics. A Data Sketch must be written as a complete canonical document, not as a graph of referenced fragments.
 
-The `reason` and `trace` fields make the document AI First: they preserve enough
+The `reason` and `traces` fields make the document AI First: they preserve enough
 context for AI to understand why each data item exists and which user-facing
 operations it supports.
 
@@ -36,8 +36,8 @@ This specification is also intended to be used as:
 | `store` | A data set this service currently considers valuable enough to keep. |
 | `field` | A data item kept inside a store. |
 | `name` | The implementation-facing name for a store, field, key, or index. |
-| `trace` | Metadata that links data definitions to OpenAPI operations. |
-| `reason` | Human-readable explanation of why the item exists. |
+| `traces` | Metadata that links data definitions to OpenAPI operations. |
+| `reason` | Human-readable explanation of the business context that makes this item worth persisting. |
 
 ---
 
@@ -55,10 +55,10 @@ sources:
 stores:
   storeLogicalId:
     name: implementation_store_name
-    reason: Why this store exists.
-    trace:
+    traces:
       operations:
         - someOperationId
+    reason: The business context that makes this store's data worth persisting.
     fields:
       fieldLogicalId:
         name: implementation_field_name
@@ -126,11 +126,11 @@ Rules:
 stores:
   order:
     name: orders
-    reason: Orders must be read and updated by order-related API operations.
-    trace:
+    traces:
       operations:
         - createOrder
         - getOrderDetail
+    reason: Customers need to view their order details right after placing an order.
     fields:
       id:
         name: id
@@ -143,8 +143,8 @@ stores:
 |---|---:|---|
 | `name` | yes | Implementation-facing store name. |
 | `tentative` | no | Whether this store is tentative and needs human review. Defaults to false. |
-| `reason` | yes | Why this store exists. |
-| `trace` | yes | OpenAPI operation trace metadata. |
+| `traces` | yes | OpenAPI operation trace metadata. |
+| `reason` | yes | The business context that makes this store's data worth persisting. |
 | `fields` | yes | Map of logical field IDs to field definitions. |
 | `keys` | no | Data integrity key definitions. |
 | `indexes` | no | Lookup or access-path intent definitions. |
@@ -173,10 +173,10 @@ Rules:
 
 ---
 
-## Trace
+## Traces
 
 ```yaml
-trace:
+traces:
   operations:
     - createOrder
     - getOrderDetail
@@ -188,7 +188,7 @@ trace:
 
 Rules:
 
-- Store-level `trace.operations` is required.
+- Store-level `traces.operations` is required.
 - When `sources.openapi` is present, `shot` checks these values against OpenAPI Operation Object `operationId` values.
 
 ---
@@ -199,12 +199,13 @@ Rules:
 fields:
   status:
     name: status
+    aliases:
+      - order status
+    reason: Customers and support staff need to know and filter by an order's current lifecycle state.
     type:
       name: varchar
       length: 20
     nullable: false
-    aliases:
-      - order status
     enum:
       - created
       - cancelled
@@ -213,11 +214,12 @@ fields:
 | Field | Required | Description |
 |---|---:|---|
 | `name` | yes | Implementation-facing field name. |
+| `aliases` | no | Business-facing names or other aliases for the field. |
+| `reason` | no | The business context that makes this field's data worth persisting. |
 | `type` | yes | Field type definition. |
+| `format` | no | Optional semantic hint such as `ulid`, `uuid`, or `email`. |
 | `nullable` | yes | Whether the field may be null. |
 | `default` | no | Literal default value. |
-| `format` | no | Optional semantic hint such as `ulid`, `uuid`, or `email`. |
-| `aliases` | no | Business-facing names or other aliases for the field. |
 | `enum` | no | Allowed string values. |
 
 ---
@@ -453,7 +455,7 @@ A Data Sketch is valid only if:
 - `data-sketch` is `1.0.0-draft.1`.
 - `info.name` is a non-empty string.
 - `stores` is not empty.
-- Every store has `name`, `reason`, `trace.operations`, and `fields`.
+- Every store has `name`, `traces.operations`, `reason`, and `fields`.
 - Every store has at least one field.
 - Every field has `name`, `type.name`, and `nullable`.
 - Store logical IDs are unique.
@@ -582,11 +584,11 @@ sources:
 stores:
   customer:
     name: customers
-    reason: Persist customer information.
-    trace:
+    traces:
       operations:
         - createCustomer
         - getCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
 
     fields:
       id:
@@ -597,23 +599,24 @@ stores:
 
       publicId:
         name: public_id
-        type:
-          name: char
-          length: 26
-        nullable: false
-        format: ulid
         aliases:
           - customer number
           - customer code
+        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
+        type:
+          name: char
+          length: 26
+        format: ulid
+        nullable: false
 
       name:
         name: name
+        aliases:
+          - customer full name
         type:
           name: varchar
           length: 100
         nullable: false
-        aliases:
-          - customer full name
 
     keys:
       primary:
@@ -628,13 +631,13 @@ stores:
 
   order:
     name: orders
-    reason: Order operations need to create, read, list, and cancel orders.
-    trace:
+    traces:
       operations:
         - createOrder
         - getOrderDetail
         - cancelOrder
         - listOrders
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
 
     fields:
       id:
@@ -645,31 +648,31 @@ stores:
 
       publicId:
         name: public_id
+        aliases:
+          - order number
         type:
           name: char
           length: 26
-        nullable: false
         format: ulid
-        aliases:
-          - order number
+        nullable: false
 
       customerId:
         name: customer_id
+        aliases:
+          - buyer customer
         type:
           name: integer
         nullable: false
-        aliases:
-          - buyer customer
 
       status:
         name: status
+        aliases:
+          - order state
+          - fulfillment status
         type:
           name: varchar
           length: 20
         nullable: false
-        aliases:
-          - order state
-          - fulfillment status
         enum:
           - created
           - cancelled

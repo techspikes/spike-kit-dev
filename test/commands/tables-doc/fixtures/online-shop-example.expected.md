@@ -1,6 +1,6 @@
 ---
 source: online-shop-example.valid.yaml
-source_sha256: 699645ff97fb70a32f1625e9c2450e1872630e8b7a841099c032083dba8ee9de
+source_sha256: 831e6c71b7f6845068dc1abfa01b08eea49275f3b8dbaf4af31246cc03a29b22
 generated_at: <generated-at>
 ---
 
@@ -8,7 +8,7 @@ generated_at: <generated-at>
 
 ## customers
 
-Persist customer information.
+Customer profiles need to be looked up when handling orders and support requests.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ Persist customer information.
 
 ## orders
 
-Order operations need to create, read, list, and cancel orders.
+Customers need to view their order history and cancel orders that haven't shipped yet.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |

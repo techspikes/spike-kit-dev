@@ -6,10 +6,10 @@ info:
 stores:
   cartItem:
     name: cart_items
-    reason: Persist products added to shopping carts.
-    trace:
+    traces:
       operations:
         - getCart
+    reason: Customers need to see which products they've added to their cart.
 
     fields:
       cartId:

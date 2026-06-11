@@ -28,11 +28,12 @@ const fieldTypeSchema = v.strictObject({
 
 const fieldSchema = v.strictObject({
   name: nonEmptyString,
+  aliases: v.optional(v.pipe(v.array(nonEmptyString), v.nonEmpty())),
+  reason: v.optional(nonEmptyString),
   type: fieldTypeSchema,
+  format: v.optional(nonEmptyString),
   nullable: v.boolean(),
   default: v.optional(scalarLiteral),
-  format: v.optional(nonEmptyString),
-  aliases: v.optional(v.pipe(v.array(nonEmptyString), v.nonEmpty())),
   enum: v.optional(v.pipe(v.array(nonEmptyString), v.nonEmpty()))
 })
 
@@ -75,10 +76,10 @@ const indexSchema = v.strictObject({
 const storeSchema = v.strictObject({
   name: nonEmptyString,
   tentative: v.optional(v.boolean()),
-  reason: nonEmptyString,
-  trace: v.strictObject({
+  traces: v.strictObject({
     operations: v.pipe(v.array(nonEmptyString), v.nonEmpty())
   }),
+  reason: nonEmptyString,
   fields: v.record(v.string(), fieldSchema),
   keys: v.optional(keysSchema),
   indexes: v.optional(v.pipe(v.array(indexSchema), v.nonEmpty()))
@@ -138,7 +139,7 @@ function validateOpenApiTraceIfEnabled(spec: Specification, options?: ParseSpeci
   const operationIds = loadOpenApiOperationIds(options.specPath, spec.sources.openapi)
 
   const issues = Object.values(spec.stores).flatMap(store =>
-    store.trace.operations.flatMap(operationId =>
+    store.traces.operations.flatMap(operationId =>
       operationIds.has(operationId)
         ? []
         : [`trace operation ${operationId} does not exist in OpenAPI operationId`]

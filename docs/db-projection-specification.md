@@ -145,10 +145,10 @@ info:
 stores:
   customer:
     name: customers
-    reason: Persist customer information.
-    trace:
+    traces:
       operations:
         - getCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id
@@ -163,10 +163,10 @@ stores:
 
   order:
     name: orders
-    reason: Persist customer orders.
-    trace:
+    traces:
       operations:
         - createOrder
+    reason: Customers need to view their order history after placing an order.
     fields:
       id:
         name: id
@@ -210,10 +210,10 @@ stores:
 
   cartItem:
     name: cart_items
-    reason: Persist products added to shopping carts.
-    trace:
+    traces:
       operations:
         - getCart
+    reason: Customers need to see which products they've added to their cart.
     fields:
       cartId:
         name: cart_id

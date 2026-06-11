@@ -13,6 +13,10 @@ describe('core validator', () => {
 
     assert.equal(specification.info.name, 'online-shop')
     assert.equal(specification.stores.customer.fields.publicId.type.name, 'char')
+    assert.equal(
+      specification.stores.customer.fields.publicId.reason,
+      "Customers need a stable public identifier that doesn't reveal the internal sequential id."
+    )
     assert.equal(specification.stores.order.keys?.foreign?.[0]?.references.store, 'customer')
   })
 
@@ -242,7 +246,7 @@ describe('core validator', () => {
       }
     )
 
-    assert.equal(specification.stores.customer.trace.operations[0], 'createCustomer')
+    assert.equal(specification.stores.customer.traces.operations[0], 'createCustomer')
   })
 
   it('parseSpecification rejects invalid YAML syntax', () => {

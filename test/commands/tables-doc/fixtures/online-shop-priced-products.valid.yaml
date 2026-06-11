@@ -6,10 +6,10 @@ info:
 stores:
   priceNote:
     name: price_notes
-    reason: Product managers keep pricing notes before publishing products.
-    trace:
+    traces:
       operations:
         - listProducts
+    reason: Product managers keep pricing notes before publishing products.
 
     fields:
       note:
@@ -22,10 +22,10 @@ stores:
 
   category:
     name: categories
-    reason: Product catalog groups products by category.
-    trace:
+    traces:
       operations:
         - listProducts
+    reason: Customers need to browse the product catalog by category.
 
     fields:
       id:
@@ -49,10 +49,10 @@ stores:
 
   product:
     name: products
-    reason: Product catalog needs prices for online checkout.
-    trace:
+    traces:
       operations:
         - listProducts
+    reason: Product catalog needs prices for online checkout.
 
     fields:
       id:
@@ -69,61 +69,61 @@ stores:
 
       price:
         name: price
+        aliases:
+          - checkout price
         type:
           name: decimal
           precision: 10
           scale: 2
         nullable: false
         default: 0
-        aliases:
-          - checkout price
 
       taxRate:
         name: tax_rate
+        aliases:
+          - sales tax rate
         type:
           name: numeric
           precision: 5
         nullable: false
         default: 8
-        aliases:
-          - sales tax rate
 
       status:
         name: status
+        aliases:
+          - product availability
         type:
           name: varchar
           length: 20
         nullable: false
         default: available
-        aliases:
-          - product availability
 
       featured:
         name: featured
+        aliases:
+          - promoted product
         type:
           name: boolean
         nullable: false
         default: true
-        aliases:
-          - promoted product
 
       discontinued:
         name: discontinued
+        aliases:
+          - retired product
         type:
           name: boolean
         nullable: false
         default: false
-        aliases:
-          - retired product
 
       saleEndsAt:
         name: sale_ends_at
+        aliases:
+          - sale end date
         type:
           name: timestamp
         nullable: true
         default: null
-        aliases:
-          - sale end date
 
     keys:
       primary:

@@ -6,10 +6,10 @@ info:
 stores:
   customer:
     name: customers
-    reason: Persist customer information.
-    trace:
+    traces:
       operations:
         - createCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id
@@ -19,10 +19,10 @@ stores:
 
   duplicateCustomer:
     name: customers
-    reason: Persist duplicate customer information.
-    trace:
+    traces:
       operations:
         - getCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id

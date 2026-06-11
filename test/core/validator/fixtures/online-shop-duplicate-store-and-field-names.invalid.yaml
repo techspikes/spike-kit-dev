@@ -9,11 +9,11 @@ sources:
 stores:
   customer:
     name: customers
-    reason: Persist customer information.
-    trace:
+    traces:
       operations:
         - createCustomer
         - getCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
 
     fields:
       id:
@@ -31,11 +31,11 @@ stores:
 
   order:
     name: customers
-    reason: Order operations need to create, read, list, and cancel orders.
-    trace:
+    traces:
       operations:
         - createOrder
         - listOrders
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
 
     fields:
       id:

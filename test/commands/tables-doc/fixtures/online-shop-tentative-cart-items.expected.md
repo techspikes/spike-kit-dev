@@ -1,6 +1,6 @@
 ---
 source: online-shop-tentative-cart-items.valid.yaml
-source_sha256: c7416a381e89e532cd1c53a6f453ea4da750138a7e737cfcd3d8570413d62838
+source_sha256: 893c8fbfd0d06690b205e1788e6e1121ea9d2a536a00ba1cf7234da95007dfeb
 generated_at: <generated-at>
 ---
 
@@ -8,7 +8,7 @@ generated_at: <generated-at>
 
 ## cart_items
 
-Persist products added to shopping carts.
+Customers need to see which products they've added to their cart.
 
 > [!CAUTION]
 > This table is tentative and needs human review.

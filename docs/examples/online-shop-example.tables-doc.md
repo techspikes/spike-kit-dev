@@ -8,7 +8,7 @@ generated_at: <generated-at>
 
 ## customers
 
-Persist customer information.
+Customer profiles need to be looked up when handling orders and support requests.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ Persist customer information.
 
 ## orders
 
-Order operations need to create, read, list, and cancel orders.
+Customers need to view their order history and cancel orders that haven't shipped yet.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |

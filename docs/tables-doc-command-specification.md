@@ -32,11 +32,11 @@ info:
 stores:
   customer:
     name: customers
-    reason: Persist customer information.
-    trace:
+    traces:
       operations:
         - createCustomer
         - getCustomer
+    reason: Customer profiles need to be looked up when handling orders and support requests.
     fields:
       id:
         name: id
@@ -45,22 +45,23 @@ stores:
         nullable: false
       publicId:
         name: public_id
-        type:
-          name: char
-          length: 26
-        nullable: false
-        format: ulid
         aliases:
           - customer number
           - customer code
+        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
+        type:
+          name: char
+          length: 26
+        format: ulid
+        nullable: false
       name:
         name: name
+        aliases:
+          - customer full name
         type:
           name: varchar
           length: 100
         nullable: false
-        aliases:
-          - customer full name
     keys:
       primary:
         name: pk_customers
@@ -73,13 +74,13 @@ stores:
 
   order:
     name: orders
-    reason: Order operations need to create, read, list, and cancel orders.
-    trace:
+    traces:
       operations:
         - createOrder
         - getOrder
         - listOrders
         - cancelOrder
+    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
     fields:
       id:
         name: id
@@ -88,29 +89,29 @@ stores:
         nullable: false
       publicId:
         name: public_id
+        aliases:
+          - order number
         type:
           name: char
           length: 26
-        nullable: false
         format: ulid
-        aliases:
-          - order number
+        nullable: false
       customerId:
         name: customer_id
+        aliases:
+          - buyer customer
         type:
           name: integer
         nullable: false
-        aliases:
-          - buyer customer
       status:
         name: status
+        aliases:
+          - order state
+          - fulfillment status
         type:
           name: varchar
           length: 20
         nullable: false
-        aliases:
-          - order state
-          - fulfillment status
         enum:
           - created
           - cancelled
@@ -153,7 +154,7 @@ generated_at: <generated-at>
 
 ## customers
 
-Persist customer information.
+Customer profiles need to be looked up when handling orders and support requests.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |
@@ -175,7 +176,7 @@ Persist customer information.
 
 ## orders
 
-Order operations need to create, read, list, and cancel orders.
+Customers need to view their order history and cancel orders that haven't shipped yet.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |

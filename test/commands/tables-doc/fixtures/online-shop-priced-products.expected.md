@@ -1,6 +1,6 @@
 ---
 source: online-shop-priced-products.valid.yaml
-source_sha256: 4f95a9ca6ed1ef041d6d72e202c274f7b7f1629c639c9c99c856cb7333adb141
+source_sha256: 7a3707807561dede6eda378601648344d23c25ea959f8a45e1e002fa82eea563
 generated_at: <generated-at>
 ---
 
@@ -16,7 +16,7 @@ Product managers keep pricing notes before publishing products.
 
 ## categories
 
-Product catalog groups products by category.
+Customers need to browse the product catalog by category.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |

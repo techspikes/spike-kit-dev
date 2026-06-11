@@ -1,6 +1,6 @@
 ---
 source: online-shop-cart-items.valid.yaml
-source_sha256: 36695be29e2cf57b45aecb9b40cd2cb35c5209571745925a7df38edceb170121
+source_sha256: dad3d82f8d945e53c96cf5ce451b76f72dca0634bf4c63b9310b7b62c97ac064
 generated_at: <generated-at>
 ---
 
@@ -8,7 +8,7 @@ generated_at: <generated-at>
 
 ## cart_items
 
-Persist products added to shopping carts.
+Customers need to see which products they've added to their cart.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |
