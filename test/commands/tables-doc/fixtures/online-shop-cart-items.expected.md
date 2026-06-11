@@ -1,6 +1,6 @@
 ---
 source: online-shop-cart-items.valid.yaml
-sha256: 0e252c2021ec39222e9a2576315fa0fa7a8519c864ba677ec9c3585056b4122b
+sha256: 4a779e036a5b2e24b833e7b41d2f8d9ef57f8b360e09e839c6f4dba27a04668a
 generated_at: <generated-at>
 ---
 

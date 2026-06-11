@@ -41,6 +41,7 @@ describe('tables-doc command', () => {
 
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
+
     assert.equal(
       normalizeMarkdown(readTextFile(outputPath)).markdown,
       readTextFile('test/commands/tables-doc/fixtures/online-shop-example.expected.md')
@@ -115,6 +116,7 @@ describe('tables-doc command', () => {
 
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
+
     assert.equal(
       normalizeMarkdown(readTextFile(outputPath)).markdown,
       readTextFile('test/commands/tables-doc/fixtures/online-shop-priced-products.expected.md')
@@ -139,6 +141,7 @@ describe('tables-doc command', () => {
 
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
+
     assert.equal(
       normalizeMarkdown(readTextFile(outputPath)).markdown,
       readTextFile('test/commands/tables-doc/fixtures/online-shop-cart-items.expected.md')
@@ -166,6 +169,7 @@ describe('tables-doc command', () => {
 
     assert.deepEqual(result.stdout, [])
     assert.deepEqual(result.stderr, [])
+
     assert.equal(
       normalizeMarkdown(readTextFile(outputPath)).markdown,
       readTextFile(
