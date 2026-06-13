@@ -2,29 +2,19 @@
 
 ## Purpose
 
-Data Sketch Specification v1 is a YAML-based specification for describing
-data this service currently considers valuable enough to keep, based
-on customer conversation and feedback.
+Data Sketch Specification v1 is a YAML or JSON specification for describing data
+that a service currently claims may be worth remembering, based on Tale, user
+story, and OpenAPI context.
 
-A Data Sketch Specification YAML document can be called a Data Sketch when
-describing the disposable document created from the specification. A Data Sketch is
-expected to be rewritten or discarded when user stories or team learning change.
+A Data Sketch is not a database design document. It is a lightweight,
+revisable sketch of valuable data and the concrete details that support it. It
+is expected to be rewritten or discarded as user stories, feedback, and team
+learning change.
 
-Data Sketch Specification v1 is intentionally designed as a single, self-contained document.
+This specification is intended to be used as:
 
-A true agile team prioritizes completing the most important user story and obtaining real feedback from its completion before expanding design work for later stories. Under that premise, the team does not need to split the Data Sketch for parallel authoring. Following Don't DRY Your Code Prematurely, splitting the document only for the convenience of parallel work can also create premature abstractions. If a customer sees the demo of the current user story and significantly changes the underlying assumptions, all of that fragmented abstraction work can become waste.
-
-For this reason, Data Sketch Specification v1 does not define `$ref`, include, or partial-document composition semantics. A Data Sketch must be written as a complete canonical document, not as a graph of referenced fragments.
-
-The `reason` and `traces` fields make the document AI First: they preserve enough
-context for AI to understand why each data item exists and which user-facing
-operations it supports.
-
-This specification is also intended to be used as:
-
-- input for tools that project the Data Sketch into storage-specific artifacts, such as relational Kysely migrations and migration diffs
-- input for tools that convert the Data Sketch into human-friendly documents such as Markdown table specifications
-- traceability between OpenAPI `operationId` and data definitions
+- input for tools that validate Data Sketch documents
+- traceability between user-facing operations and data claims
 
 ---
 
@@ -32,19 +22,34 @@ This specification is also intended to be used as:
 
 | Term | Meaning |
 |---|---|
-| Valuable Data | All data described by a Data Sketch. |
-| `store` | A data set this service currently considers valuable enough to keep. |
-| `field` | A data item kept inside a store. |
-| `name` | The implementation-facing name for a store, field, key, or index. |
-| `traces` | Metadata that links data definitions to OpenAPI operations. |
-| `reason` | Human-readable explanation of the business context that makes this item worth persisting. |
+| Valuable Data | Data described by a Data Sketch. |
+| `claim` | A provisional assertion that this service may need to remember a valuable data subject in order to fulfill the Tale. |
+| `name` | An explicit name for a claim or detail. |
+| `detail` | A concrete item that describes or supports a claim. |
+| `relation` | A logical relationship from a claim path to another claim. |
+| `reason` | Human-readable explanation of the context that makes an item worth remembering. |
+| `traces` | Metadata that links claims to user-facing operations. |
+
+The `reason` and `traces` fields make the document AI First: they preserve
+enough context for AI and humans to understand why a claim exists and which
+user-facing operations it supports.
+
+A claim is not necessarily:
+
+- an RDBMS table
+- a DocumentDB collection
+- a fully normalized entity
+- a final domain model
+
+Relations are logical relationships. The Data Sketch records that the
+relationship exists; consuming tools decide how to use it.
 
 ---
 
 ## Root Structure
 
 ```yaml
-data-sketch: 1.0.0-draft.1
+data-sketch: 1.0.0-draft.2
 
 info:
   name: online-shop
@@ -52,20 +57,47 @@ info:
 sources:
   openapi: ./openapi.yaml
 
-stores:
-  storeLogicalId:
-    name: implementation_store_name
-    reason: The business context that makes this store's data worth persisting.
+claims:
+  customer:
+    name: customers
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
     traces:
       operations:
-        - someOperationId
-    fields:
-      fieldLogicalId:
-        name: implementation_field_name
-        type:
-          name: varchar
-          length: 100
-        nullable: false
+        - createCustomer
+        - getCustomer
+    details:
+      - name
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
+      - name
+
+  order:
+    name: orders
+    tentative: true
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+        - getOrderDetail
+    details:
+      - status
+      - orderedAt
+      - items[].quantity
+    relations:
+      customer: customer
+      items[].product: product
 ```
 
 ---
@@ -74,15 +106,17 @@ stores:
 
 | Field | Required | Description |
 |---|---:|---|
-| `data-sketch` | yes | Must be `1.0.0-draft.1`. |
+| `data-sketch` | yes | Must be `1.0.0-draft.2`. |
 | `info` | yes | Information about the Data Sketch. |
-| `sources` | no | External sources used for operation trace validation. |
-| `stores` | yes | Map of logical store IDs to store definitions. |
+| `sources` | no | External sources used for trace validation and inference hints. |
+| `claims` | yes | Non-empty map of logical claim IDs to claim definitions. |
 
 Rules:
 
-- Data Sketch Specification v1 does not define a database engine selector.
-- A `stores` map key is a logical store ID. It is separate from `store.name`.
+- `claims` is the only canonical root vocabulary for valuable data.
+- A `claims` map key is a logical claim ID. It is separate from `claim.name`.
+- Claim logical IDs must be unique.
+- Claim implementation `name` values must be unique.
 
 ---
 
@@ -95,7 +129,7 @@ info:
 
 | Field | Required | Description |
 |---|---:|---|
-| `name` | yes | Name of the Data Sketch. Must not be empty. |
+| `name` | yes | Name of the Data Sketch. Must be a non-empty string. |
 
 ---
 
@@ -108,68 +142,66 @@ sources:
 
 | Field | Required | Description |
 |---|---:|---|
-| `openapi` | no | Path to the OpenAPI YAML or JSON file used as an operation trace source. |
+| `openapi` | no | Path to the OpenAPI YAML or JSON file used to validate trace names and provide inference hints. |
+| `arrazo` | no | Reserved for an Arazzo Specification file used to trace workflows. |
+| `asyncapi` | no | Reserved for an AsyncAPI file used to trace channels. |
 
 Rules:
 
-- If `sources.openapi` is omitted, tools do not compare traced operations with an OpenAPI file.
-- If `sources.openapi` is present, `shot` loads it as a path relative to the Data Sketch file.
-- During OpenAPI trace validation, every traced operation ID must exist as an OpenAPI Operation Object `operationId`.
-- Duplicate `operationId` values in the OpenAPI file are invalid for trace validation.
-- An unreadable file, invalid YAML or JSON, or a missing traced operation ID is a trace validation error.
+- If `sources.openapi` is omitted, tools keep `traces.operations` as contextual
+  operation names and do not compare them with an OpenAPI file.
+- If `sources.openapi` is present, tools load it as a path relative to the Data
+  Sketch file.
+- During OpenAPI trace validation, every traced operation name must exist as an
+  OpenAPI Operation Object `operationId`.
+- Duplicate `operationId` values in the OpenAPI file are invalid.
+- An unreadable file, invalid YAML or JSON, or a missing traced operation name is
+  a trace validation error.
+- `sources.arrazo` is reserved for future trace validation with
+  `traces.workflows`.
+- `sources.asyncapi` is reserved for future trace validation with
+  `traces.channels`.
 
 ---
 
-## Store
+## Claim
 
 ```yaml
-stores:
+claims:
   order:
     name: orders
-    reason: Customers need to view their order details right after placing an order.
+    tentative: true
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
     traces:
       operations:
         - createOrder
         - getOrderDetail
-    fields:
-      id:
-        name: id
-        type:
-          name: integer
-        nullable: false
+    details:
+      - status
+      - orderedAt
+      - items[].quantity
+    relations:
+      customer: customer
+      items[].product: product
 ```
 
 | Field | Required | Description |
 |---|---:|---|
-| `name` | yes | Implementation-facing store name. |
-| `tentative` | no | Whether this store is tentative and needs human review. Defaults to false. |
-| `reason` | yes | The business context that makes this store's data worth persisting. |
-| `traces` | yes | OpenAPI operation trace metadata. |
-| `fields` | yes | Map of logical field IDs to field definitions. |
-| `keys` | no | Data integrity key definitions. |
-| `indexes` | no | Lookup or access-path intent definitions. |
+| `name` | yes | Implementation-facing claim name. |
+| `reason` | yes | Context explaining why the claim may need to be remembered. |
+| `traces` | yes | User-facing operation trace metadata. |
+| `details` | conditional | Concrete items that describe or support the claim. |
+| `relations` | conditional | Logical relationships from claim paths to other claims. |
+| `tentative` | no | Whether this claim is tentative and needs stakeholder review. Defaults to `false`. |
 
 Rules:
 
-- A `fields` map key is a logical field ID. It is separate from `field.name`.
-
-### Tentative Store Rule
-
-```yaml
-stores:
-  orderDraft:
-    name: order_drafts
-    tentative: true
-```
-
-Rules:
-
+- Each claim must include at least one of `details` or `relations`.
+- `traces.operations` is required and must be a non-empty list.
 - If omitted, `tentative` is treated as `false`.
-- A store with `tentative: true` is still tentative and needs human review.
-- Generative AI should set `tentative: true` for uncertain or newly inferred stores.
-- Humans may also use `tentative: true` for manually drafted stores that need review.
-- A human reviewer accepts the store by removing `tentative: true` or changing it to `tentative: false`.
-- Report tools should clearly mark tentative stores.
+- A claim with `tentative: true` is still tentative and needs stakeholder review.
 
 ---
 
@@ -184,525 +216,290 @@ traces:
 
 | Field | Required | Description |
 |---|---:|---|
-| `operations` | yes | Non-empty list of OpenAPI `operationId` values. |
+| `operations` | yes | Non-empty list of operation names. When `sources.openapi` is present, each value must match an OpenAPI `operationId`. |
+| `workflows` | no | Reserved for Arazzo workflow trace names. |
+| `channels` | no | Reserved for AsyncAPI channel trace names. |
 
 Rules:
 
-- Store-level `traces.operations` is required.
-- When `sources.openapi` is present, `shot` checks these values against OpenAPI Operation Object `operationId` values.
+- Claim-level `traces.operations` is required.
+- When `sources.openapi` is present, tools check these values against OpenAPI
+  Operation Object `operationId` values.
+- When `sources.openapi` is omitted, these values remain contextual trace names.
+- `traces.workflows` is reserved for future Arazzo Specification trace support.
+- `traces.channels` is reserved for future AsyncAPI trace support.
 
 ---
 
-## Field
+## Details
+
+A detail is a concrete item that describes or supports a claim.
+
+Write `details` in list form for the basic sketching style. List form keeps the
+Data Sketch focused on the data this service may need to remember without
+requiring early implementation decisions.
+
+`id` and `_id` are reserved identity detail paths. Authors should not list `id`
+or `_id` in `details`. Renderers or consuming tools usually add identity fields
+automatically when needed.
+
+Basic list form:
 
 ```yaml
-fields:
-  status:
-    name: status
-    reason: Customers and support staff need to know and filter by an order's current lifecycle state.
-    aliases:
-      - order status
-    type:
-      name: varchar
-      length: 20
-    nullable: false
-    enum:
-      - created
-      - cancelled
+details:
+  - status
+  - shippedAt
+  - carrier.name
+  - items[].quantity
 ```
+
+Use map form when a detail needs simple metadata. A map-form detail may specify
+`name`, `aliases`, `type`, and `required`.
+
+Metadata map form:
+
+```yaml
+details:
+  status:
+    name: order status
+    required: true
+    aliases:
+      - fulfillment status
+
+  items[].quantity:
+    name: item quantity
+    type: number
+```
+
+Valid detail path examples:
+
+```text
+status
+shippedAt
+carrier.name
+carrier.trackingNumber
+items[].product
+items[].quantity
+tags[]
+```
+
+Rules:
+
+- `details` must be either a non-empty list of path strings or a non-empty map
+  of path strings to detail metadata.
+- Every detail path must be non-empty.
+- Every path segment must be non-empty.
+- Detail paths must be unique.
+- A detail path must not be a strict prefix of another detail path.
+- A segment's object form and array form must not conflict.
+- The implicit identity field must not be listed as a detail.
+
+Invalid examples:
+
+```yaml
+details:
+  - carrier
+  - carrier.name
+```
+
+```yaml
+details:
+  - items.product
+  - items[].product
+```
+
+---
+
+## Detail Metadata
+
+Map-form detail metadata may include:
 
 | Field | Required | Description |
 |---|---:|---|
-| `name` | yes | Implementation-facing field name. |
-| `reason` | no | The business context that makes this field's data worth persisting. |
-| `aliases` | no | Business-facing names or other aliases for the field. |
-| `type` | yes | Field type definition. |
-| `format` | no | Optional semantic hint such as `ulid`, `uuid`, or `email`. |
-| `nullable` | yes | Whether the field may be null. |
-| `default` | no | Literal default value. |
-| `enum` | no | Allowed string values. |
+| `name` | yes | Implementation-facing detail name. |
+| `aliases` | no | Business-facing names or other aliases for the detail. |
+| `type` | no | Data Sketch detail type. Defaults to `string`. Must be `string` or `number` when present. |
+| `required` | no | Whether the detail is required. Defaults to `false`. |
+
+Rules:
+
+- List-form details do not carry metadata.
+- Map-form details keep only simple Data Sketch metadata.
 
 ---
 
 ## Type
 
 ```yaml
-type:
-  name: varchar
-  length: 100
+type: string
 ```
 
 ```yaml
-type:
-  name: decimal
-  precision: 18
-  scale: 2
+type: number
 ```
 
-```yaml
-type:
-  name: timestamp
+Supported Data Sketch detail type names:
+
+```text
+string
+number
 ```
+
+Rules:
+
+- `type` is available only in map-form details and defaults to `string`.
+- Storage-specific type information belongs in an `x-*` extension such as
+  `x-rdbms-schema.data-types`.
+
+---
+
+## Relations
+
+A relation is a logical relationship from a claim path to another claim.
+
+Relations use a claim-level `relations` map. Each key is a path in the source
+claim. Each value is either shorthand or object form.
+
+Shorthand:
+
+```yaml
+relations:
+  order: order
+  items[].product: product
+```
+
+Object form:
+
+```yaml
+relations:
+  order:
+    to: order
+    reason: |-
+      The shipment needs to connect back to the order it fulfills.
+
+  items[].product:
+    to: product
+    reason: |-
+      Each shipped item needs to identify the product being shipped.
+```
+
+Object-form relation metadata:
 
 | Field | Required | Description |
 |---|---:|---|
-| `name` | yes | Data Sketch Specification v1 type name. |
-| `length` | no | Length for character types. |
-| `precision` | no | Precision for numeric types. |
-| `scale` | no | Scale for decimal or numeric types. |
+| `to` | yes | Target claim logical ID. |
+| `reason` | no | Context explaining why the relationship exists. |
 
-Minimum v1 type subset:
+Rules:
+
+- `relations` is optional.
+- When present, `relations` must be a map.
+- The target claim must exist.
+- Relation paths must be unique within a claim.
+- Relation paths participate in the claim shape.
+- A relation path does not have to be repeated in `details`.
+- If a relation path is also listed in `details`, the document is invalid.
+
+---
+
+## Implicit Identity
+
+Every claim has an implicit surrogate identity.
+
+Rules:
+
+- The identity is not declared in `details`.
+
+---
+
+## OpenAPI Trace And Inference
+
+If `sources.openapi` is present:
+
+- Load the OpenAPI YAML or JSON file relative to the Data Sketch file.
+- Validate that every `traces.operations[]` value exists as an OpenAPI
+  `operationId`.
+- Duplicate OpenAPI `operationId` values are invalid.
+- OpenAPI schemas may be used for type inference.
+
+Tools should resolve detail types using this priority:
 
 ```text
-integer
-smallint
-boolean
-char
-varchar
-decimal
-numeric
-date
-time
-timestamp
+1. Explicit detail metadata in map form
+2. Traced OpenAPI schema, when the detail path exactly matches a JSON path
+3. Fallback to loose interpretation
 ```
 
 Rules:
 
-- `boolean` is included as a practical exception even though SQL92 does not
-  define a boolean data type.
-- Generators may reject type names outside the v1 subset.
+- OpenAPI is a hint source, not the canonical Data Sketch shape.
+- Inference must require exact JSON path matches.
+- Tools must not infer from similar names.
 
 ---
 
-## Default
+## JSON Schema Projection Rules
 
-A default is represented directly as a scalar value.
-
-```yaml
-default: active
-```
+JSON Schema projection should use the same claim model when implemented.
 
 Rules:
 
-- Use literal scalar YAML values only.
-- Defaults are limited to literal values. Expressions, functions, and implementation-specific keywords are not valid default values.
-- Generators should not interpret default values as executable expressions.
+- Each claim becomes a schema definition.
+- `details` become JSON object properties.
+- Dot paths create nested properties.
+- `items[]` creates array schemas.
+- `relations` become `$ref` to the target claim definition.
+
+Example relation projection:
+
+```json
+{
+  "$ref": "#/$defs/product"
+}
+```
 
 ---
 
-## Keys
+## x-* Extensions
 
-Keys express data integrity constraints.
-
-In Data Sketch Specification v1, keys describe persistence requirements such as identity, uniqueness, and references. Storage-specific generators decide how those requirements are projected into a concrete database engine.
-
-```yaml
-keys:
-  primary:
-    name: pk_orders
-    fields:
-      - id
-
-  unique:
-    - name: ux_orders_public_id
-      fields:
-        - publicId
-
-  foreign:
-    - name: fk_orders_customer
-      fields:
-        - customerId
-      references:
-        store: customer
-        fields:
-          - id
-      onDelete: restrict
-      onUpdate: restrict
-```
-
-### Primary Key
-
-```yaml
-primary:
-  name: pk_order_items
-  fields:
-    - orderId
-    - lineNo
-```
+Extension fields whose names start with `x-` may be written on any object in a
+Data Sketch.
 
 Rules:
 
-- `name` is required.
-- `fields` is required.
-- Composite primary keys are represented by multiple fields.
+- Validators must allow `x-*`.
+- Core validation must not assign meaning to `x-*`.
+- The renderer or consuming tool decides how to interpret supported `x-*`
+  fields.
+- Tools should preserve `x-*` when possible.
 
-### Unique Constraints
-
-```yaml
-unique:
-  - name: ux_order_items_order_product
-    fields:
-      - orderId
-      - productId
-```
-
-Rules:
-
-- `name` is required.
-- `fields` is required.
-- Composite unique constraints are represented by multiple fields.
-
-### Foreign Keys
+Typical renderer-specific extension example:
 
 ```yaml
-foreign:
-  - name: fk_order_items_order
-    fields:
-      - orderId
-    references:
-      store: order
-      fields:
-        - id
-    onDelete: cascade
-    onUpdate: restrict
-```
-
-Composite foreign key:
-
-```yaml
-foreign:
-  - name: fk_child_parent
-    fields:
-      - tenantId
-      - parentId
-    references:
-      store: parent
-      fields:
-        - tenantId
-        - id
-```
-
-Rules:
-
-- `name` is required.
-- Local `fields` must exist in the same store.
-- Referenced `store` must exist.
-- Referenced `fields` must exist in the referenced store.
-- For composite foreign keys, local and referenced field counts must match.
-- Field order is significant.
-
-Supported referential actions:
-
-```text
-restrict
-cascade
-setNull
-setDefault
-noAction
-```
-
----
-
-## Indexes
-
-Indexes express lookup or performance intent.
-
-In Data Sketch Specification v1, indexes describe access-path intent. Storage-specific generators decide whether and how to create concrete indexes for their target database engine.
-
-```yaml
-indexes:
-  - name: ix_orders_status
-    fields:
-      - status
-    reason: Used to search orders by status.
-```
-
-Composite index:
-
-```yaml
-indexes:
-  - name: ix_orders_customer_created_at
-    fields:
-      - customerId
-      - createdAt
-    reason: Used to list orders by customer and creation time.
-```
-
-Ordered index field:
-
-```yaml
-indexes:
-  - name: ix_orders_created_at
-    fields:
-      - field: createdAt
-        order: desc
-```
-
-Rules:
-
-- `name` is required.
-- `fields` is required and must be non-empty.
-- Each field must exist in the same store.
-- `reason` is optional but recommended.
-- v1 supports normal indexes only.
-
----
-
-## Validation Rules
-
-A Data Sketch is valid only if:
-
-- `data-sketch` is `1.0.0-draft.1`.
-- `info.name` is a non-empty string.
-- `stores` is not empty.
-- Every store has `name`, `traces.operations`, `reason`, and `fields`.
-- Every store has at least one field.
-- Every field has `name`, `type.name`, and `nullable`.
-- Store logical IDs are unique.
-- Field logical IDs are unique within a store.
-- Store `name` values are unique.
-- Field `name` values are unique within a store.
-- Key references point to existing fields.
-- Foreign key references point to existing stores and fields.
-- Composite foreign keys have equal local and referenced field counts.
-- Index references point to existing fields.
-
----
-
-## Source OpenAPI Example
-
-The following OpenAPI document is the source context for the Data Sketch Specification example below.
-
-```yaml
-openapi: 3.0.3
-
-info:
-  title: Online Shop API
-  version: 1.0.0
-
-paths:
-  /customers:
-    post:
-      operationId: createCustomer
-      summary: Create a customer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name:
-                  type: string
-      responses:
-        '201':
-          description: Customer created
-
-  /customers/{customerId}:
-    get:
-      operationId: getCustomer
-      summary: Get a customer
-      parameters:
-        - name: customerId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Customer detail
-
-  /orders:
-    get:
-      operationId: listOrders
-      summary: List orders
-      responses:
-        '200':
-          description: Order list
-    post:
-      operationId: createOrder
-      summary: Create an order
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [customerId]
-              properties:
-                customerId:
-                  type: string
-      responses:
-        '201':
-          description: Order created
-
-  /orders/{orderId}:
-    get:
-      operationId: getOrderDetail
-      summary: Get an order
-      parameters:
-        - name: orderId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Order detail
-
-  /orders/{orderId}/cancel:
-    post:
-      operationId: cancelOrder
-      summary: Cancel an order
-      parameters:
-        - name: orderId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Order cancelled
-```
-
----
-
-## Data Sketch Example
-
-The following Data Sketch is derived from the OpenAPI example above.
-
-```yaml
-data-sketch: 1.0.0-draft.1
-
-info:
-  name: online-shop
-
-sources:
-  openapi: ./openapi.yaml
-
-stores:
-  customer:
-    name: customers
-    reason: Customer profiles need to be looked up when handling orders and support requests.
-    traces:
-      operations:
-        - createCustomer
-        - getCustomer
-    fields:
-      id:
-        name: id
-        type:
-          name: integer
-        nullable: false
-      publicId:
-        name: public_id
-        reason: Customers need a stable public identifier that doesn't reveal the internal sequential id.
-        aliases:
-          - customer number
-          - customer code
-        type:
-          name: char
-          length: 26
-        format: ulid
-        nullable: false
-      name:
-        name: name
-        aliases:
-          - customer full name
-        type:
-          name: varchar
-          length: 100
-        nullable: false
-    keys:
-      primary:
-        name: pk_customers
-        fields:
-          - id
-      unique:
-        - name: ux_customers_public_id
-          fields:
-            - publicId
+claims:
   order:
     name: orders
-    reason: Customers need to view their order history and cancel orders that haven't shipped yet.
+    reason: |-
+      Order numbers are needed so customers and support staff can identify the
+      same order.
     traces:
       operations:
-        - createOrder
-        - getOrderDetail
-        - cancelOrder
-        - listOrders
-    fields:
-      id:
-        name: id
-        type:
-          name: integer
-        nullable: false
-      publicId:
-        name: public_id
-        aliases:
-          - order number
-        type:
-          name: char
-          length: 26
-        format: ulid
-        nullable: false
-      customerId:
-        name: customer_id
-        aliases:
-          - buyer customer
-        type:
-          name: integer
-        nullable: false
-      status:
-        name: status
-        aliases:
-          - order state
-          - fulfillment status
-        type:
-          name: varchar
+        - getOrder
+    details:
+      - orderNumber
+      - status
+    x-rdbms-schema:
+      data-types:
+        status:
+          type: varchar
           length: 20
-        nullable: false
-        enum:
-          - created
-          - cancelled
-      createdAt:
-        name: created_at
-        type:
-          name: timestamp
-        nullable: false
-      updatedAt:
-        name: updated_at
-        type:
-          name: timestamp
-        nullable: false
-    keys:
-      primary:
-        name: pk_orders
-        fields:
-          - id
-      unique:
-        - name: ux_orders_public_id
-          fields:
-            - publicId
-      foreign:
-        - name: fk_orders_customer
-          fields:
-            - customerId
-          references:
-            store: customer
-            fields:
-              - id
-          onDelete: restrict
-          onUpdate: restrict
-    indexes:
-      - name: ix_orders_status
-        fields:
-          - status
-        reason: Used to search orders by status.
-      - name: ix_orders_customer_created_at
-        fields:
-          - customerId
-          - createdAt
-        reason: Used to list orders for a customer.
+      keys:
+        unique:
+          - orderNumber
+      indexes:
+        - status
 ```
+
+`x-rdbms-schema` is not core Data Sketch vocabulary. An RDBMS renderer may
+interpret `data-types`, `keys.unique`, and `indexes`, while other tools may
+ignore them or preserve them for another tool.
