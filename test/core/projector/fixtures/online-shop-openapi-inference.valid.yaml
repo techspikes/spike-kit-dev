@@ -45,6 +45,5 @@ claims:
       - markers[]
       - unknownUnion
       - looseObject.code
-      - category
     relations:
       category: category

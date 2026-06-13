@@ -12,24 +12,18 @@ claims:
     traces:
       operations:
         - createCustomer
-        - getCustomer
     details:
       - name
-      - email
-      - phoneNumber
-      - tags[]
 
   order:
     name: orders
-    tentative: true
     reason: |-
       Order state is needed after checkout so the service can create an order
       and return its detail.
     traces:
       operations:
         - createOrder
-        - getOrderDetail
     details:
       - status
     relations:
-      customer: customer
+      id: customer

@@ -280,9 +280,10 @@ Rules:
 - A nested array child table references the nearest generated child table from
   the previous array-of-objects boundary.
 - A structural foreign key column is named from the parent projected table ID.
-- A relation source path must also be listed in the same claim's `details`.
-- A relation source path uses the already projected detail column as the foreign
-  key column.
+- A relation source path is projected as a source column even when it is not
+  listed in the same claim's `details`.
+- A relation source path uses that projected source column as the foreign key
+  column.
 - A relation target value points to a target claim.
 - A relation always references the target table's surrogate key column `id`.
 - An explicit `relations` entry takes precedence over claim ID exact-match
@@ -306,7 +307,7 @@ The target claim `customer` is assumed to exist and project to table
 
 ```yaml
 details:
-  - customer
+  - status
 
 relations:
   customer: customer
@@ -320,6 +321,9 @@ tables:
       - id: id
         name: id
         type: CHAR(26)
+      - id: status
+        name: status
+        type: VARCHAR(1024)
       - id: customer
         name: customer
         type: CHAR(26)
@@ -423,10 +427,8 @@ claims:
     details:
       - status
       - orderedAt
-      - customer
       - items[].quantity
       - items[].unitPrice
-      - items[].product
     relations:
       customer: customer
       items[].product: product

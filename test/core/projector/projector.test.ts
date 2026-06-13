@@ -171,6 +171,11 @@ describe('core projector', () => {
         type: 'CHAR(26)'
       },
       {
+        id: 'status',
+        name: 'status',
+        type: 'VARCHAR(1024)'
+      },
+      {
         id: 'customer',
         name: 'customer',
         type: 'CHAR(26)'
@@ -251,6 +256,61 @@ describe('core projector', () => {
           column: 'id'
         },
         kind: 'inferred'
+      }
+    ])
+  })
+
+  it('buildRelationalDbProjection projects relation-only source paths into child tables', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-nested-relation-source-only.valid.yaml'
+      }),
+      trace: false
+    })
+
+    const projection = sketch.projections.relationalDb()
+
+    assert.deepEqual(projection.tables['order.items[]']?.columns, [
+      {
+        id: 'id',
+        name: 'id',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'order',
+        name: 'order',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'items[].quantity',
+        name: 'quantity',
+        type: 'VARCHAR(1024)'
+      },
+      {
+        id: 'items[].product',
+        name: 'product',
+        type: 'CHAR(26)'
+      }
+    ])
+
+    assert.deepEqual(projection.tables['order.items[]']?.foreignKeys, [
+      {
+        name: 'fk_order_items_order',
+        column: 'order',
+        target: {
+          table: 'orders',
+          column: 'id'
+        },
+        kind: 'structural'
+      },
+      {
+        name: 'fk_order_items_product',
+        column: 'product',
+        target: {
+          table: 'products',
+          column: 'id'
+        },
+        kind: 'explicit'
       }
     ])
   })

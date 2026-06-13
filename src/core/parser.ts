@@ -158,16 +158,48 @@ function validateClaimShape(spec: Specification): string[] {
       issues.push(`claims.${claimId} must include details`)
     }
 
+    const detailIds = claim.details ?? []
+    const relationIds = Object.keys(claim.relations ?? {})
+
     if (claim.details) {
-      issues.push(...validateDetailShape(claimId, claim.details))
+      issues.push(...validateDetailShape(claimId, detailIds))
+    }
+
+    if (claim.relations) {
+      issues.push(...validateRelationShape(claimId, relationIds))
     }
 
     if (claim.details && claim.aliases) {
-      issues.push(...validateAliasShape(claimId, claim.details, claim.aliases))
+      issues.push(...validateAliasShape(claimId, detailIds, claim.aliases))
+    }
+
+    const effectiveDetailIds = [...new Set([...detailIds, ...relationIds])]
+    const effectiveDetailFields = getEffectiveDetailFields(detailIds, relationIds)
+
+    if (effectiveDetailIds.length > 0) {
+      issues.push(
+        ...validateDetailPathConflicts(claimId, effectiveDetailIds, effectiveDetailFields)
+      )
     }
   }
 
   return issues
+}
+
+function getEffectiveDetailFields(detailIds: readonly string[], relationIds: readonly string[]) {
+  const fields = new Map<string, 'details' | 'relations'>()
+
+  for (const detailId of detailIds) {
+    fields.set(detailId, 'details')
+  }
+
+  for (const relationId of relationIds) {
+    if (!fields.has(relationId)) {
+      fields.set(relationId, 'relations')
+    }
+  }
+
+  return fields
 }
 
 function validateDetailShape(
@@ -189,7 +221,21 @@ function validateDetailShape(
     detailIds.add(detailId)
   }
 
-  issues.push(...validateDetailPaths(claimId, [...detailIds]))
+  issues.push(...validateDetailPathSyntax(claimId, 'details', [...detailIds]))
+
+  return issues
+}
+
+function validateRelationShape(claimId: string, relationIds: string[]): string[] {
+  const issues: string[] = []
+
+  for (const relationId of relationIds) {
+    if (reservedIdentityDetailPaths.has(relationId)) {
+      issues.push(`claims.${claimId}.relations.${relationId} is a reserved identity detail path`)
+    }
+  }
+
+  issues.push(...validateDetailPathSyntax(claimId, 'relations', relationIds))
 
   return issues
 }
@@ -208,7 +254,11 @@ function validateAliasShape(
   )
 }
 
-function validateDetailPaths(claimId: string, detailIds: string[]): string[] {
+function validateDetailPathSyntax(
+  claimId: string,
+  fieldName: 'details' | 'relations',
+  detailIds: string[]
+): string[] {
   const issues: string[] = []
   const detailPaths = detailIds.map(detailId => ({
     detailId,
@@ -218,7 +268,7 @@ function validateDetailPaths(claimId: string, detailIds: string[]): string[] {
   for (const detailPath of detailPaths) {
     if (detailPath.segments.some(segment => segment === '')) {
       issues.push(
-        `claims.${claimId}.details.${detailPath.detailId} must not contain empty path segments`
+        `claims.${claimId}.${fieldName}.${detailPath.detailId} must not contain empty path segments`
       )
     }
 
@@ -228,10 +278,24 @@ function validateDetailPaths(claimId: string, detailIds: string[]): string[] {
 
     if (invalidSegment) {
       issues.push(
-        `claims.${claimId}.details.${detailPath.detailId} segment ${invalidSegment} must be either <name> or <name>[]`
+        `claims.${claimId}.${fieldName}.${detailPath.detailId} segment ${invalidSegment} must be either <name> or <name>[]`
       )
     }
   }
+
+  return issues
+}
+
+function validateDetailPathConflicts(
+  claimId: string,
+  detailIds: string[],
+  detailFields: ReadonlyMap<string, 'details' | 'relations'>
+): string[] {
+  const issues: string[] = []
+  const detailPaths = detailIds.map(detailId => ({
+    detailId,
+    segments: detailId.split('.')
+  }))
 
   for (let index = 0; index < detailPaths.length; index += 1) {
     const left = detailPaths[index]
@@ -242,7 +306,7 @@ function validateDetailPaths(claimId: string, detailIds: string[]): string[] {
 
       if (prefixPair) {
         issues.push(
-          `claims.${claimId}.details.${prefixPair.prefix.detailId} must not be a strict prefix of ${prefixPair.prefixed.detailId}`
+          `${getDetailPathIssuePath(claimId, prefixPair.prefix.detailId, detailFields)} must not be a strict prefix of ${prefixPair.prefixed.detailId}`
         )
       }
 
@@ -250,13 +314,23 @@ function validateDetailPaths(claimId: string, detailIds: string[]): string[] {
 
       if (conflictSegment) {
         issues.push(
-          `claims.${claimId}.details.${left.detailId} conflicts with ${right.detailId} because segment ${conflictSegment} uses both object and array form`
+          `${getDetailPathIssuePath(claimId, left.detailId, detailFields)} conflicts with ${right.detailId} because segment ${conflictSegment} uses both object and array form`
         )
       }
     }
   }
 
   return issues
+}
+
+function getDetailPathIssuePath(
+  claimId: string,
+  detailId: string,
+  detailFields: ReadonlyMap<string, 'details' | 'relations'>
+) {
+  const detailField = detailFields.get(detailId) as 'details' | 'relations'
+
+  return `claims.${claimId}.${detailField}.${detailId}`
 }
 
 function getStrictPrefixPair(

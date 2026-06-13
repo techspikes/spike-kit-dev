@@ -4,32 +4,27 @@ info:
   name: online-shop
 
 claims:
-  customer:
-    name: customers
+  product:
+    name: products
     reason: |-
-      Customer profile information is needed when customers are created and
-      later looked up for ordering and support context.
+      Product information is needed so users can browse products and select
+      products for orders.
     traces:
       operations:
-        - createCustomer
-        - getCustomer
+        - listProducts
     details:
       - name
-      - email
-      - phoneNumber
-      - tags[]
 
   order:
     name: orders
-    tentative: true
     reason: |-
       Order state is needed after checkout so the service can create an order
       and return its detail.
     traces:
       operations:
         - createOrder
-        - getOrderDetail
     details:
       - status
     relations:
-      customer: customer
+      items.product: product
+      items[].product: product

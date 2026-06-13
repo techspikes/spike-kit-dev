@@ -552,15 +552,24 @@ function addProjectionForeignKey(
   const table = ensureProjectionTable(tables, tableId, tableName)
   const columnName = getColumnName(path, tablePathSegments)
   const targetClaim = spec.claims[targetClaimId] as Specification['claims'][string]
+  const matchingColumn = table.columns.find(column => column.id === path)
 
-  table.columns = table.columns.map(column =>
-    column.id === path
-      ? {
-          ...column,
-          type: 'CHAR(26)'
-        }
-      : column
-  )
+  if (matchingColumn) {
+    table.columns = table.columns.map(column =>
+      column.id === path
+        ? {
+            ...column,
+            type: 'CHAR(26)'
+          }
+        : column
+    )
+  } else {
+    addProjectionColumn(tableId, table, {
+      id: path,
+      name: columnName,
+      type: 'CHAR(26)'
+    })
+  }
 
   table.foreignKeys.push({
     name: `fk_${table.name}_${columnName}`,

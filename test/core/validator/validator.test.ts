@@ -75,7 +75,7 @@ describe('core validator', () => {
     assert.equal(sketch.metadata.validated, true)
   })
 
-  it('validate accepts relation source details', () => {
+  it('validate accepts relation source paths that are also listed in details', () => {
     const sketch = validate({
       sketch: parse({
         path: 'test/core/validator/fixtures/online-shop-relation-source-detail.valid.yaml'
@@ -99,17 +99,15 @@ describe('core validator', () => {
     )
   })
 
-  it('validate rejects relation source paths that are not listed in details', () => {
-    assert.throws(
-      () =>
-        validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-missing-relation-source-detail.invalid.yaml'
-          }),
-          trace: false
-        }),
-      /claims\.order\.relations\.customer must also be listed in details/
-    )
+  it('validate accepts relation source paths that are listed only in relations', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/validator/fixtures/online-shop-relation-source-only.valid.yaml'
+      }),
+      trace: false
+    })
+
+    assert.equal(sketch.metadata.validated, true)
   })
 
   it('validate rejects array-of-scalars relation source paths', () => {

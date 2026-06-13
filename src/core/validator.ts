@@ -84,12 +84,6 @@ function validateRelations(spec: Specification) {
     }
 
     for (const [relationPath, relationTarget] of Object.entries(claim.relations)) {
-      const claimDetails = claim.details as NonNullable<Specification['claims'][string]['details']>
-
-      if (!hasDetailPath(claimDetails, relationPath)) {
-        issues.push(`claims.${claimId}.relations.${relationPath} must also be listed in details`)
-      }
-
       if (relationPath.endsWith('[]')) {
         issues.push(
           `claims.${claimId}.relations.${relationPath} must not use an array-of-scalars detail as a relation source`
@@ -117,13 +111,6 @@ function validateRelations(spec: Specification) {
   if (issues.length > 0) {
     throw new Error(issues.join('\n'))
   }
-}
-
-function hasDetailPath(
-  details: NonNullable<Specification['claims'][string]['details']>,
-  detailPath: string
-) {
-  return details.includes(detailPath)
 }
 
 function loadOpenApiFromPath(basePath: string, openApiPath: string): unknown {

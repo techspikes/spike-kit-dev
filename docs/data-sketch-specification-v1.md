@@ -151,9 +151,7 @@ claims:
     details:
       - status
       - orderedAt
-      - customer
       - items[].quantity
-      - items[].product
     relations:
       customer: customer
       items[].product: product
@@ -166,7 +164,7 @@ claims:
 | `traces` | yes | User-facing operation trace metadata. |
 | `details` | yes | Concrete items that describe or support the claim. |
 | `aliases` | no | Business-facing aliases keyed by detail path. |
-| `relations` | no | Logical relationships from claim detail paths to other claims. |
+| `relations` | no | Logical relationships from source paths on this claim to other claims. |
 | `tentative` | no | Whether this claim is tentative and needs stakeholder review. Defaults to `false`. |
 
 Rules:
@@ -313,15 +311,16 @@ Rules:
 
 ## Relations
 
-A relation is a logical relationship from a claim detail to another claim.
+A relation is a logical relationship from a source path on a claim to another
+claim.
 
 Relations use a claim-level `relations` map. Each key is a path in the source
 claim. Each value is the target claim logical ID.
 
 ```yaml
 details:
-  - customer
-  - items[].product
+  - status
+  - items[].quantity
 
 relations:
   customer: customer
@@ -338,7 +337,10 @@ Rules:
 - Do not write `.id` in the relation target value. Relation target values ending
   with `.id` are invalid.
 - Relation paths must be unique within a claim.
-- Relation paths must also be listed in the same claim's `details`.
+- Relation paths use the same path syntax as `details`.
+- Relation paths are treated as source details and do not need to be listed in
+  the same claim's `details`.
+- Relation paths participate in detail path conflict checks with `details`.
 - Relation paths must not use array-of-scalars details. A relation path ending
   with `[]` is invalid.
 - Relational projections may use relation paths as foreign key columns.
@@ -685,10 +687,8 @@ claims:
     details:
       - status
       - orderedAt
-      - customer
       - items[].quantity
       - items[].unitPrice
-      - items[].product
     relations:
       customer: customer
       items[].product: product

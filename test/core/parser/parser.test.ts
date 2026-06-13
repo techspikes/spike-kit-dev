@@ -243,6 +243,55 @@ describe('core parser', () => {
     assert.deepEqual(sketch.spec.claims.order.relations, { customer: 'customer' })
   })
 
+  it('parse accepts a relation source path that is listed only in relations', () => {
+    const sketch = parse({
+      path: 'test/core/parser/fixtures/online-shop-relation-source-only.valid.yaml'
+    })
+
+    assert.deepEqual(sketch.spec.claims.order.details, ['status'])
+    assert.deepEqual(sketch.spec.claims.order.relations, { customer: 'customer' })
+  })
+
+  it('parse rejects relation source paths with empty segments', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-relation-source-empty-segment.invalid.yaml'
+        }),
+      /claims\.order\.relations\.customer\.\.profile must not contain empty path segments/
+    )
+  })
+
+  it('parse rejects relation source identity paths', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-relation-source-reserved-id.invalid.yaml'
+        }),
+      /claims\.order\.relations\.id is a reserved identity detail path/
+    )
+  })
+
+  it('parse rejects effective detail paths where a relation source path is a strict prefix', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-relation-source-strict-prefix.invalid.yaml'
+        }),
+      /claims\.order\.relations\.customer must not be a strict prefix of customer\.name/
+    )
+  })
+
+  it('parse rejects relation source paths that mix object and array form for a segment', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-relation-source-array-object-conflict.invalid.yaml'
+        }),
+      /claims\.order\.relations\.items\.product conflicts with items\[\]\.product because segment items uses both object and array form/
+    )
+  })
+
   it('parse rejects object-form details', () => {
     assert.throws(
       () =>
