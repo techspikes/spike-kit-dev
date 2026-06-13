@@ -1,10 +1,12 @@
+import type { Specification } from './parser.ts'
+
 export type DataSketch<
   P extends Record<string, (() => unknown) | undefined> = Record<
     string,
     (() => unknown) | undefined
   >
 > = {
-  readonly spec: unknown
+  readonly spec: Specification
   readonly metadata: {
     readonly version: string
     readonly basePath: string

@@ -1,0 +1,39 @@
+{
+  "data-sketch/extension-projection": "1.0.0-draft.2",
+  "extensions": [
+    {
+      "path": "",
+      "values": {
+        "x-note": {
+          "purpose": "preserve extension fields"
+        }
+      }
+    },
+    {
+      "path": "info",
+      "values": {
+        "x-owner": "shop team"
+      }
+    },
+    {
+      "path": "sources",
+      "values": {
+        "x-source-kind": "contract"
+      }
+    },
+    {
+      "path": "claims.customer",
+      "values": {
+        "x-rdbms-schema": {
+          "tableComment": "Customer records"
+        }
+      }
+    },
+    {
+      "path": "claims.customer.traces",
+      "values": {
+        "x-trace-source": "shopping journey"
+      }
+    }
+  ]
+}

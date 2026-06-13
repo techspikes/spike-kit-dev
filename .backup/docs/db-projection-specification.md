@@ -25,7 +25,8 @@ IDs are used to resolve references, but they are not included in the output.
 
 - Each store becomes one table.
 - Each field becomes one column.
-- Store and field `name` values become table and column names.
+- Store `name` values become table names.
+- `columns[].name` is automatically derived from the source `details[]` key.
 - Field `type`, `nullable`, and `default` are preserved for database rendering.
 - Omitted defaults become `{ "kind": "omitted" }`.
 - Present defaults become `{ "kind": "value", "value": ... }`.
@@ -77,6 +78,8 @@ IDs are used to resolve references, but they are not included in the output.
 ```
 
 `type` has the same shape as the source field type.
+
+- `name`: automatically derived from the source `details[]` key.
 
 ## Constraint And Index Shapes
 

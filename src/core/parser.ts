@@ -5,6 +5,15 @@ import { readCwdRelativeTextFile, resolveCwdRelativeDirectoryPath } from './util
 
 const nonEmptyString = v.pipe(v.string(), v.nonEmpty())
 const nonEmptyStringList = v.pipe(v.array(nonEmptyString), v.nonEmpty())
+const implementationName = v.pipe(nonEmptyString, v.regex(/^\S+$/, 'must not contain whitespace'))
+const reservedIdentityDetailPaths = new Set(['id', '_id'])
+const invalidClaimIdPattern = /[.[\]]/u
+const validDetailPathSegmentPattern = /^[^[\]]+(?:\[\])?$/u
+const rootFields = new Set(['data-sketch', 'info', 'sources', 'claims'])
+const infoFields = new Set(['name'])
+const sourcesFields = new Set(['openapi', 'arrazo', 'asyncapi'])
+const claimFields = new Set(['name', 'reason', 'traces', 'details', 'relations', 'tentative'])
+const tracesFields = new Set(['operations', 'workflows', 'channels'])
 
 const tracesSchema = v.looseObject({
   operations: nonEmptyStringList,
@@ -12,10 +21,9 @@ const tracesSchema = v.looseObject({
   channels: v.optional(nonEmptyStringList)
 })
 
-const detailMetadataSchema = v.looseObject({
-  name: nonEmptyString,
+const detailMetadataSchema = v.strictObject({
   aliases: v.optional(nonEmptyStringList),
-  type: v.optional(v.picklist(['string', 'number'])),
+  type: v.optional(v.picklist(['string', 'number', 'boolean'])),
   required: v.optional(v.boolean())
 })
 
@@ -24,20 +32,12 @@ const detailsSchema = v.union([
   v.pipe(v.record(v.string(), detailMetadataSchema), v.minEntries(1))
 ])
 
-const relationSchema = v.union([
-  nonEmptyString,
-  v.looseObject({
-    to: nonEmptyString,
-    reason: v.optional(nonEmptyString)
-  })
-])
-
 const claimSchema = v.looseObject({
-  name: nonEmptyString,
+  name: implementationName,
   reason: nonEmptyString,
   traces: tracesSchema,
   details: v.optional(detailsSchema),
-  relations: v.optional(v.record(v.string(), relationSchema)),
+  relations: v.optional(v.record(v.string(), nonEmptyString)),
   tentative: v.optional(v.boolean())
 })
 
@@ -56,7 +56,7 @@ const specificationSchema = v.looseObject({
   claims: v.pipe(v.record(v.string(), claimSchema), v.minEntries(1))
 })
 
-type Specification = v.InferOutput<typeof specificationSchema>
+export type Specification = v.InferOutput<typeof specificationSchema>
 
 export function parse(options: { readonly path: string } | { readonly input: string }): DataSketch {
   let source: string
@@ -78,7 +78,7 @@ export function parse(options: { readonly path: string } | { readonly input: str
     }
 
     const parsed = result.output
-    const issues = validateClaimShape(parsed)
+    const issues = [...validateExtensionFields(parsed), ...validateClaimShape(parsed)]
 
     if (issues.length > 0) {
       throw new Error(issues.join('\n'))
@@ -101,24 +101,210 @@ export function parse(options: { readonly path: string } | { readonly input: str
   }
 }
 
-export function readSpecification(sketch: DataSketch): Specification {
-  const result = v.safeParse(specificationSchema, sketch.spec)
+function validateExtensionFields(spec: Specification): string[] {
+  const issues: string[] = []
 
-  if (!result.success) {
-    throw new Error(formatValibotIssues(result.issues).join('\n'))
+  issues.push(...validateExtensibleObjectFields('', spec, rootFields))
+  issues.push(...validateExtensibleObjectFields('info', spec.info, infoFields))
+
+  if (spec.sources) {
+    issues.push(...validateExtensibleObjectFields('sources', spec.sources, sourcesFields))
   }
 
-  return result.output
+  for (const [claimId, claim] of Object.entries(spec.claims)) {
+    issues.push(...validateExtensibleObjectFields(`claims.${claimId}`, claim, claimFields))
+    issues.push(
+      ...validateExtensibleObjectFields(`claims.${claimId}.traces`, claim.traces, tracesFields)
+    )
+  }
+
+  return issues
+}
+
+function validateExtensibleObjectFields(
+  path: string,
+  object: Record<string, unknown>,
+  knownFields: ReadonlySet<string>
+) {
+  const issues: string[] = []
+
+  for (const field of Object.keys(object)) {
+    if (!knownFields.has(field) && !field.startsWith('x-')) {
+      const fieldPath = path ? `${path}.${field}` : field
+
+      issues.push(`${fieldPath} is not supported; use x-* for extension fields`)
+    }
+  }
+
+  return issues
 }
 
 function validateClaimShape(spec: Specification): string[] {
-  return Object.entries(spec.claims).flatMap(([claimId, claim]) => {
-    if (claim.details || claim.relations) {
-      return []
+  const issues: string[] = []
+  const claimNames = new Set<string>()
+
+  for (const [claimId, claim] of Object.entries(spec.claims)) {
+    if (invalidClaimIdPattern.test(claimId)) {
+      issues.push(`claims.${claimId} must not contain . or []`)
     }
 
-    return [`claims.${claimId} must include details or relations`]
-  })
+    if (claimNames.has(claim.name)) {
+      issues.push(`claims.${claimId}.name ${claim.name} is duplicated`)
+    }
+
+    claimNames.add(claim.name)
+
+    if (!claim.details) {
+      issues.push(`claims.${claimId} must include details`)
+    }
+
+    if (claim.details) {
+      issues.push(...validateDetailShape(claimId, claim.details))
+    }
+  }
+
+  return issues
+}
+
+function validateDetailShape(
+  claimId: string,
+  details: NonNullable<Specification['claims'][string]['details']>
+): string[] {
+  const issues: string[] = []
+  const detailIds = new Set<string>()
+
+  for (const detailId of Array.isArray(details) ? details : Object.keys(details)) {
+    if (reservedIdentityDetailPaths.has(detailId)) {
+      issues.push(`claims.${claimId}.details.${detailId} is a reserved identity detail path`)
+    }
+
+    if (detailIds.has(detailId)) {
+      issues.push(`claims.${claimId}.details.${detailId} is duplicated`)
+    }
+
+    detailIds.add(detailId)
+  }
+
+  issues.push(...validateDetailPaths(claimId, [...detailIds]))
+
+  if (Array.isArray(details)) {
+    return issues
+  }
+
+  return issues
+}
+
+function validateDetailPaths(claimId: string, detailIds: string[]): string[] {
+  const issues: string[] = []
+  const detailPaths = detailIds.map(detailId => ({
+    detailId,
+    segments: detailId.split('.')
+  }))
+
+  for (const detailPath of detailPaths) {
+    if (detailPath.segments.some(segment => segment === '')) {
+      issues.push(
+        `claims.${claimId}.details.${detailPath.detailId} must not contain empty path segments`
+      )
+    }
+
+    const invalidSegment = detailPath.segments.find(
+      segment => segment !== '' && !validDetailPathSegmentPattern.test(segment)
+    )
+
+    if (invalidSegment) {
+      issues.push(
+        `claims.${claimId}.details.${detailPath.detailId} segment ${invalidSegment} must be either <name> or <name>[]`
+      )
+    }
+  }
+
+  for (let index = 0; index < detailPaths.length; index += 1) {
+    const left = detailPaths[index]
+
+    for (let otherIndex = index + 1; otherIndex < detailPaths.length; otherIndex += 1) {
+      const right = detailPaths[otherIndex]
+      const prefixPair = getStrictPrefixPair(left, right)
+
+      if (prefixPair) {
+        issues.push(
+          `claims.${claimId}.details.${prefixPair.prefix.detailId} must not be a strict prefix of ${prefixPair.prefixed.detailId}`
+        )
+      }
+
+      const conflictSegment = getArrayObjectConflictSegment(left.segments, right.segments)
+
+      if (conflictSegment) {
+        issues.push(
+          `claims.${claimId}.details.${left.detailId} conflicts with ${right.detailId} because segment ${conflictSegment} uses both object and array form`
+        )
+      }
+    }
+  }
+
+  return issues
+}
+
+function getStrictPrefixPair(
+  left: { readonly detailId: string; readonly segments: readonly string[] },
+  right: { readonly detailId: string; readonly segments: readonly string[] }
+) {
+  if (isStrictDetailPathPrefix(left.segments, right.segments)) {
+    return {
+      prefix: left,
+      prefixed: right
+    }
+  }
+
+  if (isStrictDetailPathPrefix(right.segments, left.segments)) {
+    return {
+      prefix: right,
+      prefixed: left
+    }
+  }
+
+  return undefined
+}
+
+function isStrictDetailPathPrefix(
+  prefixSegments: readonly string[],
+  prefixedSegments: readonly string[]
+) {
+  return (
+    prefixSegments.length < prefixedSegments.length &&
+    prefixSegments.every((segment, index) => segment === prefixedSegments[index])
+  )
+}
+
+function getArrayObjectConflictSegment(
+  leftSegments: readonly string[],
+  rightSegments: readonly string[]
+) {
+  const segmentCount = Math.min(leftSegments.length, rightSegments.length)
+
+  for (let index = 0; index < segmentCount; index += 1) {
+    const leftSegment = leftSegments[index]
+    const rightSegment = rightSegments[index]
+
+    if (leftSegment === rightSegment) {
+      continue
+    }
+
+    const leftName = getDetailPathSegmentName(leftSegment)
+    const rightName = getDetailPathSegmentName(rightSegment)
+
+    if (leftName === rightName) {
+      return leftName
+    }
+
+    return undefined
+  }
+
+  return undefined
+}
+
+function getDetailPathSegmentName(segment: string) {
+  return segment.endsWith('[]') ? segment.slice(0, -2) : segment
 }
 
 function formatValibotIssues(issues: readonly v.InferIssue<typeof specificationSchema>[]) {

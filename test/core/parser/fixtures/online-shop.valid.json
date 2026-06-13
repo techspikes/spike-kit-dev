@@ -13,7 +13,7 @@
       "traces": {
         "operations": ["createCustomer", "getCustomer"]
       },
-      "details": ["name", "email", "phoneNumber"]
+      "details": ["name", "email", "phoneNumber", "address.city", "address.postalCode"]
     },
     "product": {
       "name": "products",
@@ -30,7 +30,14 @@
       "traces": {
         "operations": ["createOrder", "getOrderDetail"]
       },
-      "details": ["status", "orderedAt", "items[].quantity", "items[].unitPrice"],
+      "details": [
+        "status",
+        "orderedAt",
+        "customer",
+        "items[].quantity",
+        "items[].unitPrice",
+        "items[].product"
+      ],
       "relations": {
         "customer": "customer",
         "items[].product": "product"

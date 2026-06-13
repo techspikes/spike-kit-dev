@@ -1,0 +1,23 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  order:
+    name: orders
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+    details:
+      items[].stocks[].price:
+        aliases:
+          - item stock lot price
+        type: number
+      items[].stocks[].quantity:
+        aliases:
+          - item stock lot quantity
+        type: number

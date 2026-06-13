@@ -5,17 +5,11 @@
 Specification and tools for agile teams to quickly sketch disposable data
 stores for user stories.
 
-Data Sketch Specification v1 is a YAML or JSON format for describing data this service
-currently considers valuable enough to keep, based on customer
-conversation and feedback. `reason` and `traces` make the document AI First by
-giving AI enough context to understand why the data exists. The
-`tables-doc` command projects the specification into database-focused
-documentation artifacts. See
-[docs/data-sketch-specification-v1.md](docs/data-sketch-specification-v1.md) for the full
-specification.
-
-A disposable YAML document written in the specification can be called a Data Sketch.
-Stores with `tentative: true` are still tentative and need human review.
+Data Sketch Specification v1 is a YAML or JSON format for describing data this
+service currently claims may be worth remembering, based on Tale, user story,
+and OpenAPI context. A Data Sketch is not a database design document; it keeps
+the data claim, reason, traces, details, and logical relations small enough to
+revise or discard as the team learns.
 
 ## Requirements
 
@@ -33,14 +27,8 @@ The CLI is installed as `shot`, named after the shot used when making espresso.
 ## Usage
 
 ```sh
-shot spec-check <spec file>
-shot tables-doc <file> --output <file>
-```
-
-After installation, run the CLI through npm:
-
-```sh
 npx shot --help
+npx shot spec-check path/to/data-sketch.yaml
 ```
 
 ## Commands
@@ -51,24 +39,14 @@ npx shot --help
 npx shot spec-check path/to/data-sketch.yaml
 ```
 
-The command validates a Data Sketch. When `sources.openapi` is present, it also
-validates store trace operations against OpenAPI Operation Object `operationId`
-values.
-
-### Generate Markdown table documentation
-
-```sh
-npx shot tables-doc path/to/data-sketch.yaml --output docs/tables.md
-```
-
-The command writes Markdown table documentation and appends a SQL-92 compatible
-DDL block in a `sql` fence. The command projects the Data Sketch into a db
-projection snapshot before rendering Markdown.
+The command parses and validates a Data Sketch. When `sources.openapi` is
+present, it also validates `traces.operations` against OpenAPI Operation Object
+`operationId` values.
 
 ## Data Sketch Example
 
 ```yaml
-data-sketch: 1.0.0-draft.1
+data-sketch: 1.0.0-draft.2
 
 info:
   name: online-shop
@@ -76,34 +54,72 @@ info:
 sources:
   openapi: ./openapi.yaml
 
-stores:
+claims:
   customer:
     name: customers
-    reason: Customer profiles need to be looked up when handling orders and support requests.
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
     traces:
       operations:
         - createCustomer
         - getCustomer
-    fields:
-      id:
-        name: id
-        type:
-          name: integer
-        nullable: false
+    details:
+      - name
+      - email
+      - address.city
+      - address.postalCode
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
       name:
-        name: name
         aliases:
-          - customer full name
-        type:
-          name: varchar
-          length: 100
-        nullable: false
-    keys:
-      primary:
-        name: pk_customers
-        fields:
-          - id
+          - product name
+      price:
+        aliases:
+          - selling price
+        type: number
+      discontinued:
+        aliases:
+          - discontinued flag
+        type: boolean
+
+  order:
+    name: orders
+    tentative: true
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+        - getOrderDetail
+    details:
+      - status
+      - customer
+      - items[].product
+      - items[].quantity
+    relations:
+      customer: customer
+      items[].product: product
 ```
+
+## Projections
+
+Validated Data Sketches can be projected into intermediate models for renderers
+and database-facing commands.
+
+- The Relational DB Projection maps claims and details to projected tables,
+  columns, primary keys, and foreign keys.
+- The Extension Projection preserves `x-*` extension fields for tools that need
+  renderer-specific metadata.
 
 ## Development
 
@@ -116,8 +132,6 @@ npm test
 ## Documentation
 
 - [Data Sketch Specification v1](docs/data-sketch-specification-v1.md)
-- [`check` command specification](docs/check-command-specification.md)
-- [Db Projection Specification](docs/db-projection-specification.md)
-- [`tables-doc` command specification](docs/tables-doc-command-specification.md)
-- [Online shop example Data Sketch](docs/examples/online-shop-example.yaml)
-- [Online shop example table specification](docs/examples/online-shop-example.tables-doc.md)
+- [`spec-check` command specification](docs/commands/spec-check-command-specification.md)
+- [Relational DB Projection Specification](docs/projections/relational-db-projection.md)
+- [Extension Projection Specification](docs/projections/extension-projection.md)

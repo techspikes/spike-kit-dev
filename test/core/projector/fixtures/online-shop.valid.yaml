@@ -15,12 +15,21 @@ claims:
         - getCustomer
     details:
       name:
-        name: customer name
+        aliases:
+          - customer name
       email:
-        name: email address
+        aliases:
+          - email address
       phoneNumber:
-        name: phone number
+        aliases:
+          - phone number
         required: false
+      address.city:
+        aliases:
+          - address city
+      address.postalCode:
+        aliases:
+          - postal code
 
   product:
     name: products
@@ -32,12 +41,19 @@ claims:
         - listProducts
     details:
       name:
-        name: product name
+        aliases:
+          - product name
       price:
-        name: selling price
+        aliases:
+          - selling price
         type: number
       inventoryStatus:
-        name: inventory status
+        aliases:
+          - inventory status
+      discontinued:
+        aliases:
+          - discontinued flag
+        type: boolean
 
   order:
     name: orders
@@ -51,21 +67,25 @@ claims:
         - getOrderDetail
     details:
       status:
-        name: order status
+        aliases:
+          - order status
       orderedAt:
-        name: ordered time
+        aliases:
+          - ordered time
+      customer:
+        aliases:
+          - order customer
       items[].quantity:
-        name: item quantity
+        aliases:
+          - item quantity
         type: number
       items[].unitPrice:
-        name: item unit price
+        aliases:
+          - item unit price
         type: number
-    relations:
-      customer:
-        to: customer
-        reason: |-
-          The order needs to identify the customer who placed it.
       items[].product:
-        to: product
-        reason: |-
-          Each order item needs to identify the product being purchased.
+        aliases:
+          - item product
+    relations:
+      customer: customer
+      items[].product: product

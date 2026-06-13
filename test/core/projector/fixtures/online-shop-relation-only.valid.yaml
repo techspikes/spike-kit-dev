@@ -29,6 +29,7 @@ claims:
       operations:
         - createOrder
         - getOrderDetail
+    details:
+      - customer
     relations:
       customer: customer
-      missingCustomer: missingCustomer

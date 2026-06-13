@@ -20,3 +20,5 @@ claims:
       - name
       - email
       - phoneNumber
+      - address.city
+      - address.postalCode

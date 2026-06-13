@@ -5,15 +5,16 @@ import { validate } from '../../../src/core/validator.ts'
 import { readTextFile } from '../../test-helper/file-access.ts'
 
 describe('core validator', () => {
-  it('validate marks a sketch as validated and adds a DB projector when trace is false', () => {
+  it('validate marks a sketch as validated and adds built-in projectors when trace is false', () => {
     const sketch = validate({
       sketch: parse({ path: 'test/core/validator/fixtures/online-shop.valid.yaml' }),
       trace: false
     })
 
     assert.equal(sketch.metadata.validated, true)
+    assert.equal(typeof sketch.projections.extensions, 'function')
     assert.equal(typeof sketch.projections.relationalDb, 'function')
-    assert.equal(sketch.projections.relationalDb().claims[0]?.id, 'customer')
+    assert.equal(sketch.projections.relationalDb().tables.customer?.name, 'customers')
   })
 
   it('validate defaults to trace true for spec sources.openapi', () => {
@@ -45,6 +46,82 @@ describe('core validator', () => {
     })
 
     assert.equal(sketch.metadata.validated, true)
+  })
+
+  it('validate accepts map-form relation source details', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/validator/fixtures/online-shop-map-form-relation-source.valid.yaml'
+      }),
+      trace: false
+    })
+
+    assert.equal(sketch.metadata.validated, true)
+  })
+
+  it('validate rejects missing relation target claims', () => {
+    assert.throws(
+      () =>
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-missing-relation-target-claim.invalid.yaml'
+          }),
+          trace: false
+        }),
+      /claims\.order\.relations\.customer target claim shopper does not exist/
+    )
+  })
+
+  it('validate rejects relation source paths that are not listed in details', () => {
+    assert.throws(
+      () =>
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-missing-relation-source-detail.invalid.yaml'
+          }),
+          trace: false
+        }),
+      /claims\.order\.relations\.customer must also be listed in details/
+    )
+  })
+
+  it('validate rejects array-of-scalars relation source paths', () => {
+    assert.throws(
+      () =>
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-array-scalar-relation-source.invalid.yaml'
+          }),
+          trace: false
+        }),
+      /claims\.order\.relations\.products\[\] must not use an array-of-scalars detail as a relation source/
+    )
+  })
+
+  it('validate rejects relation targets that are not claim IDs', () => {
+    assert.throws(
+      () =>
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-relation-target-detail.invalid.yaml'
+          }),
+          trace: false
+        }),
+      /claims\.order\.relations\.items\[\]\.productSku target claim product\.sku does not exist/
+    )
+  })
+
+  it('validate rejects relation targets that include the target identity path', () => {
+    assert.throws(
+      () =>
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-relation-target-identity.invalid.yaml'
+          }),
+          trace: false
+        }),
+      /claims\.order\.relations\.items\[\]\.product target product\.id must be a claim ID; do not write \.id/
+    )
   })
 
   it('validate rejects missing OpenAPI files when trace is true', () => {

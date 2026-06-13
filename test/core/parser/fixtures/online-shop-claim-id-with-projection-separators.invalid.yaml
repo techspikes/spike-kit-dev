@@ -1,0 +1,27 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  customer.profile:
+    name: customer_profiles
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+
+  order[]:
+    name: order_items
+    reason: |-
+      Order item information is needed after checkout so the service can return
+      order detail.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - quantity

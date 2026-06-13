@@ -1,0 +1,63 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  customer:
+    name: customers
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
+      - name
+
+  category:
+    name: categories
+    reason: |-
+      Product category information is needed so users can browse grouped
+      products.
+    traces:
+      operations:
+        - listCategories
+    details:
+      - name
+
+  order:
+    name: orders
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - customer
+      - items[].product
+      - items[].quantity
+
+  productCategory:
+    name: product_categories
+    reason: |-
+      Product category membership is needed so products can appear in multiple
+      categories.
+    traces:
+      operations:
+        - listProducts
+    details:
+      - product
+      - category

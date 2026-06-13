@@ -24,9 +24,9 @@ This specification is intended to be used as:
 |---|---|
 | Valuable Data | Data described by a Data Sketch. |
 | `claim` | A provisional assertion that this service may need to remember a valuable data subject in order to fulfill the Tale. |
-| `name` | An explicit name for a claim or detail. |
+| `name` | An implementation-facing name for a claim. |
 | `detail` | A concrete item that describes or supports a claim. |
-| `relation` | A logical relationship from a claim path to another claim. |
+| `relation` | A logical relationship from a claim detail path to another claim. |
 | `reason` | Human-readable explanation of the context that makes an item worth remembering. |
 | `traces` | Metadata that links claims to user-facing operations. |
 
@@ -77,7 +77,7 @@ claims:
 |---|---:|---|
 | `data-sketch` | yes | Must be `1.0.0-draft.2`. |
 | `info` | yes | Information about the Data Sketch. |
-| `sources` | no | External sources used for trace validation and inference hints. |
+| `sources` | no | External sources used for trace validation. |
 | `claims` | yes | Non-empty map of logical claim IDs to claim definitions. |
 
 Rules:
@@ -85,6 +85,7 @@ Rules:
 - `claims` is the only canonical root vocabulary for valuable data.
 - A `claims` map key is a logical claim ID. It is separate from `claim.name`.
 - Claim logical IDs must be unique.
+- Claim logical IDs must not contain `.`, `[`, or `]`.
 - Claim implementation `name` values must be unique.
 
 ---
@@ -111,7 +112,7 @@ sources:
 
 | Field | Required | Description |
 |---|---:|---|
-| `openapi` | no | Path to the OpenAPI YAML or JSON file used to validate trace names and provide inference hints. |
+| `openapi` | no | Path to the OpenAPI YAML or JSON file used to validate trace names. |
 | `arrazo` | no | Reserved for an Arazzo Specification file used to trace workflows. |
 | `asyncapi` | no | Reserved for an AsyncAPI file used to trace channels. |
 
@@ -150,7 +151,9 @@ claims:
     details:
       - status
       - orderedAt
+      - customer
       - items[].quantity
+      - items[].product
     relations:
       customer: customer
       items[].product: product
@@ -161,14 +164,15 @@ claims:
 | `name` | yes | Implementation-facing claim name. |
 | `reason` | yes | Context explaining why the claim may need to be remembered. |
 | `traces` | yes | User-facing operation trace metadata. |
-| `details` | conditional | Concrete items that describe or support the claim. |
-| `relations` | conditional | Logical relationships from claim paths to other claims. |
+| `details` | yes | Concrete items that describe or support the claim. |
+| `relations` | no | Logical relationships from claim detail paths to other claims. |
 | `tentative` | no | Whether this claim is tentative and needs stakeholder review. Defaults to `false`. |
 
 Rules:
 
-- Each claim must include at least one of `details` or `relations`.
+- Each claim must include `details`.
 - `traces.operations` is required and must be a non-empty list.
+- Claim implementation `name` must not contain whitespace.
 - If omitted, `tentative` is treated as `false`.
 - A claim with `tentative: true` is still tentative and needs stakeholder review.
 
@@ -208,9 +212,9 @@ Write `details` in list form for the basic sketching style. List form keeps the
 Data Sketch focused on the data this service may need to remember without
 requiring early implementation decisions.
 
-`id` and `_id` are reserved identity detail paths. Authors should not list `id`
-or `_id` in `details`. Renderers or consuming tools usually add identity fields
-automatically when needed.
+`id` and `_id` are reserved identity detail paths. Authors must not list `id`
+or `_id` in `details`. Relational DB projections add a ULID surrogate key
+column named `id` automatically for each projected table.
 
 Basic list form:
 
@@ -223,21 +227,28 @@ details:
 ```
 
 Use map form when a detail needs simple metadata. A map-form detail may specify
-`name`, `aliases`, `type`, and `required`.
+`aliases`, `type`, and `required`.
 
 Metadata map form:
 
 ```yaml
 details:
   status:
-    name: order status
-    required: true
     aliases:
+      - order status
       - fulfillment status
+    type: string
+    required: true
 
   items[].quantity:
-    name: item quantity
+    aliases:
+      - item quantity
     type: number
+
+  discontinued:
+    aliases:
+      - discontinued flag
+    type: boolean
 ```
 
 Valid detail path examples:
@@ -252,16 +263,24 @@ items[].quantity
 tags[]
 ```
 
+Detail path syntax:
+
+- A detail path is a dot-separated list of path segments.
+- A path segment is either `<name>` or `<name>[]`.
+- `<name>` must be non-empty and must not contain `[` or `]`.
+- The `[]` marker means the segment is an array.
+
 Rules:
 
 - `details` must be either a non-empty list of path strings or a non-empty map
   of path strings to detail metadata.
 - Every detail path must be non-empty.
-- Every path segment must be non-empty.
+- Every path segment name must be non-empty.
 - Detail paths must be unique.
 - A detail path must not be a strict prefix of another detail path.
 - A segment's object form and array form must not conflict.
-- The implicit identity field must not be listed as a detail.
+- The reserved identity detail paths `id` and `_id` must not be listed as
+  details.
 
 Invalid examples:
 
@@ -277,6 +296,16 @@ details:
   - items[].product
 ```
 
+```yaml
+details:
+  - carrier..name
+```
+
+```yaml
+details:
+  - '[].product'
+```
+
 ---
 
 ## Detail Metadata
@@ -285,17 +314,18 @@ Map-form detail metadata may include:
 
 | Field | Required | Description |
 |---|---:|---|
-| `name` | yes | Implementation-facing detail name. |
 | `aliases` | no | Business-facing names or other aliases for the detail. |
-| `type` | no | Data Sketch detail type. Defaults to `string`. Must be `string` or `number` when present. |
+| `type` | no | Data Sketch detail type. Defaults to `string`. Must be `string`, `number`, or `boolean` when present. |
 | `required` | no | Whether the detail is required. Defaults to `true`. |
 
 Rules:
 
 - List-form details do not carry metadata.
+- Use `aliases` for business-facing display names or names that contain
+  whitespace.
 - If map-form detail metadata omits `required`, the detail is treated as
   required.
-- Map-form details keep only simple Data Sketch metadata.
+- Map-form detail metadata is limited to `aliases`, `type`, and `required`.
 
 ---
 
@@ -309,67 +339,62 @@ type: string
 type: number
 ```
 
+```yaml
+type: boolean
+```
+
 Supported Data Sketch detail type names:
 
 ```text
 string
 number
+boolean
 ```
 
 Rules:
 
 - `type` is available only in map-form details and defaults to `string`.
-- Storage-specific type information belongs in an `x-*` extension such as
-  `x-rdbms-schema.data-types`.
+- Storage-specific type information belongs in renderer-specific `x-*`
+  extensions, not in core Data Sketch detail metadata.
 
 ---
 
 ## Relations
 
-A relation is a logical relationship from a claim path to another claim.
+A relation is a logical relationship from a claim detail to another claim.
 
 Relations use a claim-level `relations` map. Each key is a path in the source
-claim. Each value is either shorthand or object form.
-
-Shorthand:
+claim. Each value is the target claim logical ID.
 
 ```yaml
+details:
+  - customer
+  - items[].product
+
 relations:
-  order: order
+  customer: customer
   items[].product: product
 ```
-
-Object form:
-
-```yaml
-relations:
-  order:
-    to: order
-    reason: |-
-      The shipment needs to connect back to the order it fulfills.
-
-  items[].product:
-    to: product
-    reason: |-
-      Each shipped item needs to identify the product being shipped.
-```
-
-Object-form relation metadata:
-
-| Field | Required | Description |
-|---|---:|---|
-| `to` | yes | Target claim logical ID. |
-| `reason` | no | Context explaining why the relationship exists. |
 
 Rules:
 
 - `relations` is optional.
 - When present, `relations` must be a map.
 - The target claim must exist.
+- A relation target value is a claim logical ID, not a detail path.
+- A relation always targets the target claim's implicit identity `id`.
+- Do not write `.id` in the relation target value. Relation target values ending
+  with `.id` are invalid.
 - Relation paths must be unique within a claim.
-- Relation paths participate in the claim shape.
-- A relation path does not have to be repeated in `details`.
-- If a relation path is also listed in `details`, the document is invalid.
+- Relation paths must also be listed in the same claim's `details`.
+- Relation paths must not use array-of-scalars details. A relation path ending
+  with `[]` is invalid.
+- Relational projections may use relation paths as foreign key columns.
+- Relational projections may also create structural parent-child foreign keys
+  from array-of-objects paths. Those foreign keys do not use `relations`.
+- Relational projections may also infer foreign keys when a detail path's final
+  segment exactly matches a claim ID. An explicit `relations` entry takes
+  precedence over inferred relation behavior for the same detail path.
 
 ---
 
@@ -383,7 +408,7 @@ Rules:
 
 ---
 
-## OpenAPI Trace And Inference
+## OpenAPI Trace
 
 If `sources.openapi` is present:
 
@@ -391,89 +416,42 @@ If `sources.openapi` is present:
 - Validate that every `traces.operations[]` value exists as an OpenAPI
   `operationId`.
 - Duplicate OpenAPI `operationId` values are invalid.
-- OpenAPI schemas may be used for type inference.
-
-Tools should resolve detail types using this priority:
-
-```text
-1. Explicit detail metadata in map form
-2. Traced OpenAPI schema, when the detail path exactly matches a JSON path
-3. Fallback to loose interpretation
-```
 
 Rules:
 
-- OpenAPI is a hint source, not the canonical Data Sketch shape.
-- Inference must require exact JSON path matches.
+- OpenAPI is a trace validation source, not the canonical Data Sketch shape.
+- Tools must not resolve detail types from OpenAPI.
 - Tools must not infer from similar names.
-
----
-
-## JSON Schema Projection Rules
-
-JSON Schema projection should use the same claim model when implemented.
-
-Rules:
-
-- Each claim becomes a schema definition.
-- `details` become JSON object properties.
-- Dot paths create nested properties.
-- `items[]` creates array schemas.
-- `relations` become `$ref` to the target claim definition.
-
-Example relation projection:
-
-```json
-{
-  "$ref": "#/$defs/product"
-}
-```
 
 ---
 
 ## x-* Extensions
 
-Extension fields whose names start with `x-` may be written on any object in a
-Data Sketch.
+Extension fields whose names start with `x-` may be written on extensible
+objects in a Data Sketch.
+
+Extensible objects are:
+
+- the root Data Sketch object
+- `info`
+- `sources`
+- claim definitions
+- `traces`
 
 Rules:
 
-- Validators must allow `x-*`.
+- Validators must allow `x-*` on extensible objects.
+- Fields that are not part of this specification and do not start with `x-` are
+  invalid on extensible objects.
 - Core validation must not assign meaning to `x-*`.
 - The renderer or consuming tool decides how to interpret supported `x-*`
   fields.
-- Tools should preserve `x-*` when possible.
-
-Typical renderer-specific extension example:
-
-```yaml
-claims:
-  order:
-    name: orders
-    reason: |-
-      Order numbers are needed so customers and support staff can identify the
-      same order.
-    traces:
-      operations:
-        - getOrder
-    details:
-      - orderNumber
-      - status
-    x-rdbms-schema:
-      data-types:
-        status:
-          type: varchar
-          length: 20
-      keys:
-        unique:
-          - orderNumber
-      indexes:
-        - status
-```
-
-`x-rdbms-schema` is not core Data Sketch vocabulary. An RDBMS renderer may
-interpret `data-types`, `keys.unique`, and `indexes`, while other tools may
-ignore them or preserve them for another tool.
+- The built-in Extension Projection preserves `x-*` values for tools that need
+  them after parsing and validation.
+- `claims` and `relations` are maps whose keys are logical IDs or paths; they
+  are not extension containers.
+- Detail metadata is not extensible. It is limited to `aliases`, `type`, and
+  `required`.
 
 ---
 
@@ -508,6 +486,13 @@ paths:
                   type: string
                 phoneNumber:
                   type: string
+                address:
+                  type: object
+                  properties:
+                    city:
+                      type: string
+                    postalCode:
+                      type: string
       responses:
         '201':
           description: Created customer
@@ -524,6 +509,13 @@ paths:
                     type: string
                   phoneNumber:
                     type: string
+                  address:
+                    type: object
+                    properties:
+                      city:
+                        type: string
+                      postalCode:
+                        type: string
 
   /customers/{customerId}:
     get:
@@ -550,6 +542,13 @@ paths:
                     type: string
                   phoneNumber:
                     type: string
+                  address:
+                    type: object
+                    properties:
+                      city:
+                        type: string
+                      postalCode:
+                        type: string
 
   /products:
     get:
@@ -695,6 +694,8 @@ claims:
       - name
       - email
       - phoneNumber
+      - address.city
+      - address.postalCode
 
   product:
     name: products
@@ -722,8 +723,10 @@ claims:
     details:
       - status
       - orderedAt
+      - customer
       - items[].quantity
       - items[].unitPrice
+      - items[].product
     relations:
       customer: customer
       items[].product: product
@@ -752,12 +755,21 @@ claims:
         - getCustomer
     details:
       name:
-        name: customer name
+        aliases:
+          - customer name
       email:
-        name: email address
+        aliases:
+          - email address
       phoneNumber:
-        name: phone number
+        aliases:
+          - phone number
         required: false
+      address.city:
+        aliases:
+          - address city
+      address.postalCode:
+        aliases:
+          - postal code
 
   product:
     name: products
@@ -769,12 +781,19 @@ claims:
         - listProducts
     details:
       name:
-        name: product name
+        aliases:
+          - product name
       price:
-        name: selling price
+        aliases:
+          - selling price
         type: number
       inventoryStatus:
-        name: inventory status
+        aliases:
+          - inventory status
+      discontinued:
+        aliases:
+          - discontinued flag
+        type: boolean
 
   order:
     name: orders
@@ -788,22 +807,26 @@ claims:
         - getOrderDetail
     details:
       status:
-        name: order status
+        aliases:
+          - order status
       orderedAt:
-        name: ordered time
+        aliases:
+          - ordered time
+      customer:
+        aliases:
+          - order customer
       items[].quantity:
-        name: item quantity
+        aliases:
+          - item quantity
         type: number
       items[].unitPrice:
-        name: item unit price
+        aliases:
+          - item unit price
         type: number
-    relations:
-      customer:
-        to: customer
-        reason: |-
-          The order needs to identify the customer who placed it.
       items[].product:
-        to: product
-        reason: |-
-          Each order item needs to identify the product being purchased.
+        aliases:
+          - item product
+    relations:
+      customer: customer
+      items[].product: product
 ```

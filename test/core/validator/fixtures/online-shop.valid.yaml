@@ -20,6 +20,8 @@ claims:
       - name
       - email
       - phoneNumber
+      - address.city
+      - address.postalCode
 
   product:
     name: products
@@ -47,8 +49,10 @@ claims:
     details:
       - status
       - orderedAt
+      - customer
       - items[].quantity
       - items[].unitPrice
+      - items[].product
     relations:
       customer: customer
       items[].product: product

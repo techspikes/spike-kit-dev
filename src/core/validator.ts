@@ -1,7 +1,9 @@
 import { load, YAMLException } from 'js-yaml'
-import { readSpecification } from './parser.ts'
+import type { Specification } from './parser.ts'
 import {
+  buildExtensionProjection,
   buildRelationalDbProjection,
+  type ExtensionProjection,
   type RelationalDbProjection,
   useProjectors
 } from './projector.ts'
@@ -16,19 +18,27 @@ export function validate<P extends Record<string, (() => unknown) | undefined>>(
         readonly sources: { readonly openapi: string }
         readonly trace?: boolean
       }
-): DataSketch<P & { readonly relationalDb: () => RelationalDbProjection }> {
-  const spec = readSpecification(options.sketch)
-
+): DataSketch<
+  P & {
+    readonly extensions: () => ExtensionProjection
+    readonly relationalDb: () => RelationalDbProjection
+  }
+> {
   const operationIds =
     options.trace !== false && 'sources' in options
       ? loadOpenApiOperationIdsFromSource(options.sources.openapi)
-      : options.trace !== false && spec.sources?.openapi
-        ? loadOpenApiOperationIdsFromPath(options.sketch.metadata.basePath, spec.sources.openapi)
+      : options.trace !== false && options.sketch.spec.sources?.openapi
+        ? loadOpenApiOperationIdsFromPath(
+            options.sketch.metadata.basePath,
+            options.sketch.spec.sources.openapi
+          )
         : undefined
 
   if (operationIds) {
-    validateOperationIds(operationIds, spec)
+    validateOperationIds(operationIds, options.sketch.spec)
   }
+
+  validateRelations(options.sketch.spec)
 
   const validatedSketch = {
     ...options.sketch,
@@ -39,14 +49,12 @@ export function validate<P extends Record<string, (() => unknown) | undefined>>(
   }
 
   return useProjectors(validatedSketch, {
+    extensions: () => buildExtensionProjection(validatedSketch),
     relationalDb: () => buildRelationalDbProjection(validatedSketch)
   })
 }
 
-function validateOperationIds(
-  operationIds: Set<string>,
-  spec: ReturnType<typeof readSpecification>
-) {
+function validateOperationIds(operationIds: Set<string>, spec: Specification) {
   const issues = Object.values(spec.claims).flatMap(claim =>
     claim.traces.operations.flatMap(operationName =>
       operationIds.has(operationName)
@@ -58,6 +66,57 @@ function validateOperationIds(
   if (issues.length > 0) {
     throw new Error(issues.join('\n'))
   }
+}
+
+function validateRelations(spec: Specification) {
+  const issues: string[] = []
+
+  for (const [claimId, claim] of Object.entries(spec.claims)) {
+    if (!claim.relations) {
+      continue
+    }
+
+    for (const [relationPath, relationTarget] of Object.entries(claim.relations)) {
+      const claimDetails = claim.details as NonNullable<Specification['claims'][string]['details']>
+
+      if (!hasDetailPath(claimDetails, relationPath)) {
+        issues.push(`claims.${claimId}.relations.${relationPath} must also be listed in details`)
+      }
+
+      if (relationPath.endsWith('[]')) {
+        issues.push(
+          `claims.${claimId}.relations.${relationPath} must not use an array-of-scalars detail as a relation source`
+        )
+      }
+
+      if (relationTarget.endsWith('.id')) {
+        issues.push(
+          `claims.${claimId}.relations.${relationPath} target ${relationTarget} must be a claim ID; do not write .id`
+        )
+
+        continue
+      }
+
+      const targetClaim = spec.claims[relationTarget]
+
+      if (!targetClaim) {
+        issues.push(
+          `claims.${claimId}.relations.${relationPath} target claim ${relationTarget} does not exist`
+        )
+      }
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new Error(issues.join('\n'))
+  }
+}
+
+function hasDetailPath(
+  details: NonNullable<Specification['claims'][string]['details']>,
+  detailPath: string
+) {
+  return Array.isArray(details) ? details.includes(detailPath) : detailPath in details
 }
 
 function loadOpenApiOperationIdsFromPath(basePath: string, openApiPath: string): Set<string> {

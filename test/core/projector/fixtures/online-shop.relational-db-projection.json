@@ -1,102 +1,174 @@
 {
   "data-sketch/relational-db-projection": "1.0.0-draft.2",
-  "claims": [
-    {
-      "id": "customer",
+  "tables": {
+    "customer": {
       "name": "customers",
-      "tentative": false,
-      "details": [
+      "columns": [
         {
-          "path": "name",
-          "name": "customer name",
-          "type": "string",
-          "required": true
+          "id": "id",
+          "name": "id",
+          "type": "VARCHAR(26)"
         },
         {
-          "path": "email",
-          "name": "email address",
-          "type": "string",
-          "required": true
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
         },
         {
-          "path": "phoneNumber",
-          "name": "phone number",
-          "type": "string",
-          "required": false
+          "id": "email",
+          "name": "email",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "phoneNumber",
+          "name": "phone_number",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "address.city",
+          "name": "address_city",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "address.postalCode",
+          "name": "address_postal_code",
+          "type": "VARCHAR(1024)"
         }
       ],
-      "relations": []
+      "primaryKey": {
+        "name": "pk_customers",
+        "columns": ["id"]
+      },
+      "foreignKeys": []
     },
-    {
-      "id": "product",
+    "product": {
       "name": "products",
-      "tentative": false,
-      "details": [
+      "columns": [
         {
-          "path": "name",
-          "name": "product name",
-          "type": "string",
-          "required": true
+          "id": "id",
+          "name": "id",
+          "type": "VARCHAR(26)"
         },
         {
-          "path": "price",
-          "name": "selling price",
-          "type": "number",
-          "required": true
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
         },
         {
-          "path": "inventoryStatus",
-          "name": "inventory status",
-          "type": "string",
-          "required": true
+          "id": "price",
+          "name": "price",
+          "type": "INTEGER"
+        },
+        {
+          "id": "inventoryStatus",
+          "name": "inventory_status",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "discontinued",
+          "name": "discontinued",
+          "type": "BOOLEAN"
         }
       ],
-      "relations": []
+      "primaryKey": {
+        "name": "pk_products",
+        "columns": ["id"]
+      },
+      "foreignKeys": []
     },
-    {
-      "id": "order",
+    "order": {
       "name": "orders",
-      "tentative": true,
-      "details": [
+      "columns": [
         {
-          "path": "status",
-          "name": "order status",
-          "type": "string",
-          "required": true
+          "id": "id",
+          "name": "id",
+          "type": "VARCHAR(26)"
         },
         {
-          "path": "orderedAt",
-          "name": "ordered time",
-          "type": "string",
-          "required": true
+          "id": "status",
+          "name": "status",
+          "type": "VARCHAR(1024)"
         },
         {
-          "path": "items[].quantity",
-          "name": "item quantity",
-          "type": "number",
-          "required": true
+          "id": "orderedAt",
+          "name": "ordered_at",
+          "type": "VARCHAR(1024)"
         },
         {
-          "path": "items[].unitPrice",
-          "name": "item unit price",
-          "type": "number",
-          "required": true
+          "id": "customer",
+          "name": "customer",
+          "type": "VARCHAR(26)"
         }
       ],
-      "relations": [
+      "primaryKey": {
+        "name": "pk_orders",
+        "columns": ["id"]
+      },
+      "foreignKeys": [
         {
-          "path": "customer",
-          "to": "customer",
-          "targetName": "customers",
-          "reason": "The order needs to identify the customer who placed it."
+          "name": "fk_orders_customer",
+          "column": "customer",
+          "target": {
+            "table": "customers",
+            "column": "id"
+          },
+          "kind": "explicit"
+        }
+      ]
+    },
+    "order.items[]": {
+      "name": "order_items",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "VARCHAR(26)"
         },
         {
-          "path": "items[].product",
-          "to": "product",
-          "targetName": "products",
-          "reason": "Each order item needs to identify the product being purchased."
+          "id": "order",
+          "name": "order",
+          "type": "VARCHAR(26)"
+        },
+        {
+          "id": "items[].quantity",
+          "name": "quantity",
+          "type": "INTEGER"
+        },
+        {
+          "id": "items[].unitPrice",
+          "name": "unit_price",
+          "type": "INTEGER"
+        },
+        {
+          "id": "items[].product",
+          "name": "product",
+          "type": "VARCHAR(26)"
+        }
+      ],
+      "primaryKey": {
+        "name": "pk_order_items",
+        "columns": ["id"]
+      },
+      "foreignKeys": [
+        {
+          "name": "fk_order_items_order",
+          "column": "order",
+          "target": {
+            "table": "orders",
+            "column": "id"
+          },
+          "kind": "structural"
+        },
+        {
+          "name": "fk_order_items_product",
+          "column": "product",
+          "target": {
+            "table": "products",
+            "column": "id"
+          },
+          "kind": "explicit"
         }
       ]
     }
-  ]
+  }
 }

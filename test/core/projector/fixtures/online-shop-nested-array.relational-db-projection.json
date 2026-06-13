@@ -1,0 +1,90 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.2",
+  "tables": {
+    "order": {
+      "name": "orders",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "VARCHAR(26)"
+        }
+      ],
+      "primaryKey": {
+        "name": "pk_orders",
+        "columns": ["id"]
+      },
+      "foreignKeys": []
+    },
+    "order.items[]": {
+      "name": "order_items",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "VARCHAR(26)"
+        },
+        {
+          "id": "order",
+          "name": "order",
+          "type": "VARCHAR(26)"
+        }
+      ],
+      "primaryKey": {
+        "name": "pk_order_items",
+        "columns": ["id"]
+      },
+      "foreignKeys": [
+        {
+          "name": "fk_order_items_order",
+          "column": "order",
+          "target": {
+            "table": "orders",
+            "column": "id"
+          },
+          "kind": "structural"
+        }
+      ]
+    },
+    "order.items[].stocks[]": {
+      "name": "order_items_stocks",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "VARCHAR(26)"
+        },
+        {
+          "id": "order.items[]",
+          "name": "order_items",
+          "type": "VARCHAR(26)"
+        },
+        {
+          "id": "items[].stocks[].price",
+          "name": "price",
+          "type": "INTEGER"
+        },
+        {
+          "id": "items[].stocks[].quantity",
+          "name": "quantity",
+          "type": "INTEGER"
+        }
+      ],
+      "primaryKey": {
+        "name": "pk_order_items_stocks",
+        "columns": ["id"]
+      },
+      "foreignKeys": [
+        {
+          "name": "fk_order_items_stocks_order_items",
+          "column": "order_items",
+          "target": {
+            "table": "order_items",
+            "column": "id"
+          },
+          "kind": "structural"
+        }
+      ]
+    }
+  }
+}
