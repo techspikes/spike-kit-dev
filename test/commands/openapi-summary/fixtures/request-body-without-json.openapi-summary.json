@@ -1,0 +1,28 @@
+{
+  "openapi-summary": "1.0.0-draft.1",
+  "info": {
+    "title": "Online Shop API",
+    "version": "1.0.0"
+  },
+  "operations": [
+    {
+      "operationId": "importCatalog",
+      "method": "post",
+      "path": "/catalog-imports",
+      "tags": [],
+      "responses": [
+        {
+          "status": "202",
+          "contentType": "application/json",
+          "fields": [
+            {
+              "path": "importId",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

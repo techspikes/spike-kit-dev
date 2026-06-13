@@ -1,4 +1,6 @@
 import { load, YAMLException } from 'js-yaml'
+import type { OASDocument } from 'oas/types'
+import { dereferenceRefDeep } from 'oas/utils'
 import type { Specification } from './parser.ts'
 import {
   buildExtensionProjection,
@@ -24,24 +26,29 @@ export function validate<P extends Record<string, (() => unknown) | undefined>>(
     readonly relationalDb: () => RelationalDbProjection
   }
 > {
-  const operationIds =
+  const openApi =
     options.trace !== false && 'sources' in options
-      ? loadOpenApiOperationIdsFromSource(options.sources.openapi)
+      ? loadOpenApiFromSource(options.sources.openapi)
       : options.trace !== false && options.sketch.spec.sources?.openapi
-        ? loadOpenApiOperationIdsFromPath(
-            options.sketch.metadata.basePath,
-            options.sketch.spec.sources.openapi
-          )
+        ? loadOpenApiFromPath(options.sketch.metadata.basePath, options.sketch.spec.sources.openapi)
         : undefined
 
-  if (operationIds) {
-    validateOperationIds(operationIds, options.sketch.spec)
+  if (openApi !== undefined) {
+    validateOperationIds(extractOpenApiOperationIds(openApi), options.sketch.spec)
   }
 
   validateRelations(options.sketch.spec)
 
   const validatedSketch = {
     ...options.sketch,
+    ...(openApi !== undefined
+      ? {
+          sources: {
+            ...options.sketch.sources,
+            openapi: openApi
+          }
+        }
+      : {}),
     metadata: {
       ...options.sketch.metadata,
       validated: true
@@ -119,7 +126,7 @@ function hasDetailPath(
   return Array.isArray(details) ? details.includes(detailPath) : detailPath in details
 }
 
-function loadOpenApiOperationIdsFromPath(basePath: string, openApiPath: string): Set<string> {
+function loadOpenApiFromPath(basePath: string, openApiPath: string): unknown {
   let openApi: unknown
 
   try {
@@ -132,10 +139,10 @@ function loadOpenApiOperationIdsFromPath(basePath: string, openApiPath: string):
     throw new Error(`Failed to read OpenAPI: ${String(error)}`)
   }
 
-  return extractOpenApiOperationIds(openApi)
+  return dereferenceOpenApi(openApi)
 }
 
-function loadOpenApiOperationIdsFromSource(openApiSource: string): Set<string> {
+function loadOpenApiFromSource(openApiSource: string): unknown {
   let openApi: unknown
 
   try {
@@ -144,7 +151,11 @@ function loadOpenApiOperationIdsFromSource(openApiSource: string): Set<string> {
     throw new Error(`Failed to parse OpenAPI: ${String(error)}`)
   }
 
-  return extractOpenApiOperationIds(openApi)
+  return dereferenceOpenApi(openApi)
+}
+
+function dereferenceOpenApi(openApi: unknown): unknown {
+  return dereferenceRefDeep(openApi, openApi as OASDocument)
 }
 
 function extractOpenApiOperationIds(openApi: unknown): Set<string> {

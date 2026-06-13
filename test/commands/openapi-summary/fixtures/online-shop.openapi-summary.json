@@ -1,0 +1,243 @@
+{
+  "openapi-summary": "1.0.0-draft.1",
+  "info": {
+    "title": "Online Shop API",
+    "version": "1.0.0"
+  },
+  "operations": [
+    {
+      "operationId": "get /catalog",
+      "method": "get",
+      "path": "/catalog",
+      "summary": "Catalog operations",
+      "tags": [],
+      "responses": [
+        {
+          "status": "200",
+          "contentType": "application/json",
+          "fields": [
+            {
+              "path": "tags[]",
+              "type": "string",
+              "required": false
+            },
+            {
+              "path": "displayMode",
+              "type": "unknown",
+              "required": false
+            },
+            {
+              "path": "featured",
+              "type": "boolean",
+              "required": false
+            },
+            {
+              "path": "trackingCode",
+              "type": "unknown",
+              "required": false
+            },
+            {
+              "path": "reviewMarkers[]",
+              "type": "unknown",
+              "required": false
+            }
+          ]
+        },
+        {
+          "status": "207",
+          "contentType": "application/json",
+          "fields": []
+        },
+        {
+          "status": "208",
+          "contentType": "application/json",
+          "fields": []
+        }
+      ]
+    },
+    {
+      "operationId": "listCategories",
+      "method": "get",
+      "path": "/categories",
+      "tags": ["products"],
+      "responses": [
+        {
+          "status": "200",
+          "contentType": "application/vnd.shop+json",
+          "fields": [
+            {
+              "path": "primaryCategory.categoryId",
+              "type": "string",
+              "required": false
+            },
+            {
+              "path": "primaryCategory.name",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "createCustomer",
+      "method": "post",
+      "path": "/customers",
+      "summary": "Create customer",
+      "tags": ["customers"],
+      "requestBody": {
+        "required": true,
+        "contentType": "application/json",
+        "fields": [
+          {
+            "path": "name",
+            "type": "string",
+            "required": true
+          },
+          {
+            "path": "email",
+            "type": "string",
+            "required": true
+          },
+          {
+            "path": "phoneNumber",
+            "type": "string",
+            "required": false
+          },
+          {
+            "path": "address.city",
+            "type": "string",
+            "required": false
+          },
+          {
+            "path": "address.postalCode",
+            "type": "string",
+            "required": false
+          }
+        ]
+      },
+      "responses": [
+        {
+          "status": "201",
+          "contentType": "application/json",
+          "fields": [
+            {
+              "path": "customerId",
+              "type": "string",
+              "required": true
+            },
+            {
+              "path": "name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "path": "address.city",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "listCustomers",
+      "method": "get",
+      "path": "/customers",
+      "tags": [],
+      "responses": [
+        {
+          "status": "200",
+          "contentType": "application/json",
+          "fields": [
+            {
+              "path": "name",
+              "type": "string",
+              "required": true
+            },
+            {
+              "path": "email",
+              "type": "string",
+              "required": true
+            },
+            {
+              "path": "phoneNumber",
+              "type": "string",
+              "required": false
+            },
+            {
+              "path": "address.city",
+              "type": "string",
+              "required": false
+            },
+            {
+              "path": "address.postalCode",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "createOrder",
+      "method": "post",
+      "path": "/orders",
+      "tags": ["orders"],
+      "requestBody": {
+        "required": true,
+        "contentType": "application/json",
+        "fields": [
+          {
+            "path": "customerId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "path": "items[].productId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "path": "items[].quantity",
+            "type": "number",
+            "required": true
+          }
+        ]
+      },
+      "responses": [
+        {
+          "status": "201",
+          "contentType": "application/json",
+          "fields": [
+            {
+              "path": "orderId",
+              "type": "string",
+              "required": true
+            },
+            {
+              "path": "status",
+              "type": "string",
+              "required": false
+            },
+            {
+              "path": "items[].productId",
+              "type": "string",
+              "required": false
+            },
+            {
+              "path": "items[].quantity",
+              "type": "number",
+              "required": false
+            },
+            {
+              "path": "items[].unitPrice",
+              "type": "number",
+              "required": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

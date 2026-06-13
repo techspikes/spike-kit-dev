@@ -127,9 +127,10 @@ Table ID examples:
 ## Column Shape
 
 ```yaml
-id: status
-name: status
+id: phoneNumber
+name: phone_number
 type: VARCHAR(1024)
+nullable: true
 ```
 
 Fields:
@@ -137,6 +138,8 @@ Fields:
 - `id`: source detail ID or automatically added column ID.
 - `name`: derived snake_case column name.
 - `type`: SQL type string.
+- `nullable`: optional marker emitted only when the projected column may contain
+  null values.
 
 Name derivation examples:
 
@@ -224,6 +227,27 @@ Rules:
 
 ---
 
+## Nullability Rules
+
+Rules:
+
+- Absence of `nullable` means the projected column is required and should be
+  rendered as NOT NULL when the target renderer supports nullability.
+- Surrogate key columns omit `nullable` because they are required by default.
+- Structural parent foreign key columns omit `nullable` because they are
+  required by default.
+- List-form details omit `nullable` and are treated as required by default.
+- Map-form detail `required: true` omits `nullable`.
+- Map-form detail `required: false` emits `nullable: true`.
+- If map-form detail metadata omits `required`, it is treated as required and
+  omits `nullable`.
+- Explicit and inferred foreign key columns keep the `nullable` value derived
+  from their source detail.
+- The Relational DB projector does not infer `nullable` from OpenAPI `required`
+  lists.
+
+---
+
 ## Relation And Foreign Key Rules
 
 Rules:
@@ -238,6 +262,8 @@ Rules:
   split.
 - `kind: inferred` marks a foreign key inferred from a detail path
   whose final segment exactly matches a claim ID.
+- Renderers may ignore `kind: inferred` foreign keys when they require only
+  explicit relationship declarations.
 - A child table structural foreign key references the immediate parent projected
   table's surrogate key column `id`.
 - A top-level array child table references the claim parent table.

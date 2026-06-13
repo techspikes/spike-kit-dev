@@ -1,0 +1,20 @@
+type: object
+required:
+  - name
+  - email
+properties:
+  name:
+    type: string
+  email:
+    type: string
+  phoneNumber:
+    type:
+      - string
+      - 'null'
+  address:
+    type: object
+    properties:
+      city:
+        type: string
+      postalCode:
+        type: string

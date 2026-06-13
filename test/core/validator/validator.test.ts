@@ -14,6 +14,12 @@ describe('core validator', () => {
     assert.equal(sketch.metadata.validated, true)
     assert.equal(typeof sketch.projections.extensions, 'function')
     assert.equal(typeof sketch.projections.relationalDb, 'function')
+
+    assert.deepEqual(sketch.projections.extensions(), {
+      'data-sketch/extension-projection': '1.0.0-draft.2',
+      extensions: []
+    })
+
     assert.equal(sketch.projections.relationalDb().tables.customer?.name, 'customers')
   })
 
@@ -25,6 +31,26 @@ describe('core validator', () => {
     assert.equal(sketch.metadata.validated, true)
   })
 
+  it('validate stores the dereferenced OpenAPI source when trace validation uses spec sources.openapi', () => {
+    const sketch = validate({
+      sketch: parse({ path: 'test/core/validator/fixtures/online-shop-openapi-ref.valid.yaml' })
+    })
+
+    const openApi = sketch.sources?.openapi as Record<string, unknown>
+    const paths = openApi.paths as Record<string, unknown>
+    const customerPath = paths['/customers'] as Record<string, unknown>
+    const operation = customerPath.post as Record<string, unknown>
+    const requestBody = operation.requestBody as Record<string, unknown>
+    const content = requestBody.content as Record<string, unknown>
+    const jsonContent = content['application/json'] as Record<string, unknown>
+    const schema = jsonContent.schema as Record<string, unknown>
+
+    assert.equal(customerPath.$ref, undefined)
+    assert.equal(operation.operationId, 'createCustomer')
+    assert.equal(schema.$ref, undefined)
+    assert.equal(schema.type, 'object')
+  })
+
   it('validate defaults to trace true for explicit OpenAPI source strings', () => {
     const sketch = validate({
       sketch: parse({ input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
@@ -34,6 +60,7 @@ describe('core validator', () => {
     })
 
     assert.equal(sketch.metadata.validated, true)
+    assert.notEqual(sketch.sources?.openapi, undefined)
   })
 
   it('validate does not parse explicit OpenAPI source strings when trace is false', () => {

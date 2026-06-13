@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { fileURLToPath } from 'node:url'
+import { executeOpenApiSummary } from './commands/openapi-summary.ts'
 import { executeSpecCheck } from './commands/spec-check.ts'
 
 const usage = () =>
@@ -7,6 +8,7 @@ const usage = () =>
     'Usage: shot [OPTION]... COMMAND [ARG]...',
     '',
     'Commands:',
+    '  openapi-summary   Summarize an OpenAPI file for AI-assisted Data Sketch drafting.',
     '  spec-check   Validate a Data Sketch Specification v1 YAML or JSON file.'
   ].join('\n')
 
@@ -17,6 +19,10 @@ export function runCli(args: readonly string[]) {
     console.log(usage())
 
     return 0
+  }
+
+  if (command === 'openapi-summary') {
+    return executeOpenApiSummary(commandArgs)
   }
 
   if (command === 'spec-check') {

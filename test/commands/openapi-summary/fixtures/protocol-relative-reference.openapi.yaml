@@ -1,0 +1,17 @@
+openapi: 3.1.0
+
+info:
+  title: Protocol Relative Reference API
+  version: 1.0.0
+
+paths:
+  /customers:
+    get:
+      operationId: listCustomers
+      responses:
+        '200':
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                $ref: //example.com/schema.yaml

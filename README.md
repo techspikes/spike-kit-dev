@@ -28,10 +28,21 @@ The CLI is installed as `shot`, named after the shot used when making espresso.
 
 ```sh
 npx shot --help
+npx shot openapi-summary path/to/openapi.yaml
 npx shot spec-check path/to/data-sketch.yaml
 ```
 
 ## Commands
+
+### Summarize an OpenAPI File
+
+```sh
+npx shot openapi-summary path/to/openapi.yaml
+```
+
+The command summarizes OpenAPI operations and JSON schema paths into a compact
+JSON document for AI-assisted Data Sketch drafting. Local `$ref` values are
+dereferenced. Remote `$ref` values are rejected.
 
 ### Validate a Data Sketch
 
@@ -132,6 +143,7 @@ npm test
 ## Documentation
 
 - [Data Sketch Specification v1](docs/data-sketch-specification-v1.md)
+- [`openapi-summary` command specification](docs/commands/openapi-summary-command-specification.md)
 - [`spec-check` command specification](docs/commands/spec-check-command-specification.md)
 - [Relational DB Projection Specification](docs/projections/relational-db-projection.md)
 - [Extension Projection Specification](docs/projections/extension-projection.md)

@@ -1,0 +1,26 @@
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /catalog-imports:
+    post:
+      operationId: importCatalog
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+      responses:
+        '202':
+          description: Catalog import accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  importId:
+                    type: string

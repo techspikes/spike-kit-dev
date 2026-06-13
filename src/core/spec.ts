@@ -7,6 +7,9 @@ export type DataSketch<
   >
 > = {
   readonly spec: Specification
+  readonly sources?: {
+    readonly openapi?: unknown
+  }
   readonly metadata: {
     readonly version: string
     readonly basePath: string

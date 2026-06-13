@@ -1,0 +1,17 @@
+openapi: 3.1.0
+
+info:
+  title: Missing Local Reference API
+  version: 1.0.0
+
+paths:
+  /customers:
+    get:
+      operationId: listCustomers
+      responses:
+        '200':
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/missing.yaml

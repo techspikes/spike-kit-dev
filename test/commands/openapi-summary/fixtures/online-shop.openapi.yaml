@@ -1,0 +1,178 @@
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /catalog:
+    summary: Catalog operations
+    get:
+      responses:
+        '200':
+          description: Catalog summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  displayMode:
+                    type: custom
+                  featured:
+                    type: boolean
+                  trackingCode:
+                    description: Optional tracking code.
+                  metadata:
+                    type: object
+                  reviewMarkers:
+                    type: array
+        '208':
+          description: Catalog response with no schema
+          content:
+            application/json: {}
+        '204':
+          description: Empty catalog
+        '206':
+          description: Plain catalog excerpt
+          content:
+            text/plain:
+              schema:
+                type: string
+        '207':
+          description: Scalar catalog marker
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags:
+        - products
+        - 42
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/vnd.shop+json:
+              schema:
+                type: object
+                properties:
+                  primaryCategory:
+                    $ref: '#/components/schemas/product~1category'
+                    description: Primary product category.
+
+  /customers:
+    post:
+      operationId: createCustomer
+      summary: Create customer
+      tags:
+        - customers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/customer-input.yaml
+      responses:
+        '201':
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - customerId
+                  - name
+                properties:
+                  customerId:
+                    type: string
+                  name:
+                    type: string
+                  address:
+                    type: object
+                    properties:
+                      city:
+                        type: string
+
+    get:
+      operationId: listCustomers
+      responses:
+        '200':
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/customer-input.yaml
+
+  /orders:
+    post:
+      operationId: createOrder
+      tags:
+        - orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - customerId
+                - items
+              properties:
+                customerId:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - productId
+                      - quantity
+                    properties:
+                      productId:
+                        type: string
+                      quantity:
+                        type: integer
+      responses:
+        '201':
+          description: Created order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - orderId
+                properties:
+                  orderId:
+                    type: string
+                  status:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId:
+                          type: string
+                        quantity:
+                          type: integer
+                        unitPrice:
+                          type: number
+
+components:
+  schemas:
+    product/category:
+      type: object
+      required:
+        - categoryId
+      properties:
+        categoryId:
+          type: string
+        name:
+          type: string

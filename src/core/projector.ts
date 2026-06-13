@@ -27,6 +27,7 @@ type RelationalDbProjectionColumn = {
   readonly id: string
   readonly name: string
   readonly type: RelationalDbProjectionColumnType
+  readonly nullable?: true
 }
 
 type RelationalDbProjectionColumnType = 'VARCHAR(26)' | 'VARCHAR(1024)' | 'INTEGER' | 'BOOLEAN'
@@ -58,6 +59,7 @@ type MutableRelationalDbProjectionTable = {
 type DetailProjectionInput = {
   readonly path: string
   readonly type: 'string' | 'number' | 'boolean'
+  readonly required: boolean
 }
 
 export function useProjectors<
@@ -98,7 +100,8 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
       addProjectionColumn(tableId, table, {
         id: detail.path,
         name: getColumnName(detail.path, tablePathSegments),
-        type: getColumnType(detail.type)
+        type: getColumnType(detail.type),
+        ...(detail.required ? {} : { nullable: true as const })
       })
     }
 
@@ -222,13 +225,15 @@ function getDetailProjectionInputs(
   if (Array.isArray(details)) {
     return details.map(path => ({
       path,
-      type: 'string'
+      type: 'string',
+      required: true
     }))
   }
 
   return Object.entries(details).map(([path, metadata]) => ({
     path,
-    type: metadata.type ?? 'string'
+    type: metadata.type ?? 'string',
+    required: metadata.required ?? true
   }))
 }
 

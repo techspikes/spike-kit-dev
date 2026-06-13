@@ -1,0 +1,31 @@
+openapi: 3.1.0
+
+info: null
+
+paths:
+  /customers:
+    post:
+      operationId: createCustomer
+      requestBody:
+        content:
+          application/json: null
+      responses:
+        '200': null
+        '201':
+          description: Created customer
+          content:
+            application/json: null
+        '202':
+          description: Accepted customer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preference:
+                    type:
+                      - 42
+
+  /products:
+    get:
+      operationId: listProducts

@@ -22,7 +22,8 @@
         {
           "id": "phoneNumber",
           "name": "phone_number",
-          "type": "VARCHAR(1024)"
+          "type": "VARCHAR(1024)",
+          "nullable": true
         },
         {
           "id": "address.city",

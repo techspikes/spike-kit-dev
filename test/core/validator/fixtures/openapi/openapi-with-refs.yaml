@@ -1,0 +1,43 @@
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /customers:
+    $ref: '#/components/pathItems/CreateCustomerPath'
+
+components:
+  pathItems:
+    CreateCustomerPath:
+      post:
+        operationId: createCustomer
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCustomerRequest'
+        responses:
+          '201':
+            description: Created customer
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Customer'
+  schemas:
+    CreateCustomerRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+    Customer:
+      type: object
+      properties:
+        customerId:
+          type: string
+        name:
+          type: string

@@ -1,0 +1,22 @@
+openapi: 3.1.0
+
+info:
+  title: Circular Reference API
+  version: 1.0.0
+
+paths:
+  /customers:
+    get:
+      operationId: listCustomers
+      responses:
+        '200':
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer'
+
+components:
+  schemas:
+    customer:
+      $ref: '#/components/schemas/customer'

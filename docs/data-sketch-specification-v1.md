@@ -213,8 +213,8 @@ Data Sketch focused on the data this service may need to remember without
 requiring early implementation decisions.
 
 `id` and `_id` are reserved identity detail paths. Authors must not list `id`
-or `_id` in `details`. Relational DB projections add a ULID surrogate key
-column named `id` automatically for each projected table.
+or `_id` in `details`. Projections and consuming tools may use these reserved
+paths for generated identity fields.
 
 Basic list form:
 
@@ -320,9 +320,11 @@ Map-form detail metadata may include:
 
 Rules:
 
-- List-form details do not carry metadata.
+- Details are required by default.
+- List-form details do not carry metadata and cannot mark a detail optional.
 - Use `aliases` for business-facing display names or names that contain
   whitespace.
+- Use map form with `required: false` when a detail is intentionally optional.
 - If map-form detail metadata omits `required`, the detail is treated as
   required.
 - Map-form detail metadata is limited to `aliases`, `type`, and `required`.
@@ -395,6 +397,8 @@ Rules:
 - Relational projections may also infer foreign keys when a detail path's final
   segment exactly matches a claim ID. An explicit `relations` entry takes
   precedence over inferred relation behavior for the same detail path.
+- Relational projections mark inferred foreign keys so renderers can discard
+  them when a stricter renderer policy is needed.
 
 ---
 
@@ -416,12 +420,19 @@ If `sources.openapi` is present:
 - Validate that every `traces.operations[]` value exists as an OpenAPI
   `operationId`.
 - Duplicate OpenAPI `operationId` values are invalid.
+- A validated `DataSketch` stores the dereferenced OpenAPI object used for trace
+  validation at `sources.openapi`.
 
 Rules:
 
 - OpenAPI is a trace validation source, not the canonical Data Sketch shape.
 - Tools must not resolve detail types from OpenAPI.
 - Tools must not infer from similar names.
+- AI tools and renderers may use OpenAPI schemas, enums, formats, and required
+  lists as advisory input when proposing storage-specific constraints, but core
+  parsing, validation, and built-in projections do not turn those hints into
+  Data Sketch detail types, check constraints, uniqueness constraints, or
+  indexes.
 
 ---
 

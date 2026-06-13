@@ -1,0 +1,42 @@
+{
+  "openapi-summary": "1.0.0-draft.1",
+  "info": {},
+  "operations": [
+    {
+      "operationId": "createCustomer",
+      "method": "post",
+      "path": "/customers",
+      "tags": [],
+      "requestBody": {
+        "required": false,
+        "contentType": "application/json",
+        "fields": []
+      },
+      "responses": [
+        {
+          "status": "201",
+          "contentType": "application/json",
+          "fields": []
+        },
+        {
+          "status": "202",
+          "contentType": "application/json",
+          "fields": [
+            {
+              "path": "preference",
+              "type": "unknown",
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "listProducts",
+      "method": "get",
+      "path": "/products",
+      "tags": [],
+      "responses": []
+    }
+  ]
+}
