@@ -165,6 +165,7 @@ claims:
 | `reason` | yes | Context explaining why the claim may need to be remembered. |
 | `traces` | yes | User-facing operation trace metadata. |
 | `details` | yes | Concrete items that describe or support the claim. |
+| `aliases` | no | Business-facing aliases keyed by detail path. |
 | `relations` | no | Logical relationships from claim detail paths to other claims. |
 | `tentative` | no | Whether this claim is tentative and needs stakeholder review. Defaults to `false`. |
 
@@ -208,15 +209,15 @@ Rules:
 
 A detail is a concrete item that describes or supports a claim.
 
-Write `details` in list form for the basic sketching style. List form keeps the
-Data Sketch focused on the data this service may need to remember without
-requiring early implementation decisions.
+Write `details` as a list. List form keeps the Data Sketch focused on the data
+this service may need to remember without requiring early implementation
+decisions.
 
 `id` and `_id` are reserved identity detail paths. Authors must not list `id`
 or `_id` in `details`. Projections and consuming tools may use these reserved
 paths for generated identity fields.
 
-Basic list form:
+Basic form:
 
 ```yaml
 details:
@@ -224,31 +225,6 @@ details:
   - shippedAt
   - carrier.name
   - items[].quantity
-```
-
-Use map form when a detail needs simple metadata. A map-form detail may specify
-`aliases`, `type`, and `required`.
-
-Metadata map form:
-
-```yaml
-details:
-  status:
-    aliases:
-      - order status
-      - fulfillment status
-    type: string
-    required: true
-
-  items[].quantity:
-    aliases:
-      - item quantity
-    type: number
-
-  discontinued:
-    aliases:
-      - discontinued flag
-    type: boolean
 ```
 
 Valid detail path examples:
@@ -272,8 +248,7 @@ Detail path syntax:
 
 Rules:
 
-- `details` must be either a non-empty list of path strings or a non-empty map
-  of path strings to detail metadata.
+- `details` must be a non-empty list of path strings.
 - Every detail path must be non-empty.
 - Every path segment name must be non-empty.
 - Detail paths must be unique.
@@ -306,58 +281,33 @@ details:
   - '[].product'
 ```
 
----
+## Aliases
 
-## Detail Metadata
-
-Map-form detail metadata may include:
-
-| Field | Required | Description |
-|---|---:|---|
-| `aliases` | no | Business-facing names or other aliases for the detail. |
-| `type` | no | Data Sketch detail type. Defaults to `string`. Must be `string`, `number`, or `boolean` when present. |
-| `required` | no | Whether the detail is required. Defaults to `true`. |
-
-Rules:
-
-- Details are required by default.
-- List-form details do not carry metadata and cannot mark a detail optional.
-- Use `aliases` for business-facing display names or names that contain
-  whitespace.
-- Use map form with `required: false` when a detail is intentionally optional.
-- If map-form detail metadata omits `required`, the detail is treated as
-  required.
-- Map-form detail metadata is limited to `aliases`, `type`, and `required`.
-
----
-
-## Type
+Use claim-level `aliases` when details need business-facing names or other
+labels.
 
 ```yaml
-type: string
-```
+details:
+  - status
+  - items[].quantity
 
-```yaml
-type: number
-```
-
-```yaml
-type: boolean
-```
-
-Supported Data Sketch detail type names:
-
-```text
-string
-number
-boolean
+aliases:
+  status:
+    - order status
+    - fulfillment status
+  items[].quantity:
+    - item quantity
 ```
 
 Rules:
 
-- `type` is available only in map-form details and defaults to `string`.
-- Storage-specific type information belongs in renderer-specific `x-*`
-  extensions, not in core Data Sketch detail metadata.
+- `aliases` is optional.
+- `aliases` must be a non-empty map when present.
+- Each `aliases` key must be a detail path listed in the same claim's
+  `details`.
+- Each `aliases` value must be a non-empty list of non-empty strings.
+- Core Data Sketch does not store detail types, required flags, storage types,
+  constraints, or indexes.
 
 ---
 
@@ -426,13 +376,15 @@ If `sources.openapi` is present:
 Rules:
 
 - OpenAPI is a trace validation source, not the canonical Data Sketch shape.
-- Tools must not resolve detail types from OpenAPI.
 - Tools must not infer from similar names.
+- Core parsing and validation must not turn OpenAPI schemas into Data Sketch
+  details or aliases.
+- Built-in relational projection may use OpenAPI schemas and required lists as
+  advisory input for projected SQL column types and nullability.
 - AI tools and renderers may use OpenAPI schemas, enums, formats, and required
   lists as advisory input when proposing storage-specific constraints, but core
-  parsing, validation, and built-in projections do not turn those hints into
-  Data Sketch detail types, check constraints, uniqueness constraints, or
-  indexes.
+  parsing and validation do not turn those hints into Data Sketch details,
+  aliases, check constraints, uniqueness constraints, or indexes.
 
 ---
 
@@ -461,8 +413,7 @@ Rules:
   them after parsing and validation.
 - `claims` and `relations` are maps whose keys are logical IDs or paths; they
   are not extension containers.
-- Detail metadata is not extensible. It is limited to `aliases`, `type`, and
-  `required`.
+- `details`, `aliases`, and `relations` are not extension containers.
 
 ---
 
@@ -743,7 +694,7 @@ claims:
       items[].product: product
 ```
 
-### Data Sketch: Detailed Map Form
+### Data Sketch: List Form With Aliases
 
 ```yaml
 data-sketch: 1.0.0-draft.2
@@ -765,22 +716,22 @@ claims:
         - createCustomer
         - getCustomer
     details:
+      - name
+      - email
+      - phoneNumber
+      - address.city
+      - address.postalCode
+    aliases:
       name:
-        aliases:
-          - customer name
+        - customer name
       email:
-        aliases:
-          - email address
+        - email address
       phoneNumber:
-        aliases:
-          - phone number
-        required: false
+        - phone number
       address.city:
-        aliases:
-          - address city
+        - address city
       address.postalCode:
-        aliases:
-          - postal code
+        - postal code
 
   product:
     name: products
@@ -791,20 +742,19 @@ claims:
       operations:
         - listProducts
     details:
+      - name
+      - price
+      - inventoryStatus
+      - discontinued
+    aliases:
       name:
-        aliases:
-          - product name
+        - product name
       price:
-        aliases:
-          - selling price
-        type: number
+        - selling price
       inventoryStatus:
-        aliases:
-          - inventory status
+        - inventory status
       discontinued:
-        aliases:
-          - discontinued flag
-        type: boolean
+        - discontinued flag
 
   order:
     name: orders
@@ -817,26 +767,25 @@ claims:
         - createOrder
         - getOrderDetail
     details:
+      - status
+      - orderedAt
+      - customer
+      - items[].quantity
+      - items[].unitPrice
+      - items[].product
+    aliases:
       status:
-        aliases:
-          - order status
+        - order status
       orderedAt:
-        aliases:
-          - ordered time
+        - ordered time
       customer:
-        aliases:
-          - order customer
+        - order customer
       items[].quantity:
-        aliases:
-          - item quantity
-        type: number
+        - item quantity
       items[].unitPrice:
-        aliases:
-          - item unit price
-        type: number
+        - item unit price
       items[].product:
-        aliases:
-          - item product
+        - item product
     relations:
       customer: customer
       items[].product: product

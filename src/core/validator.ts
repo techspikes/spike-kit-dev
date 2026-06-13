@@ -123,7 +123,7 @@ function hasDetailPath(
   details: NonNullable<Specification['claims'][string]['details']>,
   detailPath: string
 ) {
-  return Array.isArray(details) ? details.includes(detailPath) : detailPath in details
+  return details.includes(detailPath)
 }
 
 function loadOpenApiFromPath(basePath: string, openApiPath: string): unknown {

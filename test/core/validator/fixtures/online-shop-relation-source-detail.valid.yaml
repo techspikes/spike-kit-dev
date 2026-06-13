@@ -13,12 +13,13 @@ claims:
       operations:
         - listProducts
     details:
+      - sku
+      - name
+    aliases:
       sku:
-        aliases:
-          - product sku
+        - product sku
       name:
-        aliases:
-          - product name
+        - product name
 
   order:
     name: orders
@@ -29,8 +30,9 @@ claims:
       operations:
         - createOrder
     details:
+      - items[].productSku
+    aliases:
       items[].productSku:
-        aliases:
-          - item product sku
+        - item product sku
     relations:
       items[].productSku: product

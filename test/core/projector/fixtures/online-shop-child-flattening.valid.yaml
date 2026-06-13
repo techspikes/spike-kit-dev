@@ -13,11 +13,10 @@ claims:
       operations:
         - createOrder
     details:
+      - items[].stocks.price
+      - items[].stocks.quantity
+    aliases:
       items[].stocks.price:
-        aliases:
-          - item stock price
-        type: number
+        - item stock price
       items[].stocks.quantity:
-        aliases:
-          - item stock quantity
-        type: number
+        - item stock quantity

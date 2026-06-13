@@ -13,8 +13,5 @@ claims:
       operations:
         - createOrder
     details:
-      status:
-        aliases:
-          - order status
-      items[].stocks..price:
-        type: number
+      - carrier.name
+      - carrier

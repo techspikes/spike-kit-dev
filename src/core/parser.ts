@@ -12,7 +12,15 @@ const validDetailPathSegmentPattern = /^[^[\]]+(?:\[\])?$/u
 const rootFields = new Set(['data-sketch', 'info', 'sources', 'claims'])
 const infoFields = new Set(['name'])
 const sourcesFields = new Set(['openapi', 'arrazo', 'asyncapi'])
-const claimFields = new Set(['name', 'reason', 'traces', 'details', 'relations', 'tentative'])
+const claimFields = new Set([
+  'name',
+  'reason',
+  'traces',
+  'details',
+  'aliases',
+  'relations',
+  'tentative'
+])
 const tracesFields = new Set(['operations', 'workflows', 'channels'])
 
 const tracesSchema = v.looseObject({
@@ -21,22 +29,14 @@ const tracesSchema = v.looseObject({
   channels: v.optional(nonEmptyStringList)
 })
 
-const detailMetadataSchema = v.strictObject({
-  aliases: v.optional(nonEmptyStringList),
-  type: v.optional(v.picklist(['string', 'number', 'boolean'])),
-  required: v.optional(v.boolean())
-})
-
-const detailsSchema = v.union([
-  nonEmptyStringList,
-  v.pipe(v.record(v.string(), detailMetadataSchema), v.minEntries(1))
-])
+const aliasesSchema = v.pipe(v.record(v.string(), nonEmptyStringList), v.minEntries(1))
 
 const claimSchema = v.looseObject({
   name: implementationName,
   reason: nonEmptyString,
   traces: tracesSchema,
-  details: v.optional(detailsSchema),
+  details: v.optional(nonEmptyStringList),
+  aliases: v.optional(aliasesSchema),
   relations: v.optional(v.record(v.string(), nonEmptyString)),
   tentative: v.optional(v.boolean())
 })
@@ -161,6 +161,10 @@ function validateClaimShape(spec: Specification): string[] {
     if (claim.details) {
       issues.push(...validateDetailShape(claimId, claim.details))
     }
+
+    if (claim.details && claim.aliases) {
+      issues.push(...validateAliasShape(claimId, claim.details, claim.aliases))
+    }
   }
 
   return issues
@@ -173,7 +177,7 @@ function validateDetailShape(
   const issues: string[] = []
   const detailIds = new Set<string>()
 
-  for (const detailId of Array.isArray(details) ? details : Object.keys(details)) {
+  for (const detailId of details) {
     if (reservedIdentityDetailPaths.has(detailId)) {
       issues.push(`claims.${claimId}.details.${detailId} is a reserved identity detail path`)
     }
@@ -187,11 +191,21 @@ function validateDetailShape(
 
   issues.push(...validateDetailPaths(claimId, [...detailIds]))
 
-  if (Array.isArray(details)) {
-    return issues
-  }
-
   return issues
+}
+
+function validateAliasShape(
+  claimId: string,
+  details: NonNullable<Specification['claims'][string]['details']>,
+  aliases: NonNullable<Specification['claims'][string]['aliases']>
+): string[] {
+  const detailIds = new Set(details)
+
+  return Object.keys(aliases).flatMap(aliasPath =>
+    detailIds.has(aliasPath)
+      ? []
+      : [`claims.${claimId}.aliases.${aliasPath} must also be listed in details`]
+  )
 }
 
 function validateDetailPaths(claimId: string, detailIds: string[]): string[] {

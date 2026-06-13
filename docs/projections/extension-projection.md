@@ -48,7 +48,8 @@ Rules:
 - Claim definitions use path `claims.<claim id>`.
 - Claim `traces` objects use path `claims.<claim id>.traces`.
 - Claim IDs cannot contain `.`, `[`, or `]`, so claim paths are unambiguous.
-- Detail metadata is not extensible and is not included in this projection.
+- Details, aliases, and relations are not extensible and are not included in this
+  projection.
 
 ---
 

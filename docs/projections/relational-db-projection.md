@@ -40,8 +40,7 @@ Rules:
 - Each `detail` becomes one column on one projected table.
 - Claim-level `reason`, `traces`, and `tentative` are not included in the
   projection.
-- Detail-level metadata is not included as projection fields.
-- Detail `type` may be used only to derive a column data type.
+- Claim-level `aliases` are not included as projection fields.
 - Every projected table receives an implicit surrogate key column named `id`.
 - The surrogate key column is the table primary key.
 - The surrogate key value format is `ULID`.
@@ -62,7 +61,7 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
     primaryKey:
       name: pk_orders
       columns:
@@ -211,19 +210,31 @@ becomes `price`.
 
 Rules:
 
-- If no Data Sketch detail type is specified, the column type is `VARCHAR(1024)`.
-- Data Sketch detail type `string` becomes `VARCHAR(1024)`.
-- Data Sketch detail type `number` becomes `INTEGER`.
-- Data Sketch detail type `boolean` becomes `BOOLEAN`.
-- Only explicit Data Sketch detail type values from the parsed and validated
-  specification are used. The Relational DB projector does not infer column
-  types directly from OpenAPI.
-- Data Sketch array-of-scalars details become `VARCHAR(1024)`.
-- Surrogate key columns use `VARCHAR(26)`.
+- If no OpenAPI source is loaded on the validated Data Sketch, detail columns use
+  `VARCHAR(1024)`.
+- If an OpenAPI source is loaded, the projector uses only the claim's traced
+  OpenAPI operations.
+- OpenAPI field paths must exactly match Data Sketch detail paths to influence
+  a column type.
+- OpenAPI `string` with `maxLength` becomes `VARCHAR(maxLength)`.
+- When multiple matching OpenAPI strings specify `maxLength`, the largest
+  specified value is used.
+- When no matching OpenAPI string specifies `maxLength`, the column type falls
+  back to `VARCHAR(1024)`.
+- OpenAPI `integer` and `number` become `INTEGER`.
+- OpenAPI `boolean` becomes `BOOLEAN`.
+- Conflicting OpenAPI types fall back to `VARCHAR(1024)`.
+- Data Sketch details without matching traced OpenAPI fields fall back to
+  `VARCHAR(1024)`.
+- Data Sketch array-of-scalars details fall back to `VARCHAR(1024)` unless a
+  traced OpenAPI field exactly matches the array detail path.
+- Surrogate key columns use `CHAR(26)`.
 - Explicit relation and claim ID exact-match foreign key columns use
-  `VARCHAR(26)`.
-- Structural parent foreign key columns use `VARCHAR(26)`.
+  `CHAR(26)`.
+- Structural parent foreign key columns use `CHAR(26)`.
 - SQL type strings are written in uppercase.
+- OpenAPI `number` is projected as `INTEGER`; decimals should be scaled up or
+  represented as strings, or overridden with renderer-specific schema metadata.
 
 ---
 
@@ -236,15 +247,14 @@ Rules:
 - Surrogate key columns omit `nullable` because they are required by default.
 - Structural parent foreign key columns omit `nullable` because they are
   required by default.
-- List-form details omit `nullable` and are treated as required by default.
-- Map-form detail `required: true` omits `nullable`.
-- Map-form detail `required: false` emits `nullable: true`.
-- If map-form detail metadata omits `required`, it is treated as required and
-  omits `nullable`.
-- Explicit and inferred foreign key columns keep the `nullable` value derived
-  from their source detail.
-- The Relational DB projector does not infer `nullable` from OpenAPI `required`
-  lists.
+- Details without matching traced OpenAPI fields omit `nullable` and are treated
+  as required by default.
+- If any matching traced OpenAPI field is not required, the projected column
+  emits `nullable: true`.
+- If all matching traced OpenAPI fields are required, the projected column omits
+  `nullable`.
+- Explicit and inferred foreign key columns omit `nullable` because they use the
+  target table's required surrogate key type.
 
 ---
 
@@ -309,10 +319,10 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: customer
         name: customer
-        type: VARCHAR(26)
+        type: CHAR(26)
     primaryKey:
       name: pk_orders
       columns:
@@ -343,13 +353,13 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: order
         name: order
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: items[].product
         name: product
-        type: VARCHAR(26)
+        type: CHAR(26)
     primaryKey:
       name: pk_order_items
       columns:
@@ -432,7 +442,7 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: name
         name: name
         type: VARCHAR(1024)
@@ -459,7 +469,7 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: name
         name: name
         type: VARCHAR(1024)
@@ -480,7 +490,7 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: status
         name: status
         type: VARCHAR(1024)
@@ -489,7 +499,7 @@ tables:
         type: VARCHAR(1024)
       - id: customer
         name: customer
-        type: VARCHAR(26)
+        type: CHAR(26)
     primaryKey:
       name: pk_orders
       columns:
@@ -507,10 +517,10 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: order
         name: order
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: items[].quantity
         name: quantity
         type: VARCHAR(1024)
@@ -519,7 +529,7 @@ tables:
         type: VARCHAR(1024)
       - id: items[].product
         name: product
-        type: VARCHAR(26)
+        type: CHAR(26)
     primaryKey:
       name: pk_order_items
       columns:
@@ -558,10 +568,10 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: order
         name: order
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: items[].stocks.price
         name: stocks_price
         type: VARCHAR(1024)
@@ -596,10 +606,10 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: order
         name: order
-        type: VARCHAR(26)
+        type: CHAR(26)
     primaryKey:
       name: pk_order_items
       columns:
@@ -617,10 +627,10 @@ tables:
     columns:
       - id: id
         name: id
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: order.items[]
         name: order_items
-        type: VARCHAR(26)
+        type: CHAR(26)
       - id: items[].stocks[].price
         name: price
         type: VARCHAR(1024)

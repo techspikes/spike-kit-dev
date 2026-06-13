@@ -75,10 +75,10 @@ describe('core validator', () => {
     assert.equal(sketch.metadata.validated, true)
   })
 
-  it('validate accepts map-form relation source details', () => {
+  it('validate accepts relation source details', () => {
     const sketch = validate({
       sketch: parse({
-        path: 'test/core/validator/fixtures/online-shop-map-form-relation-source.valid.yaml'
+        path: 'test/core/validator/fixtures/online-shop-relation-source-detail.valid.yaml'
       }),
       trace: false
     })

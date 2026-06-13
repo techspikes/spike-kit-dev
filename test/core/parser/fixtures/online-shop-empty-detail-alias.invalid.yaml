@@ -13,10 +13,6 @@ claims:
       operations:
         - listProducts
     details:
-      name:
-        aliases:
-          - product name
-      discontinued:
-        aliases:
-          - discontinued flag
-        type: boolean
+      - name
+    aliases:
+      name: []

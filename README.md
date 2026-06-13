@@ -90,17 +90,16 @@ claims:
       operations:
         - listProducts
     details:
+      - name
+      - price
+      - discontinued
+    aliases:
       name:
-        aliases:
-          - product name
+        - product name
       price:
-        aliases:
-          - selling price
-        type: number
+        - selling price
       discontinued:
-        aliases:
-          - discontinued flag
-        type: boolean
+        - discontinued flag
 
   order:
     name: orders

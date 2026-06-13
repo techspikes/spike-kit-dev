@@ -14,22 +14,22 @@ claims:
         - createCustomer
         - getCustomer
     details:
+      - name
+      - email
+      - phoneNumber
+      - address.city
+      - address.postalCode
+    aliases:
       name:
-        aliases:
-          - customer name
+        - customer name
       email:
-        aliases:
-          - email address
+        - email address
       phoneNumber:
-        aliases:
-          - phone number
-        required: false
+        - phone number
       address.city:
-        aliases:
-          - address city
+        - address city
       address.postalCode:
-        aliases:
-          - postal code
+        - postal code
 
   product:
     name: products
@@ -40,20 +40,19 @@ claims:
       operations:
         - listProducts
     details:
+      - name
+      - price
+      - inventoryStatus
+      - discontinued
+    aliases:
       name:
-        aliases:
-          - product name
+        - product name
       price:
-        aliases:
-          - selling price
-        type: number
+        - selling price
       inventoryStatus:
-        aliases:
-          - inventory status
+        - inventory status
       discontinued:
-        aliases:
-          - discontinued flag
-        type: boolean
+        - discontinued flag
 
   order:
     name: orders
@@ -66,26 +65,25 @@ claims:
         - createOrder
         - getOrderDetail
     details:
+      - status
+      - orderedAt
+      - customer
+      - items[].quantity
+      - items[].unitPrice
+      - items[].product
+    aliases:
       status:
-        aliases:
-          - order status
+        - order status
       orderedAt:
-        aliases:
-          - ordered time
+        - ordered time
       customer:
-        aliases:
-          - order customer
+        - order customer
       items[].quantity:
-        aliases:
-          - item quantity
-        type: number
+        - item quantity
       items[].unitPrice:
-        aliases:
-          - item unit price
-        type: number
+        - item unit price
       items[].product:
-        aliases:
-          - item product
+        - item product
     relations:
       customer: customer
       items[].product: product

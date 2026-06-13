@@ -7,7 +7,7 @@
         {
           "id": "id",
           "name": "id",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         },
         {
           "id": "name",
@@ -22,8 +22,7 @@
         {
           "id": "phoneNumber",
           "name": "phone_number",
-          "type": "VARCHAR(1024)",
-          "nullable": true
+          "type": "VARCHAR(1024)"
         },
         {
           "id": "address.city",
@@ -48,7 +47,7 @@
         {
           "id": "id",
           "name": "id",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         },
         {
           "id": "name",
@@ -58,7 +57,7 @@
         {
           "id": "price",
           "name": "price",
-          "type": "INTEGER"
+          "type": "VARCHAR(1024)"
         },
         {
           "id": "inventoryStatus",
@@ -68,7 +67,7 @@
         {
           "id": "discontinued",
           "name": "discontinued",
-          "type": "BOOLEAN"
+          "type": "VARCHAR(1024)"
         }
       ],
       "primaryKey": {
@@ -83,7 +82,7 @@
         {
           "id": "id",
           "name": "id",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         },
         {
           "id": "status",
@@ -98,7 +97,7 @@
         {
           "id": "customer",
           "name": "customer",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         }
       ],
       "primaryKey": {
@@ -123,27 +122,27 @@
         {
           "id": "id",
           "name": "id",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         },
         {
           "id": "order",
           "name": "order",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         },
         {
           "id": "items[].quantity",
           "name": "quantity",
-          "type": "INTEGER"
+          "type": "VARCHAR(1024)"
         },
         {
           "id": "items[].unitPrice",
           "name": "unit_price",
-          "type": "INTEGER"
+          "type": "VARCHAR(1024)"
         },
         {
           "id": "items[].product",
           "name": "product",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         }
       ],
       "primaryKey": {

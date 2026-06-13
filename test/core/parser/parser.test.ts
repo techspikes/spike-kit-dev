@@ -106,19 +106,15 @@ describe('core parser', () => {
     assert.deepEqual(sketch.spec.claims.order.relations, { items__product: 'customer__profile' })
   })
 
-  it('parse accepts boolean detail metadata types', () => {
+  it('parse accepts claim-level detail aliases', () => {
     const sketch = parse({
-      path: 'test/core/parser/fixtures/online-shop-boolean-detail-type.valid.yaml'
+      path: 'test/core/parser/fixtures/online-shop-detail-aliases.valid.yaml'
     })
 
-    assert.deepEqual(sketch.spec.claims.product.details, {
-      name: {
-        aliases: ['product name']
-      },
-      discontinued: {
-        aliases: ['discontinued flag'],
-        type: 'boolean'
-      }
+    assert.deepEqual(sketch.spec.claims.product.details, ['name', 'discontinued'])
+    assert.deepEqual(sketch.spec.claims.product.aliases, {
+      name: ['product name'],
+      discontinued: ['discontinued flag']
     })
   })
 
@@ -200,6 +196,16 @@ describe('core parser', () => {
     )
   })
 
+  it('parse rejects list-form detail paths where a later path is a strict prefix of an earlier path', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-list-detail-reverse-strict-prefix.invalid.yaml'
+        }),
+      /claims\.order\.details\.carrier must not be a strict prefix of carrier\.name/
+    )
+  })
+
   it('parse rejects list-form detail paths that mix object and array form for a segment', () => {
     assert.throws(
       () =>
@@ -237,63 +243,33 @@ describe('core parser', () => {
     assert.deepEqual(sketch.spec.claims.order.relations, { customer: 'customer' })
   })
 
-  it('parse rejects duplicate map-form detail IDs', () => {
+  it('parse rejects object-form details', () => {
     assert.throws(
       () =>
         parse({
-          path: 'test/core/parser/fixtures/online-shop-duplicate-map-detail-id.invalid.yaml'
-        }),
-      /Failed to parse: duplicated mapping key/
-    )
-  })
-
-  it('parse rejects map-form detail paths with empty segments', () => {
-    assert.throws(
-      () =>
-        parse({
-          path: 'test/core/parser/fixtures/online-shop-map-detail-empty-segment.invalid.yaml'
-        }),
-      /claims\.order\.details\.items\[\]\.stocks\.\.price must not contain empty path segments/
-    )
-  })
-
-  it('parse rejects map-form detail paths where one path is a strict prefix of another', () => {
-    assert.throws(
-      () =>
-        parse({
-          path: 'test/core/parser/fixtures/online-shop-map-detail-strict-prefix.invalid.yaml'
-        }),
-      /claims\.order\.details\.carrier must not be a strict prefix of carrier\.name/
-    )
-  })
-
-  it('parse rejects map-form detail paths that mix object and array form for a segment', () => {
-    assert.throws(
-      () =>
-        parse({
-          path: 'test/core/parser/fixtures/online-shop-map-detail-array-object-conflict.invalid.yaml'
-        }),
-      /claims\.order\.details\.items\.product conflicts with items\[\]\.product because segment items uses both object and array form/
-    )
-  })
-
-  it('parse rejects map-form identity detail paths', () => {
-    assert.throws(
-      () =>
-        parse({
-          path: 'test/core/parser/fixtures/online-shop-map-detail-reserved-underscore-id.invalid.yaml'
-        }),
-      /claims\.customer\.details\._id is a reserved identity detail path/
-    )
-  })
-
-  it('parse rejects unsupported detail metadata fields', () => {
-    assert.throws(
-      () =>
-        parse({
-          path: 'test/core/parser/fixtures/online-shop-unsupported-detail-metadata-field.invalid.yaml'
+          path: 'test/core/parser/fixtures/online-shop-object-form-details.invalid.yaml'
         }),
       /claims\.customer\.details: Invalid type/
+    )
+  })
+
+  it('parse rejects aliases for paths that are not listed in details', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-unknown-detail-alias.invalid.yaml'
+        }),
+      /claims\.product\.aliases\.sku must also be listed in details/
+    )
+  })
+
+  it('parse rejects empty alias lists', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-empty-detail-alias.invalid.yaml'
+        }),
+      /claims\.product\.aliases\.name: Invalid length/
     )
   })
 

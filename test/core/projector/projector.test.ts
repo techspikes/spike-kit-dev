@@ -168,12 +168,12 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'VARCHAR(26)'
+        type: 'CHAR(26)'
       },
       {
         id: 'customer',
         name: 'customer',
-        type: 'VARCHAR(26)'
+        type: 'CHAR(26)'
       }
     ])
 
@@ -251,6 +251,131 @@ describe('core projector', () => {
           column: 'id'
         },
         kind: 'inferred'
+      }
+    ])
+  })
+
+  it('buildRelationalDbProjection infers SQL types and nullability from traced OpenAPI fields', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-openapi-inference.valid.yaml'
+      })
+    })
+
+    const projection = sketch.projections.relationalDb()
+
+    assert.deepEqual(projection.tables.product?.columns, [
+      {
+        id: 'id',
+        name: 'id',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'displayName',
+        name: 'display_name',
+        type: 'VARCHAR(80)'
+      },
+      {
+        id: 'sku',
+        name: 'sku',
+        type: 'VARCHAR(1024)'
+      },
+      {
+        id: 'price',
+        name: 'price',
+        type: 'INTEGER'
+      },
+      {
+        id: 'stock',
+        name: 'stock',
+        type: 'INTEGER'
+      },
+      {
+        id: 'discontinued',
+        name: 'discontinued',
+        type: 'BOOLEAN'
+      },
+      {
+        id: 'optionalNote',
+        name: 'optional_note',
+        type: 'VARCHAR(120)',
+        nullable: true
+      },
+      {
+        id: 'rating',
+        name: 'rating',
+        type: 'VARCHAR(1024)'
+      },
+      {
+        id: 'internalCode',
+        name: 'internal_code',
+        type: 'VARCHAR(1024)'
+      },
+      {
+        id: 'tags[]',
+        name: 'tags',
+        type: 'VARCHAR(15)'
+      },
+      {
+        id: 'legacyCode',
+        name: 'legacy_code',
+        type: 'VARCHAR(25)'
+      },
+      {
+        id: 'metadata',
+        name: 'metadata',
+        type: 'VARCHAR(1024)'
+      },
+      {
+        id: 'markers[]',
+        name: 'markers',
+        type: 'VARCHAR(1024)'
+      },
+      {
+        id: 'unknownUnion',
+        name: 'unknown_union',
+        type: 'VARCHAR(1024)'
+      },
+      {
+        id: 'looseObject.code',
+        name: 'loose_object_code',
+        type: 'VARCHAR(10)',
+        nullable: true
+      },
+      {
+        id: 'category',
+        name: 'category',
+        type: 'CHAR(26)'
+      }
+    ])
+
+    assert.deepEqual(projection.tables['product.variants[]']?.columns, [
+      {
+        id: 'id',
+        name: 'id',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'product',
+        name: 'product',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'variants[].name',
+        name: 'name',
+        type: 'VARCHAR(30)'
+      }
+    ])
+
+    assert.deepEqual(projection.tables.product?.foreignKeys, [
+      {
+        name: 'fk_products_category',
+        column: 'category',
+        target: {
+          table: 'categories',
+          column: 'id'
+        },
+        kind: 'explicit'
       }
     ])
   })

@@ -1,0 +1,270 @@
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /categories:
+    get:
+      operationId: listCategories
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - name
+                properties:
+                  name:
+                    type: string
+                    maxLength: 60
+
+  /products:
+    post:
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - displayName
+                - optionalNote
+                - rating
+                - category
+              properties:
+                displayName:
+                  type: string
+                  maxLength: 40
+                optionalNote:
+                  type: string
+                  maxLength: 120
+                rating:
+                  type: string
+                  maxLength: 10
+                category:
+                  type: string
+                  maxLength: 20
+      responses:
+        '201':
+          description: Created product
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - displayName
+                  - sku
+                  - price
+                  - stock
+                  - discontinued
+                  - rating
+                  - category
+                  - tags
+                  - variants
+                  - legacyCode
+                  - metadata
+                  - markers
+                  - unknownUnion
+                  - looseObject
+                  - emptyObject
+                properties:
+                  displayName:
+                    type: string
+                    maxLength: 80
+                  sku:
+                    type: string
+                  price:
+                    type: number
+                  stock:
+                    type: integer
+                  discontinued:
+                    type: boolean
+                  optionalNote:
+                    type: string
+                    maxLength: 100
+                  rating:
+                    type: number
+                  category:
+                    type: string
+                    maxLength: 30
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                      maxLength: 15
+                  variants:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - name
+                      properties:
+                        name:
+                          type: string
+                          maxLength: 30
+                  legacyCode:
+                    type:
+                      - string
+                      - 'null'
+                    maxLength: 25
+                  metadata:
+                    type: custom
+                  markers:
+                    type: array
+                  unknownUnion:
+                    type:
+                      - 42
+                  looseObject:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        maxLength: 10
+                  emptyObject:
+                    type: object
+
+  /product-imports:
+    post:
+      operationId: importProducts
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '202':
+          description: Product import accepted
+
+  /product-pings:
+    get:
+      operationId: pingProducts
+
+  /products/{productId}:
+    get:
+      operationId: getProduct
+      responses:
+        '203':
+          description: Product detail marker
+          content:
+            application/json:
+        '204':
+          description: Empty product detail
+        '206':
+          description: Plain product detail
+          content:
+            text/plain:
+              schema:
+                type: string
+        '202':
+          description: Scalar product detail marker
+          content:
+            application/json:
+              schema:
+                type: string
+        '200':
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - displayName
+                  - sku
+                  - price
+                  - stock
+                  - discontinued
+                  - rating
+                  - category
+                  - tags
+                  - variants
+                  - legacyCode
+                  - metadata
+                  - markers
+                  - unknownUnion
+                  - looseObject
+                  - emptyObject
+                properties:
+                  displayName:
+                    type: string
+                    maxLength: 70
+                  sku:
+                    type: string
+                  price:
+                    type: number
+                  stock:
+                    type: integer
+                  discontinued:
+                    type: boolean
+                  optionalNote:
+                    type: string
+                    maxLength: 100
+                  rating:
+                    type: number
+                  category:
+                    type: string
+                    maxLength: 30
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                      maxLength: 15
+                  variants:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - name
+                      properties:
+                        name:
+                          type: string
+                          maxLength: 30
+                  legacyCode:
+                    type:
+                      - string
+                      - 'null'
+                    maxLength: 25
+                  metadata:
+                    type: custom
+                  markers:
+                    type: array
+                  unknownUnion:
+                    type:
+                      - 42
+                  looseObject:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        maxLength: 10
+                  emptyObject:
+                    type: object
+        '299':
+
+  /anonymous-products:
+    get:
+      responses:
+        '200':
+          description: Anonymous product list
+
+  /internal-products:
+    get:
+      operationId: listInternalProducts
+      responses:
+        '200':
+          description: Internal product list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - internalCode
+                properties:
+                  internalCode:
+                    type: string
+                    maxLength: 20

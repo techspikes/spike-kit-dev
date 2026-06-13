@@ -1,0 +1,50 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+sources:
+  openapi: ./openapi/openapi-inference.yaml
+
+claims:
+  category:
+    name: categories
+    reason: |-
+      Product category information is needed so users can browse grouped
+      products.
+    traces:
+      operations:
+        - listCategories
+    details:
+      - name
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - createProduct
+        - importProducts
+        - pingProducts
+        - getProduct
+    details:
+      - displayName
+      - sku
+      - price
+      - stock
+      - discontinued
+      - optionalNote
+      - rating
+      - internalCode
+      - tags[]
+      - variants[].name
+      - legacyCode
+      - metadata
+      - markers[]
+      - unknownUnion
+      - looseObject.code
+      - category
+    relations:
+      category: category

@@ -7,7 +7,7 @@
         {
           "id": "id",
           "name": "id",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         }
       ],
       "primaryKey": {
@@ -22,22 +22,22 @@
         {
           "id": "id",
           "name": "id",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         },
         {
           "id": "order",
           "name": "order",
-          "type": "VARCHAR(26)"
+          "type": "CHAR(26)"
         },
         {
           "id": "items[].stocks.price",
           "name": "stocks_price",
-          "type": "INTEGER"
+          "type": "VARCHAR(1024)"
         },
         {
           "id": "items[].stocks.quantity",
           "name": "stocks_quantity",
-          "type": "INTEGER"
+          "type": "VARCHAR(1024)"
         }
       ],
       "primaryKey": {

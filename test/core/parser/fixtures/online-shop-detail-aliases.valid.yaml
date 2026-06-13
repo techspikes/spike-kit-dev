@@ -1,0 +1,22 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
+      - name
+      - discontinued
+    aliases:
+      name:
+        - product name
+      discontinued:
+        - discontinued flag

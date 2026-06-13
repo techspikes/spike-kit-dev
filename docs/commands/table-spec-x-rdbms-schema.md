@@ -20,15 +20,16 @@ claims:
   order:
     name: orders
     details:
+      - orderNumber
+      - status
+      - customer
+    aliases:
       orderNumber:
-        aliases:
-          - order number
+        - order number
       status:
-        aliases:
-          - order status
+        - order status
       customer:
-        aliases:
-          - order customer
+        - order customer
     relations:
       customer: customer
     x-rdbms-schema:
