@@ -1,7 +1,4 @@
-export { renderMarkdownTablesDoc } from './commands/tables-doc.ts'
-export {
-  createDbProjectionSnapshot,
-  type DbProjectionColumn,
-  type DbProjectionSnapshot
-} from './core/projector.ts'
-export { parseSpecification, type Specification } from './core/validator.ts'
+export { parse } from './core/parser.ts'
+export { buildRelationalDbProjection, useProjectors } from './core/projector.ts'
+export type { DataSketch } from './core/spec.ts'
+export { validate } from './core/validator.ts'

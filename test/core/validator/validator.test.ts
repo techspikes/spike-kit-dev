@@ -1,379 +1,210 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
-import { parseSpecification } from '../../../src/core/validator.ts'
-import { readTextFile } from '../../test-helper/output.ts'
+import { parse } from '../../../src/core/parser.ts'
+import { validate } from '../../../src/core/validator.ts'
+import { readTextFile } from '../../test-helper/file-access.ts'
 
 describe('core validator', () => {
-  it('parseSpecification accepts a valid YAML example specification', () => {
-    const specification = parseSpecification(
-      readTextFile('test/core/validator/fixtures/online-shop-example.valid.yaml')
-    )
+  it('validate marks a sketch as validated and adds a DB projector when trace is false', () => {
+    const sketch = validate({
+      sketch: parse({ path: 'test/core/validator/fixtures/online-shop.valid.yaml' }),
+      trace: false
+    })
 
-    assert.equal(specification.info.name, 'online-shop')
-    assert.equal(specification.stores.customer.fields.publicId.type.name, 'char')
-
-    assert.equal(
-      specification.stores.customer.fields.publicId.reason,
-      "Customers need a stable public identifier that doesn't reveal the internal sequential id."
-    )
-
-    assert.equal(specification.stores.order.keys?.foreign?.[0]?.references.store, 'customer')
+    assert.equal(sketch.metadata.validated, true)
+    assert.equal(typeof sketch.projections.relationalDb, 'function')
+    assert.equal(sketch.projections.relationalDb().claims[0]?.id, 'customer')
   })
 
-  it('parseSpecification accepts a valid JSON example specification', () => {
-    const specification = parseSpecification(
-      readTextFile('test/core/validator/fixtures/online-shop-example.valid.json')
-    )
+  it('validate defaults to trace true for spec sources.openapi', () => {
+    const sketch = validate({
+      sketch: parse({ path: 'test/core/validator/fixtures/online-shop.valid.yaml' })
+    })
 
-    assert.equal(specification.info.name, 'online-shop')
-    assert.equal(specification.stores.customer.fields.publicId.type.name, 'char')
-    assert.equal(specification.stores.order.keys?.foreign?.[0]?.references.store, 'customer')
+    assert.equal(sketch.metadata.validated, true)
   })
 
-  it('parseSpecification accepts an ordered index field specification', () => {
-    const specification = parseSpecification(
-      readTextFile('test/core/validator/fixtures/online-shop-example-index-sort-order.valid.yaml')
-    )
-
-    const indexField = specification.stores.order.indexes?.[1]?.fields[0]
-
-    assert.deepEqual(indexField, { field: 'createdAt', order: 'desc' })
-  })
-
-  it('parseSpecification does not validate OpenAPI trace by default', () => {
-    const specification = parseSpecification(
-      readTextFile('test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml')
-    )
-
-    assert.equal(specification.sources?.openapi, './openapi/missing.yaml')
-  })
-
-  it('parseSpecification does not validate OpenAPI trace when trace is false', () => {
-    const specification = parseSpecification(
-      readTextFile('test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'),
-      { trace: false }
-    )
-
-    assert.equal(specification.sources?.openapi, './openapi/missing.yaml')
-  })
-
-  it('parseSpecification accepts trace true when sources.openapi is omitted', () => {
-    const specification = parseSpecification(
-      readTextFile('test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'),
-      {
-        trace: true,
-        specPath: 'test/core/validator/fixtures/online-shop-example-without-sources.valid.yaml'
+  it('validate defaults to trace true for explicit OpenAPI source strings', () => {
+    const sketch = validate({
+      sketch: parse({ input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
+      sources: {
+        openapi: readTextFile('test/core/validator/fixtures/openapi/openapi.yaml')
       }
-    )
+    })
 
-    assert.equal(specification.sources, undefined)
+    assert.equal(sketch.metadata.validated, true)
   })
 
-  it('parseSpecification validates traced operations against sources.openapi', () => {
-    const specification = parseSpecification(
-      readTextFile('test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'),
-      {
-        trace: true,
-        specPath: 'test/core/validator/fixtures/online-shop-example-trace-valid.valid.yaml'
-      }
-    )
+  it('validate does not parse explicit OpenAPI source strings when trace is false', () => {
+    const sketch = validate({
+      sketch: parse({ input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
+      sources: {
+        openapi: 'openapi: ['
+      },
+      trace: false
+    })
 
-    assert.equal(specification.sources?.openapi, './openapi/openapi.yaml')
+    assert.equal(sketch.metadata.validated, true)
   })
 
-  it('parseSpecification validates traced operations against an absolute sources.openapi', () => {
-    const specification = parseSpecification(
-      readTextFile(
-        'test/core/validator/fixtures/online-shop-example-trace-absolute-openapi.valid.yaml'
-      ),
-      {
-        trace: true,
-        specPath:
-          'test/core/validator/fixtures/online-shop-example-trace-absolute-openapi.valid.yaml'
-      }
-    )
-
-    assert.match(specification.sources?.openapi ?? '', /^\/workspaces\//)
-  })
-
-  it('parseSpecification rejects missing OpenAPI files', () => {
+  it('validate rejects missing OpenAPI files when trace is true', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
-          ),
-          {
-            trace: true,
-            specPath: 'test/core/validator/fixtures/online-shop-example-missing-openapi.valid.yaml'
-          }
-        ),
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml'
+          }),
+          trace: true
+        }),
       /Failed to read OpenAPI:/
     )
   })
 
-  it('parseSpecification rejects missing traced operationId', () => {
+  it('validate rejects invalid OpenAPI syntax when trace is true', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-example-trace-missing-operation.invalid.yaml'
-          ),
-          {
-            trace: true,
-            specPath:
-              'test/core/validator/fixtures/online-shop-example-trace-missing-operation.invalid.yaml'
-          }
-        ),
-      /trace operation missingOperation does not exist in OpenAPI operationId/
-    )
-  })
-
-  it('parseSpecification rejects duplicate OpenAPI operationId', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-example-trace-duplicate-operation.invalid.yaml'
-          ),
-          {
-            trace: true,
-            specPath:
-              'test/core/validator/fixtures/online-shop-example-trace-duplicate-operation.invalid.yaml'
-          }
-        ),
-      /OpenAPI operationId createCustomer is duplicated/
-    )
-  })
-
-  it('parseSpecification rejects invalid OpenAPI syntax', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-example-trace-invalid-openapi.invalid.yaml'
-          ),
-          {
-            trace: true,
-            specPath:
-              'test/core/validator/fixtures/online-shop-example-trace-invalid-openapi.invalid.yaml'
-          }
-        ),
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-invalid-openapi.invalid.yaml'
+          }),
+          trace: true
+        }),
       /Failed to parse OpenAPI:/
     )
   })
 
-  it('parseSpecification rejects OpenAPI root values that are not objects', () => {
+  it('validate rejects missing traced operationIds when trace is true', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-example-trace-root-null-openapi.invalid.yaml'
-          ),
-          {
-            trace: true,
-            specPath:
-              'test/core/validator/fixtures/online-shop-example-trace-root-null-openapi.invalid.yaml'
-          }
-        ),
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml'
+          }),
+          trace: true
+        }),
+      /trace operation missingOperation does not exist in OpenAPI operationId/
+    )
+  })
+
+  it('validate rejects duplicate OpenAPI operationIds when trace is true', () => {
+    assert.throws(
+      () =>
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-duplicate-operation.invalid.yaml'
+          }),
+          trace: true
+        }),
+      /OpenAPI operationId createCustomer is duplicated/
+    )
+  })
+
+  it('validate rejects OpenAPI root values that are not objects when trace is true', () => {
+    assert.throws(
+      () =>
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-openapi-root-null.invalid.yaml'
+          }),
+          trace: true
+        }),
       /OpenAPI root must be an object/
     )
   })
 
-  it('parseSpecification rejects OpenAPI without object paths', () => {
+  it('validate rejects OpenAPI files without object paths when trace is true', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-example-trace-missing-paths.invalid.yaml'
-          ),
-          {
-            trace: true,
-            specPath:
-              'test/core/validator/fixtures/online-shop-example-trace-missing-paths.invalid.yaml'
-          }
-        ),
+        validate({
+          sketch: parse({
+            path: 'test/core/validator/fixtures/online-shop-openapi-missing-paths.invalid.yaml'
+          }),
+          trace: true
+        }),
       /OpenAPI paths must be an object/
     )
   })
 
-  it('parseSpecification ignores non-operation OpenAPI members while collecting operationIds', () => {
-    const specification = parseSpecification(
-      readTextFile(
-        'test/core/validator/fixtures/online-shop-example-trace-ignored-openapi-members.valid.yaml'
-      ),
-      {
-        trace: true,
-        specPath:
-          'test/core/validator/fixtures/online-shop-example-trace-ignored-openapi-members.valid.yaml'
-      }
-    )
-
-    assert.equal(specification.stores.customer.traces.operations[0], 'createCustomer')
-  })
-
-  it('parseSpecification rejects invalid YAML syntax', () => {
+  it('validate rejects missing operations from an explicit OpenAPI source string', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile('test/core/validator/fixtures/online-shop-invalid-syntax.invalid.yaml')
-        ),
-      /Failed to parse:/
+        validate({
+          sketch: parse({
+            input: readTextFile(
+              'test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml'
+            )
+          }),
+          sources: {
+            openapi: readTextFile('test/core/validator/fixtures/openapi/openapi.yaml')
+          },
+          trace: true
+        }),
+      /trace operation missingOperation does not exist in OpenAPI operationId/
     )
   })
 
-  it('parseSpecification rejects an unsupported field type', () => {
+  it('validate rejects duplicate operations from an explicit OpenAPI source string', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-field-unsupported-type.invalid.yaml'
-          )
-        ),
-      /stores\.customer\.fields\.id\.type\.name/
+        validate({
+          sketch: parse({
+            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
+          }),
+          sources: {
+            openapi: readTextFile(
+              'test/core/validator/fixtures/openapi/duplicate-operation-id.yaml'
+            )
+          },
+          trace: true
+        }),
+      /OpenAPI operationId createCustomer is duplicated/
     )
   })
 
-  it('parseSpecification rejects a root value that is not an object', () => {
+  it('validate rejects invalid explicit OpenAPI source strings', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile('test/core/validator/fixtures/online-shop-root-null.invalid.yaml')
-        ),
-      /Invalid type: Expected Object but received null/
+        validate({
+          sketch: parse({
+            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
+          }),
+          sources: {
+            openapi: readTextFile('test/core/validator/fixtures/openapi/invalid-syntax.yaml')
+          }
+        }),
+      /Failed to parse OpenAPI:/
     )
   })
 
-  it('parseSpecification rejects an empty stores map', () => {
+  it('validate rejects explicit OpenAPI source strings with invalid root shape', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile('test/core/validator/fixtures/online-shop-empty-stores.invalid.yaml')
-        ),
-      /stores must contain at least one store/
+        validate({
+          sketch: parse({
+            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
+          }),
+          sources: {
+            openapi: readTextFile('test/core/validator/fixtures/openapi/root-null.yaml')
+          },
+          trace: true
+        }),
+      /OpenAPI root must be an object/
     )
   })
 
-  it('parseSpecification rejects a store with no fields', () => {
+  it('validate rejects explicit OpenAPI source strings without object paths', () => {
     assert.throws(
       () =>
-        parseSpecification(
-          readTextFile('test/core/validator/fixtures/online-shop-store-empty-fields.invalid.yaml')
-        ),
-      /stores\.customer\.fields must contain at least one field/
-    )
-  })
-
-  it('parseSpecification rejects duplicate implementation names', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-duplicate-store-and-field-names.invalid.yaml'
-          )
-        ),
-      error => {
-        assert.ok(error instanceof Error)
-        assert.match(error.message, /store name customers is duplicated/)
-        assert.match(error.message, /field name in store customer id is duplicated/)
-
-        return true
-      }
-    )
-  })
-
-  it('parseSpecification rejects duplicate store names', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-duplicate-store-names.invalid.yaml'
-          )
-        ),
-      /store name customers is duplicated/
-    )
-  })
-
-  it('parseSpecification rejects duplicate field names in the same store', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-duplicate-field-names.invalid.yaml'
-          )
-        ),
-      /field name in store customer id is duplicated/
-    )
-  })
-
-  it('parseSpecification rejects null default for a not nullable field', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-not-nullable-field-null-default.invalid.yaml'
-          )
-        ),
-      /stores\.customer\.fields\.id default cannot be null when nullable is false/
-    )
-  })
-
-  it('parseSpecification rejects invalid key and index field references', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-missing-local-field-references.invalid.yaml'
-          )
-        ),
-      error => {
-        assert.ok(error instanceof Error)
-        assert.match(
-          error.message,
-          /keys\.primary\.fields references missing field missingPrimaryId/
-        )
-        assert.match(
-          error.message,
-          /keys\.unique\.0\.fields references missing field missingPublicId/
-        )
-        assert.match(
-          error.message,
-          /keys\.foreign\.0\.fields references missing field missingCustomerId/
-        )
-        assert.match(error.message, /indexes\.0\.fields references missing field missingStatus/)
-
-        return true
-      }
-    )
-  })
-
-  it('parseSpecification rejects invalid foreign key references', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-invalid-foreign-key-references.invalid.yaml'
-          )
-        ),
-      error => {
-        assert.ok(error instanceof Error)
-        assert.match(error.message, /references\.store references missing store missingCustomer/)
-        assert.match(error.message, /local and referenced field counts must match/)
-
-        return true
-      }
-    )
-  })
-
-  it('parseSpecification rejects missing referenced foreign key fields', () => {
-    assert.throws(
-      () =>
-        parseSpecification(
-          readTextFile(
-            'test/core/validator/fixtures/online-shop-missing-referenced-field.invalid.yaml'
-          )
-        ),
-      /references\.fields references missing field missingId in store customer/
+        validate({
+          sketch: parse({
+            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
+          }),
+          sources: {
+            openapi: readTextFile('test/core/validator/fixtures/openapi/missing-paths.yaml')
+          },
+          trace: true
+        }),
+      /OpenAPI paths must be an object/
     )
   })
 })

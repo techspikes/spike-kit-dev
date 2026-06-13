@@ -4,6 +4,9 @@ import type { Linter } from 'eslint'
 
 export default [
   {
+    ignores: ['.backup/**', 'bin/**', 'coverage/**', 'node_modules/**']
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: { parser },
     plugins: { '@stylistic': stylistic },

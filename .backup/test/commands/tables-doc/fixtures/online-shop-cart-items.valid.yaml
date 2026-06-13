@@ -4,9 +4,8 @@ info:
   name: online-shop
 
 stores:
-  cart-item:
+  cartItem:
     name: cart_items
-    tentative: true
     reason: Customers need to see which products they've added to their cart.
     traces:
       operations:

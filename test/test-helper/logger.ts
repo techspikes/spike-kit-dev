@@ -1,3 +1,4 @@
+/* c8 ignore file */
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 const logStdout = new AsyncLocalStorage<string[]>()
@@ -6,44 +7,20 @@ const logStderr = new AsyncLocalStorage<string[]>()
 const originalStdoutWrite = process.stdout.write
 const originalStderrWrite = process.stderr.write
 
-type CaptureOptions = {
-  readonly stdout?: boolean
-  readonly stderr?: boolean
-}
-
 type CaptureResult = {
   readonly stdout: string[]
   readonly stderr: string[]
 }
 
-export async function runAndCapture(
-  targetFn: () => Promise<void>,
-  options: CaptureOptions = { stdout: true, stderr: true }
-): Promise<CaptureResult> {
+export function runAndCapture(targetFn: () => void): CaptureResult {
   const stdoutResult: string[] = []
   const stderrResult: string[] = []
 
-  const executeWithStderr = async () => {
-    if (options.stderr) {
-      return logStderr.run(stderrResult, async () => {
-        await targetFn()
-      })
-    }
-
-    return targetFn()
-  }
-
-  const executeWithStdout = async () => {
-    if (options.stdout) {
-      return logStdout.run(stdoutResult, async () => {
-        await executeWithStderr()
-      })
-    }
-
-    return executeWithStderr()
-  }
-
-  await executeWithStdout()
+  logStdout.run(stdoutResult, () => {
+    logStderr.run(stderrResult, () => {
+      targetFn()
+    })
+  })
 
   return {
     stdout: stdoutResult,
@@ -51,34 +28,15 @@ export async function runAndCapture(
   }
 }
 
-export function runAndCaptureSync(
-  targetFn: () => void,
-  options: CaptureOptions = { stdout: true, stderr: true }
-): CaptureResult {
+export async function runAndCaptureAsync(targetFn: () => Promise<void>): Promise<CaptureResult> {
   const stdoutResult: string[] = []
   const stderrResult: string[] = []
 
-  const executeWithStderr = () => {
-    if (options.stderr) {
-      return logStderr.run(stderrResult, () => {
-        targetFn()
-      })
-    }
-
-    return targetFn()
-  }
-
-  const executeWithStdout = () => {
-    if (options.stdout) {
-      return logStdout.run(stdoutResult, () => {
-        executeWithStderr()
-      })
-    }
-
-    return executeWithStderr()
-  }
-
-  executeWithStdout()
+  await logStdout.run(stdoutResult, async () => {
+    await logStderr.run(stderrResult, async () => {
+      await targetFn()
+    })
+  })
 
   return {
     stdout: stdoutResult,

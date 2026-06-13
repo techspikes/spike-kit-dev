@@ -170,7 +170,7 @@ stores:
             store: customer
             fields:
               - id
-  cart-item:
+  cartItem:
     name: cart_items
     reason: Customers need to see which products they've added to their cart.
     traces:

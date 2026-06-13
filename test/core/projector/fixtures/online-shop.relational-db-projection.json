@@ -1,0 +1,102 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.2",
+  "claims": [
+    {
+      "id": "customer",
+      "name": "customers",
+      "tentative": false,
+      "details": [
+        {
+          "path": "name",
+          "name": "customer name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "path": "email",
+          "name": "email address",
+          "type": "string",
+          "required": true
+        },
+        {
+          "path": "phoneNumber",
+          "name": "phone number",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "product",
+      "name": "products",
+      "tentative": false,
+      "details": [
+        {
+          "path": "name",
+          "name": "product name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "path": "price",
+          "name": "selling price",
+          "type": "number",
+          "required": true
+        },
+        {
+          "path": "inventoryStatus",
+          "name": "inventory status",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "order",
+      "name": "orders",
+      "tentative": true,
+      "details": [
+        {
+          "path": "status",
+          "name": "order status",
+          "type": "string",
+          "required": true
+        },
+        {
+          "path": "orderedAt",
+          "name": "ordered time",
+          "type": "string",
+          "required": true
+        },
+        {
+          "path": "items[].quantity",
+          "name": "item quantity",
+          "type": "number",
+          "required": true
+        },
+        {
+          "path": "items[].unitPrice",
+          "name": "item unit price",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "relations": [
+        {
+          "path": "customer",
+          "to": "customer",
+          "targetName": "customers",
+          "reason": "The order needs to identify the customer who placed it."
+        },
+        {
+          "path": "items[].product",
+          "to": "product",
+          "targetName": "products",
+          "reason": "Each order item needs to identify the product being purchased."
+        }
+      ]
+    }
+  ]
+}

@@ -3,21 +3,21 @@
   "name": "@techspikes/spike-kit-dev",
   "version": "1.0.0-draft.1",
   "description": "Specification and tools for agile teams to quickly sketch disposable data stores for user stories.",
+  "bin": {
+    "shot": "./src/cli.ts"
+  },
   "author": "knzbr <87257088+knzbr@users.noreply.github.com>",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && node scripts/esbuild.ts",
+    "build": "tsc --noEmit",
     "lint": "eslint . --flag unstable_native_nodejs_ts_config && biome check .",
     "lint:fix": "eslint . --fix --flag unstable_native_nodejs_ts_config && biome check --fix .",
     "test": "tsc --noEmit && c8 --100 node --test  test/**/*.test.ts"
   },
-  "bin": {
-    "shot": "bin/cli.mjs"
-  },
   "files": [
-    "bin",
-    "docs"
+    "docs",
+    "src"
   ],
   "dependencies": {
     "js-yaml": "^4.1.0",

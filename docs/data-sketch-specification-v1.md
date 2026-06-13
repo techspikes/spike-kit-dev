@@ -61,43 +61,12 @@ claims:
   customer:
     name: customers
     reason: |-
-      Customer profile information is needed when customers are created and
-      later looked up for ordering and support context.
+      Customer profile information is needed when customers are created.
     traces:
       operations:
         - createCustomer
-        - getCustomer
     details:
       - name
-
-  product:
-    name: products
-    reason: |-
-      Product information is needed so users can browse products and select
-      products for orders.
-    traces:
-      operations:
-        - listProducts
-    details:
-      - name
-
-  order:
-    name: orders
-    tentative: true
-    reason: |-
-      Order state is needed after checkout so the service can create an order
-      and return its detail.
-    traces:
-      operations:
-        - createOrder
-        - getOrderDetail
-    details:
-      - status
-      - orderedAt
-      - items[].quantity
-    relations:
-      customer: customer
-      items[].product: product
 ```
 
 ---
@@ -319,11 +288,13 @@ Map-form detail metadata may include:
 | `name` | yes | Implementation-facing detail name. |
 | `aliases` | no | Business-facing names or other aliases for the detail. |
 | `type` | no | Data Sketch detail type. Defaults to `string`. Must be `string` or `number` when present. |
-| `required` | no | Whether the detail is required. Defaults to `false`. |
+| `required` | no | Whether the detail is required. Defaults to `true`. |
 
 Rules:
 
 - List-form details do not carry metadata.
+- If map-form detail metadata omits `required`, the detail is treated as
+  required.
 - Map-form details keep only simple Data Sketch metadata.
 
 ---
@@ -503,3 +474,336 @@ claims:
 `x-rdbms-schema` is not core Data Sketch vocabulary. An RDBMS renderer may
 interpret `data-types`, `keys.unique`, and `indexes`, while other tools may
 ignore them or preserve them for another tool.
+
+---
+
+## Examples
+
+### OpenAPI
+
+```yaml
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /customers:
+    post:
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                phoneNumber:
+                  type: string
+      responses:
+        '201':
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customerId:
+                    type: string
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  phoneNumber:
+                    type: string
+
+  /customers/{customerId}:
+    get:
+      operationId: getCustomer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customerId:
+                    type: string
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  phoneNumber:
+                    type: string
+
+  /products:
+    get:
+      operationId: listProducts
+      responses:
+        '200':
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - products
+                properties:
+                  products:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId:
+                          type: string
+                        name:
+                          type: string
+                        price:
+                          type: number
+                        inventoryStatus:
+                          type: string
+
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - customerId
+                - items
+              properties:
+                customerId:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      productId:
+                        type: string
+                      quantity:
+                        type: number
+      responses:
+        '201':
+          description: Created order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                  customerId:
+                    type: string
+                  status:
+                    type: string
+                  orderedAt:
+                    type: string
+                    format: date-time
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId:
+                          type: string
+                        quantity:
+                          type: number
+                        unitPrice:
+                          type: number
+
+  /orders/{orderId}:
+    get:
+      operationId: getOrderDetail
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                  customerId:
+                    type: string
+                  status:
+                    type: string
+                  orderedAt:
+                    type: string
+                    format: date-time
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId:
+                          type: string
+                        quantity:
+                          type: number
+                        unitPrice:
+                          type: number
+```
+
+### Data Sketch: Basic List Form
+
+```yaml
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+sources:
+  openapi: ./openapi.yaml
+
+claims:
+  customer:
+    name: customers
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
+    traces:
+      operations:
+        - createCustomer
+        - getCustomer
+    details:
+      - name
+      - email
+      - phoneNumber
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
+      - name
+      - price
+      - inventoryStatus
+
+  order:
+    name: orders
+    tentative: true
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+        - getOrderDetail
+    details:
+      - status
+      - orderedAt
+      - items[].quantity
+      - items[].unitPrice
+    relations:
+      customer: customer
+      items[].product: product
+```
+
+### Data Sketch: Detailed Map Form
+
+```yaml
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+sources:
+  openapi: ./openapi.yaml
+
+claims:
+  customer:
+    name: customers
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
+    traces:
+      operations:
+        - createCustomer
+        - getCustomer
+    details:
+      name:
+        name: customer name
+      email:
+        name: email address
+      phoneNumber:
+        name: phone number
+        required: false
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
+      name:
+        name: product name
+      price:
+        name: selling price
+        type: number
+      inventoryStatus:
+        name: inventory status
+
+  order:
+    name: orders
+    tentative: true
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+        - getOrderDetail
+    details:
+      status:
+        name: order status
+      orderedAt:
+        name: ordered time
+      items[].quantity:
+        name: item quantity
+        type: number
+      items[].unitPrice:
+        name: item unit price
+        type: number
+    relations:
+      customer:
+        to: customer
+        reason: |-
+          The order needs to identify the customer who placed it.
+      items[].product:
+        to: product
+        reason: |-
+          Each order item needs to identify the product being purchased.
+```

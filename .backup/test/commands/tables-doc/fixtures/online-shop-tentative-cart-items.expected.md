@@ -1,6 +1,6 @@
 ---
-source: online-shop-cart-items.valid.yaml
-sha256: 4a779e036a5b2e24b833e7b41d2f8d9ef57f8b360e09e839c6f4dba27a04668a
+source: online-shop-tentative-cart-items.valid.yaml
+sha256: 4188a1152270393b7313bec9008c341db955bb1ee3e7ecdce72b30215db6dbdf
 generated_at: <generated-at>
 ---
 
@@ -9,6 +9,9 @@ generated_at: <generated-at>
 ## cart_items
 
 Customers need to see which products they've added to their cart.
+
+> [!CAUTION]
+> This table is tentative and needs human review.
 
 | Column | Data Type | Nullable | Default | Format | Description |
 | --- | --- | --- | --- | --- | --- |

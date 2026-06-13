@@ -9,6 +9,9 @@
     "ignoreUnknown": false,
     "includes": [
       "**",
+      "!.backup",
+      "!.claude",
+      "!.devcontainer",
       "!node_modules",
       "!.tmp",
       "!bin",
