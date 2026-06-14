@@ -43,14 +43,15 @@ The command uses:
 
 - the parsed and validated Data Sketch for `info.name`, claim `reason`,
   claim `tentative`, and claim-level `aliases`;
-- the built-in Relational DB Projection for projected tables, columns, primary
-  keys, foreign keys, SQL types, and nullability.
+- the Effective Schema for projected tables, columns, primary keys, foreign
+  keys, unique constraints, check constraints, indexes, SQL types, and
+  nullability.
 
-The command does not interpret `x-rdbms-schema` in this version. Data type
-overrides, name overrides, uniqueness constraints, indexes, check constraints,
-and other physical schema choices are outside the first `table-doc` rendering
-scope. See x-rdbms-schema Extension for the override format a future `table-doc`
-version, or another renderer, may read from the built-in Extension Projection.
+The Effective Schema is the built-in Relational DB Projection with any
+`x-rdbms-schema` overrides from the built-in Extension Projection applied (see
+x-rdbms-schema Extension and its Effective Schema subsection). When a claim
+does not carry `x-rdbms-schema`, the Effective Schema for its projected tables
+is identical to the Relational DB Projection.
 
 ## Markdown Output
 
@@ -174,17 +175,18 @@ The document ends with:
 
 Rules:
 
-- The DDL uses the Relational DB Projection only.
+- The DDL uses the Effective Schema.
 - Identifiers are not quoted.
 - SQL keywords are uppercase.
 - SQL type strings are uppercase.
 - Columns without `nullable: true` include `NOT NULL`.
 - Columns with `nullable: true` omit `NOT NULL`.
-- Primary keys and foreign keys are rendered as table constraints inside
-  `CREATE TABLE`.
+- Primary keys, foreign keys, unique constraints, and check constraints are
+  rendered as table constraints inside `CREATE TABLE`.
 - Foreign key DDL references the projected target table and target column.
-- The DDL does not render uniqueness constraints, indexes, check constraints, or
-  custom data type overrides in this version.
+- The DDL does not render indexes in this version; `indexes` from
+  `x-rdbms-schema` are part of the Effective Schema but are not rendered as
+  `CREATE INDEX` statements.
 
 > [!CAUTION]
 > Projected table, column, and constraint names are derived directly from claim
@@ -202,10 +204,10 @@ Rules:
 `x-rdbms-schema` is a `table-doc` extension for describing RDBMS-specific
 schema choices that are outside the core Data Sketch vocabulary.
 
-The Relational DB projector does not interpret `x-rdbms-schema`. A renderer
-such as `table-doc` reads `x-rdbms-schema` from the built-in Extension
-Projection when it renders table specifications from a Relational DB
-projection.
+The Relational DB projector does not interpret `x-rdbms-schema`. `table-doc`
+reads `x-rdbms-schema` from the built-in Extension Projection and applies it to
+the Relational DB Projection to produce the Effective Schema (see Effective
+Schema), which it then renders.
 
 ### Placement
 
@@ -231,8 +233,6 @@ claims:
           type: VARCHAR
           length: 20
       keys:
-        primary:
-          - id
         foreign:
           - name: fk_orders_customer
             columns:
@@ -244,7 +244,7 @@ claims:
         unique:
           - name: uq_orders_order_number
             columns:
-              - order_number
+              - orderNumber
       indexes:
         - name: ix_orders_status
           columns:
@@ -256,13 +256,23 @@ claims:
 Rules:
 
 - `names` overrides projected table and column names.
-- `data-types` overrides projected column data types.
-- `keys.primary` overrides the primary key rendered for the table.
-- `keys.foreign` defines explicit foreign keys.
-- `keys.unique` defines unique constraints.
-- `indexes` defines non-unique indexes.
-- Composite primary keys and composite foreign keys may be expressed by listing
-  multiple columns in this extension.
+- `data-types` overrides projected column data types using the type vocabulary
+  in Data Type Overrides.
+- `keys.foreign` overrides or adds foreign keys with exactly one column on each
+  side.
+- `keys.unique` defines unique constraints, which may be composite (multiple
+  columns).
+- `keys.check` defines check constraints.
+- `indexes` defines non-unique indexes, which may be composite (multiple
+  columns).
+- `keys.foreign.columns`, `keys.foreign.references.columns`,
+  `keys.unique.columns`, and `indexes.columns` reference columns, and
+  `keys.foreign.references.table` references a table, by Relational DB
+  Projection identifier (see Column References). `keys.check.expression` is the
+  one exception: it is a raw SQL string using final rendered names.
+- Composite primary keys and composite foreign keys (more than one column on
+  either side) are outside this version's scope. `keys.primary` is not a
+  supported member; the surrogate `id` primary key cannot be replaced.
 - Extension-provided names are used as-is.
 
 ### Name Overrides
@@ -315,6 +325,28 @@ Rules:
 - Missing table IDs or column `id` values continue to use the default projected
   name.
 
+### Column References
+
+`keys.foreign.columns`, `keys.foreign.references.columns`,
+`keys.unique.columns`, and `indexes.columns` reference columns by **projected
+column `id`** — the same identifier space as `names.columns` (a source detail
+path, a relation source path, the reserved key `id` for the surrogate key
+column, or a generated structural foreign key column `id`).
+`keys.foreign.references.table` references a table by **projected table ID**
+— the same identifier space as `names.tables` (the claim's own table ID, or a
+child table ID such as `order.items[]`).
+
+`table-doc` resolves `keys` and `indexes` against the Relational DB Projection
+before applying `names`, so these overrides are independent of `names` (see
+Effective Schema for the application order). A `keys` or `indexes` entry that
+references a column `id` or table ID that does not exist in the Relational DB
+Projection is a validation error.
+
+`keys.check.expression` is the one exception to this convention: it is a raw
+SQL string using the table's final rendered (post-`names`) column names,
+because `table-doc` cannot rewrite identifiers inside an opaque expression
+(see Key And Constraint Overrides).
+
 ### Data Type Overrides
 
 `data-types` is keyed by Data Sketch detail path.
@@ -327,22 +359,30 @@ x-rdbms-schema:
       length: 20
 ```
 
+`type` is one of the following, case-insensitive on input and rendered
+uppercase:
+
+| `type` | Parameters | Rendering |
+| --- | --- | --- |
+| `CHAR` | `length` (required) | `CHAR(length)` |
+| `VARCHAR` | `length` (required) | `VARCHAR(length)` |
+| `INTEGER` | — | `INTEGER` |
+| `BOOLEAN` | — | `BOOLEAN` |
+| `NUMERIC` (alias `DECIMAL`) | `precision`, `scale` (both required) | `NUMERIC(precision, scale)` |
+
 Rules:
 
 - A matching `data-types` entry takes precedence over default `table-doc` type
   rendering.
 - Missing detail paths continue to use the default `table-doc` type rendering.
+- `CHAR` and `VARCHAR` require `length`. `NUMERIC` and `DECIMAL` require both
+  `precision` and `scale`.
+- Any other `type` value (including `SMALLINT`, `FLOAT`, `REAL`,
+  `DOUBLE PRECISION`, `DATE`, `TIME`, `TIMESTAMP`, `BIT`, and long-form aliases
+  such as `CHARACTER`, `CHARACTER VARYING`, or `INT`), or a missing or invalid
+  parameter for the matched `type`, is a validation error.
 
 ### Key And Constraint Overrides
-
-Primary key:
-
-```yaml
-x-rdbms-schema:
-  keys:
-    primary:
-      - id
-```
 
 Foreign key:
 
@@ -367,15 +407,44 @@ x-rdbms-schema:
     unique:
       - name: uq_orders_order_number
         columns:
-          - order_number
+          - orderNumber
+```
+
+Check constraint:
+
+```yaml
+x-rdbms-schema:
+  keys:
+    check:
+      - name: ck_orders_status
+        expression: status IN ('pending', 'shipped', 'delivered')
 ```
 
 Rules:
 
-- `keys.primary` replaces the default primary key for the table.
-- `keys.foreign` entries take precedence over generated foreign key definitions
-  for the same columns.
-- `keys.unique` renders unique constraints.
+- `keys.foreign` entries have `name`, `columns` (exactly one projected column
+  `id` on this table), `references.table` (a projected table ID), and
+  `references.columns` (exactly one projected column `id` on the referenced
+  table). `columns` or `references.columns` with more than one element is a
+  validation error.
+- A `keys.foreign` entry whose `columns` matches an existing projection-
+  generated foreign key's column (regardless of that foreign key's `kind`)
+  **replaces** that foreign key's `name`, `references`, and `columns`.
+- A `keys.foreign` entry that matches no existing foreign key is an
+  **additional** foreign key.
+- Two `keys.foreign` entries matching the same existing foreign key is a
+  validation error.
+- `keys.unique` entries have `name` and `columns` (one or more projected column
+  `id`s); they are always additive, since the Relational DB Projection has no
+  unique constraint equivalent.
+- `keys.check` entries have `name` and `expression` (a non-empty raw SQL
+  boolean expression, used as-is and rendered as `CHECK (expression)`); they
+  are always additive. `expression` uses the table's final rendered column
+  names (see Column References).
+- Composite primary keys and composite foreign keys (more than one column) are
+  outside this version's scope. `keys.primary` is not a supported member; the
+  surrogate `id` primary key, named `pk_<table name>`, is always the table's
+  only primary key.
 
 ### Index Overrides
 
@@ -389,9 +458,81 @@ x-rdbms-schema:
 
 Rules:
 
-- `indexes` renders non-unique indexes.
-- Index names and column names are used as provided.
-  `x-rdbms-schema.keys.unique` is used for uniqueness.
+- `indexes` entries have `name` and `columns` (one or more projected column
+  `id`s) and render non-unique indexes.
+- `indexes` is always additive, since the Relational DB Projection has no index
+  equivalent.
+- `indexes` entries do not have a `unique` flag; uniqueness is expressed only
+  through `keys.unique`.
+
+### Effective Schema
+
+`table-doc` applies `x-rdbms-schema` to the Relational DB Projection to
+produce the Effective Schema, and renders the Column Table, Constraint
+Sections, and DDL Section from the Effective Schema.
+
+The Effective Schema has the same `tables`/`columns`/`primaryKey`/
+`foreignKeys` structure as the Relational DB Projection, plus
+`uniqueConstraints`, `checkConstraints`, and `indexes`, which the Relational DB
+Projection does not have.
+
+`table-doc` builds the Effective Schema by applying overrides in the following
+order, where each step acts on the result of the previous step:
+
+1. Apply `data-types` to column types, keyed by projected column `id`.
+2. Apply `keys.foreign` to `foreignKeys`, using the matching and precedence
+   rules in Key And Constraint Overrides.
+3. Add `uniqueConstraints` from `keys.unique` and `checkConstraints` from
+   `keys.check`.
+4. Add `indexes` from `indexes`.
+5. Apply `names.tables` and `names.columns` to determine the rendered table and
+   column names. `keys.check.expression` is a raw SQL string that assumes these
+   final names and is not rewritten by this step.
+
+When a claim does not carry `x-rdbms-schema`, the Effective Schema for its
+projected tables has the same `tables`/`columns`/`primaryKey`/`foreignKeys` as
+the Relational DB Projection, and empty `uniqueConstraints`,
+`checkConstraints`, and `indexes`.
+
+The Relational DB Projection is itself an RDBMS-oriented projection, and
+`x-rdbms-schema` is also RDBMS-specific, so the Effective Schema is best
+understood as the final RDBMS-targeted projection — the Relational DB
+Projection completed with `x-rdbms-schema` — rather than rendering-only scratch
+data. `buildRelationalDbProjection` itself does not read `x-rdbms-schema` and
+continues to return a projection derived only from the Data Sketch, so that
+`x-rdbms-schema`'s vocabulary (the type table in Data Type Overrides, and so on)
+stays a `table-doc`-specific concern and tools that do not care about
+`x-rdbms-schema` (for example `spec-check` and `openapi-summary`) are
+unaffected. Applying `x-rdbms-schema` to produce the Effective Schema is a
+deterministic transformation of the Relational DB Projection and the Extension
+Projection; where this transformation is implemented is left to `table-doc`'s
+implementation.
+
+### Override Warnings
+
+After writing the Markdown document, `table-doc` prints one warning per
+overridden item to stderr when the override replaces a value that was derived
+from real information (an "explicit" or projection-guaranteed value), and
+returns exit code `0`. It does not warn when the override replaces a value that
+was a `table-doc` default (a "fallback" value) or when the override has no
+projection equivalent.
+
+| Override | Condition | Warns? |
+| --- | --- | --- |
+| `data-types.<path>` | The projected type was derived from a matching OpenAPI field | Yes |
+| `data-types.<path>` | The projected type is the `VARCHAR(1024)` fallback | No |
+| `data-types.<path>` on `id` or a foreign key column | The projected type is `CHAR(26)` (a Relational DB Projection guarantee) | Yes |
+| `keys.foreign` matching `kind: explicit` or `kind: structural` | The override replaces a relation-derived or structural foreign key | Yes |
+| `keys.foreign` matching `kind: inferred`, or matching nothing (an additional foreign key) | The override replaces a heuristic match, or adds a new foreign key | No |
+| `keys.unique`, `keys.check`, `indexes` | These have no Relational DB Projection equivalent | No |
+| `names.tables`, `names.columns` | Projected names are always `table-doc` defaults | No |
+
+`keys.foreign` warnings use the same column-matching rule as the replacement
+rule in Key And Constraint Overrides. Each warning message follows the
+`claims.<id>.x-rdbms-schema.<field>` path style used by validation error
+messages, followed by a declarative description of what was overridden, for
+example `... overrides a projected type derived from <source>` or
+`... overrides a projection-generated structural foreign key`.
 
 ## Example
 
