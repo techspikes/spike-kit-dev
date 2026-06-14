@@ -286,6 +286,9 @@ Rules:
   split.
 - `kind: inferred` marks a foreign key inferred from a detail path
   whose final segment exactly matches a claim ID.
+- `kind: extension` marks a foreign key added by an
+  `x-relational-db-schema.keys.foreign` override that does not match any
+  existing foreign key (see `x-relational-db-schema Extension`).
 - Renderers may ignore `kind: inferred` foreign keys when they require only
   explicit relationship declarations.
 - A child table structural foreign key references the immediate parent projected
@@ -483,6 +486,10 @@ Rules:
   `keys.primary` member; the projection's surrogate `id` primary key
   (`tables[].keys.primary`) cannot be replaced or overridden.
 - Extension-provided names are used as-is.
+- `keys.foreign`, `constraints`, and `indexes` apply only to the claim's own
+  projected table, not to any child tables generated from array-of-objects
+  paths. `names.tables` and `names.columns` may reference any of the claim's
+  projected tables, including child tables.
 
 ### Name Overrides
 
@@ -620,7 +627,8 @@ Rules:
   Rules (regardless of that foreign key's `kind`) **replaces** that item's
   `name`, `references`, and `columns`.
 - An override `keys.foreign` entry that matches no existing foreign key is an
-  **additional** foreign key.
+  **additional** foreign key, with `kind: extension` (see Relation And Foreign
+  Key Rules).
 - Two override `keys.foreign` entries matching the same existing foreign key is
   a validation error.
 - Composite primary keys and composite foreign keys (more than one column) are
@@ -695,12 +703,28 @@ of the previous step:
 4. Add `indexes` from the override's `indexes` entries.
 5. Apply `names.tables` and `names.columns` to determine the projected table
    and column `name`s. `constraints.check.expression` is a raw SQL string that
-   assumes these final names and is not rewritten by this step.
+   assumes these final names and is not rewritten by this step. When a
+   `names.columns` entry renames a column, the new name also replaces that
+   column's name everywhere else it is used within the same table:
+   `keys.primary.columns`, `keys.foreign[].column`,
+   `constraints.unique[].columns`, and `indexes[].columns`.
+
+After steps 1-5 have been applied for every claim that carries
+`x-relational-db-schema`, the projector makes one final pass over every
+projected table's `keys.foreign` list: if a foreign key's `target.table` was
+renamed by another claim's `names.tables`, `target.table` is replaced with the
+new table name, and if `target.column` was renamed by that claim's
+`names.columns`, `target.column` is replaced with the new column name. This
+lets a `names` override in one claim's `x-relational-db-schema` propagate to
+foreign keys in other claims' projected tables that reference the renamed
+table or column.
 
 When a claim does not carry `x-relational-db-schema`, its projected table(s)
 have empty `constraints.unique`, `constraints.check`, and `indexes`, and
 `keys`, `columns`, and `name` are produced as described earlier in this
-specification, unaffected by steps 1-5.
+specification, unaffected by steps 1-5 (though `keys.foreign[].target.table`
+and `target.column` may still be updated by the final pass above if another
+claim renames the referenced table or column).
 
 ### Validation
 

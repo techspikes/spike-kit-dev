@@ -1,0 +1,231 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "customer": {
+      "name": "clients",
+      "columns": [
+        {
+          "id": "id",
+          "name": "client_id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "email",
+          "name": "email_address",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "phoneNumber",
+          "name": "phone_number",
+          "type": "VARCHAR(30)"
+        },
+        {
+          "id": "address.city",
+          "name": "address_city",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "address.postalCode",
+          "name": "address_postal_code",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_customers",
+          "columns": ["client_id"]
+        },
+        "foreign": []
+      },
+      "constraints": {
+        "unique": [
+          {
+            "name": "uq_customers_email",
+            "columns": ["email_address"]
+          }
+        ],
+        "check": [
+          {
+            "name": "ck_customers_email_not_empty",
+            "expression": "email_address <> ''"
+          }
+        ]
+      },
+      "indexes": [
+        {
+          "name": "ix_customers_name",
+          "columns": ["name"]
+        }
+      ]
+    },
+    "product": {
+      "name": "items_catalog",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "price",
+          "name": "price",
+          "type": "DECIMAL(10, 2)"
+        },
+        {
+          "id": "inventoryStatus",
+          "name": "inventory_status",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "discontinued",
+          "name": "discontinued",
+          "type": "BOOLEAN"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_products",
+          "columns": ["id"]
+        },
+        "foreign": []
+      },
+      "indexes": [
+        {
+          "name": "ix_products_name",
+          "columns": ["name"]
+        }
+      ]
+    },
+    "order": {
+      "name": "orders",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "status",
+          "name": "status",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "orderedAt",
+          "name": "order_placed_at",
+          "type": "VARCHAR(32)"
+        },
+        {
+          "id": "customer",
+          "name": "customer_ref",
+          "type": "CHAR(26)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_orders",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_orders_customer",
+            "column": "customer_ref",
+            "target": {
+              "table": "clients",
+              "column": "client_id"
+            },
+            "kind": "explicit"
+          },
+          {
+            "name": "fk_orders_status_product",
+            "column": "status",
+            "target": {
+              "table": "items_catalog",
+              "column": "id"
+            },
+            "kind": "extension"
+          }
+        ]
+      },
+      "constraints": {
+        "unique": [
+          {
+            "name": "uq_orders_status_ordered_at",
+            "columns": ["status", "order_placed_at"]
+          }
+        ]
+      },
+      "indexes": [
+        {
+          "name": "ix_orders_customer",
+          "columns": ["customer_ref"]
+        }
+      ]
+    },
+    "order.items[]": {
+      "name": "order_items",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "order",
+          "name": "order",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "items[].quantity",
+          "name": "qty",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "items[].unitPrice",
+          "name": "unit_price",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "items[].product",
+          "name": "product",
+          "type": "CHAR(26)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_order_items",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_order_items_order",
+            "column": "order",
+            "target": {
+              "table": "orders",
+              "column": "id"
+            },
+            "kind": "structural"
+          },
+          {
+            "name": "fk_order_items_product",
+            "column": "product",
+            "target": {
+              "table": "items_catalog",
+              "column": "id"
+            },
+            "kind": "explicit"
+          }
+        ]
+      }
+    }
+  }
+}

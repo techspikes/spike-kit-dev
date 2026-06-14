@@ -1,0 +1,222 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  customer:
+    name: customers
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+      - email
+      - phoneNumber
+    x-relational-db-schema:
+      types:
+        doesNotExist:
+          type: VARCHAR
+          length: 10
+        phoneNumber:
+          type: CHAR
+        email:
+          type: DECIMAL
+          precision: 5
+        name:
+          type: NUMERIC
+        id: not-an-object
+      constraints:
+        unknownConstraintMember: true
+        unique: not-an-array
+        check:
+          - name: ck_bad_expr
+            expression: ""
+          - name: ""
+            expression: "1=1"
+      indexes:
+        - name: ix_bad_column
+          columns:
+            - doesNotExist
+        - name: ""
+          columns:
+            - name
+      names:
+        unknownNamesMember: true
+        tables:
+          doesNotExist: newName
+          customer: products
+        columns:
+          doesNotExist:
+            name: foo
+          customer: not-an-object
+
+  order:
+    name: orders
+    tentative: true
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - status
+    relations:
+      customer: customer
+    x-relational-db-schema:
+      names:
+        columns:
+          order:
+            doesNotExist: foo
+            status: ""
+            customer: id
+      keys:
+        unknownKeyMember: true
+        foreign:
+          - name: fk_empty_columns
+            columns: []
+            references:
+              table: customer
+              columns:
+                - id
+          - name: fk_too_many_columns
+            columns:
+              - status
+              - customer
+            references:
+              table: customer
+              columns:
+                - id
+          - name: fk_bad_references_shape
+            columns:
+              - status
+            references:
+              notATable: true
+          - name: fk_unknown_ref_column
+            columns:
+              - status
+            references:
+              table: customer
+              columns:
+                - doesNotExist
+          - name: fk_unknown_source_column
+            columns:
+              - doesNotExist
+            references:
+              table: customer
+              columns:
+                - id
+          - name: fk_unknown_ref_table
+            columns:
+              - status
+            references:
+              table: doesNotExist
+              columns:
+                - id
+          - not-an-object
+          - name: fk_dup1
+            columns:
+              - customer
+            references:
+              table: customer
+              columns:
+                - id
+          - name: fk_dup2
+            columns:
+              - customer
+            references:
+              table: customer
+              columns:
+                - id
+          - name: fk_missing_references
+            columns:
+              - status
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
+      - name
+    x-relational-db-schema:
+      keys:
+        foreign: not-an-array
+
+  widget:
+    name: widgets
+    reason: |-
+      Widget records are needed for the widget catalog.
+    traces:
+      operations:
+        - listWidgets
+    details:
+      - label
+    x-relational-db-schema: not-an-object
+
+  gadget:
+    name: gadgets
+    reason: |-
+      Gadget records are needed for the gadget catalog.
+    traces:
+      operations:
+        - listGadgets
+    details:
+      - title
+    x-relational-db-schema:
+      unsupportedTopMember: true
+      types: not-an-object
+      keys: not-an-object
+      constraints: not-an-object
+      indexes: not-an-array
+      names: not-an-object
+
+  doohickey:
+    name: doohickeys
+    reason: |-
+      Doohickey records are needed for the doohickey catalog.
+    traces:
+      operations:
+        - listDoohickeys
+    details:
+      - title
+    x-relational-db-schema:
+      keys:
+        unknownMember: true
+
+  thingamajig:
+    name: thingamajigs
+    reason: |-
+      Thingamajig records are needed for the thingamajig catalog.
+    traces:
+      operations:
+        - listThingamajigs
+    details:
+      - title
+    x-relational-db-schema:
+      constraints:
+        check: not-an-array
+      names:
+        tables: not-an-object
+        columns: not-an-object
+
+  whatsit:
+    name: whatsits
+    reason: |-
+      Whatsit records are needed for the whatsit catalog.
+    traces:
+      operations:
+        - listWhatsits
+    details:
+      - title
+    x-relational-db-schema:
+      names:
+        tables:
+          whatsit: ""

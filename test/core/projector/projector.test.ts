@@ -495,4 +495,89 @@ describe('core projector', () => {
       /Projected column name address_city for column address_city in table customer conflicts with column address\.city/
     )
   })
+
+  it('buildRelationalDbProjection rejects invalid x-relational-db-schema overrides', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension-invalid.valid.yaml'
+      }),
+      trace: false
+    })
+
+    assert.throws(
+      () => sketch.projections.relationalDb(),
+      error => {
+        const message = (error as Error).message
+
+        const expectedIssues = [
+          'claims.customer.x-relational-db-schema.types.doesNotExist does not reference an existing projected column',
+          'claims.customer.x-relational-db-schema.types.phoneNumber must specify a positive integer length for type CHAR',
+          'claims.customer.x-relational-db-schema.types.email must specify a positive integer precision and a non-negative integer scale for type DECIMAL',
+          'claims.customer.x-relational-db-schema.types.name.type NUMERIC is not supported',
+          'claims.customer.x-relational-db-schema.types.id must be an object with a type',
+          'claims.customer.x-relational-db-schema.constraints.unknownConstraintMember is not a supported x-relational-db-schema member',
+          'claims.customer.x-relational-db-schema.constraints.unique must be an array',
+          'claims.customer.x-relational-db-schema.constraints.check[0] must have a non-empty name and expression',
+          'claims.customer.x-relational-db-schema.constraints.check[1] must have a non-empty name and expression',
+          'claims.customer.x-relational-db-schema.indexes[0].columns references unknown column doesNotExist',
+          'claims.customer.x-relational-db-schema.indexes[1] must have a non-empty name and a non-empty columns array',
+          'claims.customer.x-relational-db-schema.names.unknownNamesMember is not a supported x-relational-db-schema member',
+          'claims.customer.x-relational-db-schema.names.tables.doesNotExist does not reference a projected table for this claim',
+          'Projected table name products for table customer conflicts with table product',
+          'claims.customer.x-relational-db-schema.names.columns.doesNotExist does not reference a projected table for this claim',
+          'claims.customer.x-relational-db-schema.names.columns.customer must be an object',
+          'claims.order.x-relational-db-schema.names.columns.order.doesNotExist does not reference an existing projected column',
+          'claims.order.x-relational-db-schema.names.columns.order.status must be a non-empty string',
+          'Projected column name id for column customer in table order conflicts with column id',
+          'claims.order.x-relational-db-schema.keys.unknownKeyMember is not a supported x-relational-db-schema member',
+          'claims.order.x-relational-db-schema.keys.foreign[0].columns must be an array with exactly one column id',
+          'claims.order.x-relational-db-schema.keys.foreign[1].columns must be an array with exactly one column id',
+          'claims.order.x-relational-db-schema.keys.foreign[2].references.table must be a string',
+          'claims.order.x-relational-db-schema.keys.foreign[3].references.columns references unknown column doesNotExist in table customer',
+          'claims.order.x-relational-db-schema.keys.foreign[4].columns references unknown column doesNotExist',
+          'claims.order.x-relational-db-schema.keys.foreign[5].references.table references unknown table doesNotExist',
+          'claims.order.x-relational-db-schema.keys.foreign[6].name must be a non-empty string',
+          'claims.order.x-relational-db-schema.keys.foreign[8] matches the same existing foreign key as another override entry',
+          'claims.order.x-relational-db-schema.keys.foreign[9].references.table must be a string',
+          'claims.product.x-relational-db-schema.keys.foreign must be an array',
+          'claims.widget.x-relational-db-schema must be an object',
+          'claims.gadget.x-relational-db-schema.unsupportedTopMember is not a supported x-relational-db-schema member',
+          'claims.gadget.x-relational-db-schema.types must be an object',
+          'claims.gadget.x-relational-db-schema.keys must be an object',
+          'claims.gadget.x-relational-db-schema.constraints must be an object',
+          'claims.gadget.x-relational-db-schema.indexes must be an array',
+          'claims.gadget.x-relational-db-schema.names must be an object',
+          'claims.doohickey.x-relational-db-schema.keys.unknownMember is not a supported x-relational-db-schema member',
+          'claims.thingamajig.x-relational-db-schema.constraints.check must be an array',
+          'claims.thingamajig.x-relational-db-schema.names.tables must be an object',
+          'claims.thingamajig.x-relational-db-schema.names.columns must be an object',
+          'claims.whatsit.x-relational-db-schema.names.tables.whatsit must be a non-empty string'
+        ]
+
+        for (const expectedIssue of expectedIssues) {
+          assert.ok(
+            message.includes(expectedIssue),
+            `expected message to include: ${expectedIssue}`
+          )
+        }
+
+        return true
+      }
+    )
+  })
+
+  it('buildRelationalDbProjection applies x-relational-db-schema overrides', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension.valid.yaml'
+      }),
+      trace: false
+    })
+
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-relational-db-schema-extension.relational-db-projection.json'
+    )
+
+    assert.deepEqual(sketch.projections.relationalDb(), expected)
+  })
 })

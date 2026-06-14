@@ -1,0 +1,126 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  customer:
+    name: customers
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
+    traces:
+      operations:
+        - createCustomer
+        - getCustomer
+    details:
+      - name
+      - email
+      - phoneNumber
+      - address.city
+      - address.postalCode
+    x-relational-db-schema:
+      types:
+        phoneNumber:
+          type: VARCHAR
+          length: 30
+      constraints:
+        unique:
+          - name: uq_customers_email
+            columns:
+              - email
+        check:
+          - name: ck_customers_email_not_empty
+            expression: "email_address <> ''"
+      indexes:
+        - name: ix_customers_name
+          columns:
+            - name
+      names:
+        tables:
+          customer: clients
+        columns:
+          customer:
+            id: client_id
+            email: email_address
+
+  product:
+    name: products
+    reason: |-
+      Product information is needed so users can browse products and select
+      products for orders.
+    traces:
+      operations:
+        - listProducts
+    details:
+      - name
+      - price
+      - inventoryStatus
+      - discontinued
+    x-relational-db-schema:
+      types:
+        price:
+          type: DECIMAL
+          precision: 10
+          scale: 2
+        discontinued:
+          type: BOOLEAN
+      indexes:
+        - name: ix_products_name
+          columns:
+            - name
+      names:
+        tables:
+          product: items_catalog
+
+  order:
+    name: orders
+    tentative: true
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+        - getOrderDetail
+    details:
+      - status
+      - orderedAt
+      - customer
+      - items[].quantity
+      - items[].unitPrice
+      - items[].product
+    relations:
+      customer: customer
+      items[].product: product
+    x-relational-db-schema:
+      types:
+        orderedAt:
+          type: VARCHAR
+          length: 32
+      keys:
+        foreign:
+          - name: fk_orders_status_product
+            columns:
+              - status
+            references:
+              table: product
+              columns:
+                - id
+      constraints:
+        unique:
+          - name: uq_orders_status_ordered_at
+            columns:
+              - status
+              - orderedAt
+      indexes:
+        - name: ix_orders_customer
+          columns:
+            - customer
+      names:
+        columns:
+          order:
+            orderedAt: order_placed_at
+            customer: customer_ref
+          "order.items[]":
+            "items[].quantity": qty

@@ -20,6 +20,8 @@ type RelationalDbProjectionTable = {
   readonly name: string
   readonly columns: readonly RelationalDbProjectionColumn[]
   readonly keys: RelationalDbProjectionKeys
+  readonly constraints?: RelationalDbProjectionConstraints
+  readonly indexes?: readonly RelationalDbProjectionIndex[]
 }
 
 type RelationalDbProjectionKeys = {
@@ -35,11 +37,12 @@ type RelationalDbProjectionColumn = {
 }
 
 type RelationalDbProjectionColumnType =
-  | 'CHAR(26)'
+  | `CHAR(${number})`
   | 'VARCHAR(1024)'
   | `VARCHAR(${number})`
   | 'INTEGER'
   | 'BOOLEAN'
+  | `DECIMAL(${number}, ${number})`
 
 type RelationalDbProjectionPrimaryKey = {
   readonly name: string
@@ -56,15 +59,43 @@ type RelationalDbProjectionForeignKey = {
   readonly kind: RelationalDbProjectionForeignKeyKind
 }
 
-type RelationalDbProjectionForeignKeyKind = 'explicit' | 'structural' | 'inferred'
+type RelationalDbProjectionForeignKeyKind = 'explicit' | 'structural' | 'inferred' | 'extension'
+
+type RelationalDbProjectionConstraints = {
+  readonly unique?: readonly RelationalDbProjectionUniqueConstraint[]
+  readonly check?: readonly RelationalDbProjectionCheckConstraint[]
+}
+
+type RelationalDbProjectionUniqueConstraint = {
+  readonly name: string
+  readonly columns: readonly string[]
+}
+
+type RelationalDbProjectionCheckConstraint = {
+  readonly name: string
+  readonly expression: string
+}
+
+type RelationalDbProjectionIndex = {
+  readonly name: string
+  readonly columns: readonly string[]
+}
 
 type MutableRelationalDbProjectionTable = {
   name: string
   columns: RelationalDbProjectionColumn[]
   keys: {
-    primary: RelationalDbProjectionPrimaryKey
+    primary: {
+      name: string
+      columns: string[]
+    }
     foreign: RelationalDbProjectionForeignKey[]
   }
+  constraints?: {
+    unique?: RelationalDbProjectionUniqueConstraint[]
+    check?: RelationalDbProjectionCheckConstraint[]
+  }
+  indexes?: RelationalDbProjectionIndex[]
 }
 
 type DetailProjectionInput = {
@@ -142,6 +173,33 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
       claim.relations
     )
   }
+
+  const issues: string[] = []
+  const tableNameRenames = new Map<string, string>()
+  const columnNameRenames = new Map<string, Map<string, string>>()
+
+  for (const [claimId, claim] of Object.entries(sketch.spec.claims)) {
+    const extension = (claim as Record<string, unknown>)['x-relational-db-schema']
+
+    if (extension === undefined) {
+      continue
+    }
+
+    applyRelationalDbSchemaExtension(
+      tables,
+      claimId,
+      extension,
+      issues,
+      tableNameRenames,
+      columnNameRenames
+    )
+  }
+
+  if (issues.length > 0) {
+    throw new Error(issues.join('\n'))
+  }
+
+  applyForeignKeyTargetRenames(tables, tableNameRenames, columnNameRenames)
 
   return {
     'data-sketch/relational-db-projection': '1.0.0-draft.3',
@@ -718,6 +776,606 @@ function toSnakeCase(value: string) {
     .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
     .replace(/[-\s]+/gu, '_')
     .toLowerCase()
+}
+
+function applyRelationalDbSchemaExtension(
+  tables: Record<string, MutableRelationalDbProjectionTable>,
+  claimId: string,
+  extension: unknown,
+  issues: string[],
+  tableNameRenames: Map<string, string>,
+  columnNameRenames: Map<string, Map<string, string>>
+) {
+  const prefix = `claims.${claimId}.x-relational-db-schema`
+
+  if (!isRecord(extension)) {
+    issues.push(`${prefix} must be an object`)
+
+    return
+  }
+
+  for (const member of Object.keys(extension)) {
+    if (!['names', 'types', 'keys', 'constraints', 'indexes'].includes(member)) {
+      issues.push(`${prefix}.${member} is not a supported x-relational-db-schema member`)
+    }
+  }
+
+  const claimTableIds = Object.keys(tables).filter(
+    tableId => tableId === claimId || tableId.startsWith(`${claimId}.`)
+  )
+
+  const originalTableNames = new Map(
+    claimTableIds.map(tableId => [tableId, tables[tableId].name] as const)
+  )
+
+  applyTypeOverrides(tables, claimTableIds, prefix, extension.types, issues)
+  applyForeignKeyOverrides(tables, claimId, prefix, extension.keys, issues)
+  applyConstraintOverrides(tables, claimId, prefix, extension.constraints, issues)
+  applyIndexOverrides(tables, claimId, prefix, extension.indexes, issues)
+  applyNameOverrides(
+    tables,
+    claimTableIds,
+    originalTableNames,
+    prefix,
+    extension.names,
+    issues,
+    tableNameRenames,
+    columnNameRenames
+  )
+}
+
+function applyTypeOverrides(
+  tables: Record<string, MutableRelationalDbProjectionTable>,
+  claimTableIds: readonly string[],
+  prefix: string,
+  types: unknown,
+  issues: string[]
+) {
+  if (types === undefined) {
+    return
+  }
+
+  if (!isRecord(types)) {
+    issues.push(`${prefix}.types must be an object`)
+
+    return
+  }
+
+  for (const [path, override] of Object.entries(types)) {
+    const fieldPrefix = `${prefix}.types.${path}`
+
+    const match = claimTableIds
+      .map(tableId => ({
+        tableId,
+        columnIndex: tables[tableId].columns.findIndex(c => c.id === path)
+      }))
+      .find(({ columnIndex }) => columnIndex !== -1)
+
+    if (!match) {
+      issues.push(`${fieldPrefix} does not reference an existing projected column`)
+      continue
+    }
+
+    const type = resolveColumnTypeOverride(override, fieldPrefix, issues)
+
+    if (type) {
+      const table = tables[match.tableId]
+
+      table.columns[match.columnIndex] = {
+        ...table.columns[match.columnIndex],
+        type
+      }
+    }
+  }
+}
+
+function resolveColumnTypeOverride(
+  override: unknown,
+  fieldPrefix: string,
+  issues: string[]
+): RelationalDbProjectionColumnType | undefined {
+  if (!isRecord(override) || typeof override.type !== 'string') {
+    issues.push(`${fieldPrefix} must be an object with a type`)
+
+    return undefined
+  }
+
+  const type = override.type.toUpperCase()
+
+  if (type === 'CHAR' || type === 'VARCHAR') {
+    const length = override.length
+
+    if (!Number.isInteger(length) || Number(length) <= 0) {
+      issues.push(`${fieldPrefix} must specify a positive integer length for type ${type}`)
+
+      return undefined
+    }
+
+    return `${type}(${length})` as RelationalDbProjectionColumnType
+  }
+
+  if (type === 'INTEGER' || type === 'BOOLEAN') {
+    return type
+  }
+
+  if (type === 'DECIMAL') {
+    const { precision, scale } = override
+
+    if (
+      !Number.isInteger(precision) ||
+      Number(precision) <= 0 ||
+      !Number.isInteger(scale) ||
+      Number(scale) < 0
+    ) {
+      issues.push(
+        `${fieldPrefix} must specify a positive integer precision and a non-negative integer scale for type DECIMAL`
+      )
+
+      return undefined
+    }
+
+    return `DECIMAL(${Number(precision)}, ${Number(scale)})`
+  }
+
+  issues.push(`${fieldPrefix}.type ${override.type} is not supported`)
+
+  return undefined
+}
+
+function applyForeignKeyOverrides(
+  tables: Record<string, MutableRelationalDbProjectionTable>,
+  claimId: string,
+  prefix: string,
+  keys: unknown,
+  issues: string[]
+) {
+  if (keys === undefined) {
+    return
+  }
+
+  if (!isRecord(keys)) {
+    issues.push(`${prefix}.keys must be an object`)
+
+    return
+  }
+
+  for (const member of Object.keys(keys)) {
+    if (member !== 'foreign') {
+      issues.push(`${prefix}.keys.${member} is not a supported x-relational-db-schema member`)
+    }
+  }
+
+  if (keys.foreign === undefined) {
+    return
+  }
+
+  if (!Array.isArray(keys.foreign)) {
+    issues.push(`${prefix}.keys.foreign must be an array`)
+
+    return
+  }
+
+  const table = tables[claimId]
+  const matchedExistingIndexes = new Set<number>()
+
+  keys.foreign.forEach((entry, index) => {
+    const fieldPrefix = `${prefix}.keys.foreign[${index}]`
+
+    if (!isRecord(entry) || typeof entry.name !== 'string' || entry.name === '') {
+      issues.push(`${fieldPrefix}.name must be a non-empty string`)
+
+      return
+    }
+
+    const columns = getSingleColumnReference(entry.columns, `${fieldPrefix}.columns`, issues)
+    const references = isRecord(entry.references) ? entry.references : undefined
+
+    if (!references || typeof references.table !== 'string') {
+      issues.push(`${fieldPrefix}.references.table must be a string`)
+
+      return
+    }
+
+    const referenceColumns = getSingleColumnReference(
+      references.columns,
+      `${fieldPrefix}.references.columns`,
+      issues
+    )
+
+    if (!columns || !referenceColumns) {
+      return
+    }
+
+    const sourceColumn = table.columns.find(column => column.id === columns)
+
+    if (!sourceColumn) {
+      issues.push(`${fieldPrefix}.columns references unknown column ${columns}`)
+
+      return
+    }
+
+    const targetTable = tables[references.table]
+
+    if (!targetTable) {
+      issues.push(`${fieldPrefix}.references.table references unknown table ${references.table}`)
+
+      return
+    }
+
+    const targetColumn = targetTable.columns.find(column => column.id === referenceColumns)
+
+    if (!targetColumn) {
+      issues.push(
+        `${fieldPrefix}.references.columns references unknown column ${referenceColumns} in table ${references.table}`
+      )
+
+      return
+    }
+
+    const existingIndex = table.keys.foreign.findIndex(
+      foreignKey => foreignKey.column === sourceColumn.name
+    )
+
+    if (existingIndex !== -1) {
+      if (matchedExistingIndexes.has(existingIndex)) {
+        issues.push(
+          `${fieldPrefix} matches the same existing foreign key as another override entry`
+        )
+
+        return
+      }
+
+      matchedExistingIndexes.add(existingIndex)
+
+      table.keys.foreign[existingIndex] = {
+        name: entry.name,
+        column: sourceColumn.name,
+        target: {
+          table: targetTable.name,
+          column: targetColumn.name
+        },
+        kind: table.keys.foreign[existingIndex].kind
+      }
+    } else {
+      table.keys.foreign.push({
+        name: entry.name,
+        column: sourceColumn.name,
+        target: {
+          table: targetTable.name,
+          column: targetColumn.name
+        },
+        kind: 'extension'
+      })
+    }
+  })
+}
+
+function getSingleColumnReference(value: unknown, fieldPrefix: string, issues: string[]) {
+  if (!Array.isArray(value) || value.length !== 1 || typeof value[0] !== 'string') {
+    issues.push(`${fieldPrefix} must be an array with exactly one column id`)
+
+    return undefined
+  }
+
+  return value[0]
+}
+
+function applyConstraintOverrides(
+  tables: Record<string, MutableRelationalDbProjectionTable>,
+  claimId: string,
+  prefix: string,
+  constraints: unknown,
+  issues: string[]
+) {
+  if (constraints === undefined) {
+    return
+  }
+
+  if (!isRecord(constraints)) {
+    issues.push(`${prefix}.constraints must be an object`)
+
+    return
+  }
+
+  for (const member of Object.keys(constraints)) {
+    if (member !== 'unique' && member !== 'check') {
+      issues.push(
+        `${prefix}.constraints.${member} is not a supported x-relational-db-schema member`
+      )
+    }
+  }
+
+  const table = tables[claimId]
+
+  if (constraints.unique !== undefined) {
+    if (!Array.isArray(constraints.unique)) {
+      issues.push(`${prefix}.constraints.unique must be an array`)
+    } else {
+      constraints.unique.forEach((entry, index) => {
+        const fieldPrefix = `${prefix}.constraints.unique[${index}]`
+        const resolved = resolveNamedColumnList(table, entry, fieldPrefix, issues)
+
+        if (resolved) {
+          table.constraints ??= {}
+          table.constraints.unique ??= []
+          table.constraints.unique.push(resolved)
+        }
+      })
+    }
+  }
+
+  if (constraints.check !== undefined) {
+    if (!Array.isArray(constraints.check)) {
+      issues.push(`${prefix}.constraints.check must be an array`)
+    } else {
+      constraints.check.forEach((entry, index) => {
+        const fieldPrefix = `${prefix}.constraints.check[${index}]`
+
+        if (
+          !isRecord(entry) ||
+          typeof entry.name !== 'string' ||
+          entry.name === '' ||
+          typeof entry.expression !== 'string' ||
+          entry.expression === ''
+        ) {
+          issues.push(`${fieldPrefix} must have a non-empty name and expression`)
+
+          return
+        }
+
+        table.constraints ??= {}
+        table.constraints.check ??= []
+        table.constraints.check.push({ name: entry.name, expression: entry.expression })
+      })
+    }
+  }
+}
+
+function applyIndexOverrides(
+  tables: Record<string, MutableRelationalDbProjectionTable>,
+  claimId: string,
+  prefix: string,
+  indexes: unknown,
+  issues: string[]
+) {
+  if (indexes === undefined) {
+    return
+  }
+
+  if (!Array.isArray(indexes)) {
+    issues.push(`${prefix}.indexes must be an array`)
+
+    return
+  }
+
+  const table = tables[claimId]
+
+  indexes.forEach((entry, index) => {
+    const fieldPrefix = `${prefix}.indexes[${index}]`
+    const resolved = resolveNamedColumnList(table, entry, fieldPrefix, issues)
+
+    if (resolved) {
+      table.indexes ??= []
+      table.indexes.push(resolved)
+    }
+  })
+}
+
+function resolveNamedColumnList(
+  table: MutableRelationalDbProjectionTable,
+  entry: unknown,
+  fieldPrefix: string,
+  issues: string[]
+) {
+  if (
+    !isRecord(entry) ||
+    typeof entry.name !== 'string' ||
+    entry.name === '' ||
+    !Array.isArray(entry.columns) ||
+    entry.columns.length === 0
+  ) {
+    issues.push(`${fieldPrefix} must have a non-empty name and a non-empty columns array`)
+
+    return undefined
+  }
+
+  const columnNames: string[] = []
+
+  for (const columnId of entry.columns) {
+    const column = table.columns.find(c => c.id === columnId)
+
+    if (!column) {
+      issues.push(`${fieldPrefix}.columns references unknown column ${String(columnId)}`)
+
+      return undefined
+    }
+
+    columnNames.push(column.name)
+  }
+
+  return { name: entry.name, columns: columnNames }
+}
+
+function applyNameOverrides(
+  tables: Record<string, MutableRelationalDbProjectionTable>,
+  claimTableIds: readonly string[],
+  originalTableNames: ReadonlyMap<string, string>,
+  prefix: string,
+  names: unknown,
+  issues: string[],
+  tableNameRenames: Map<string, string>,
+  columnNameRenames: Map<string, Map<string, string>>
+) {
+  if (names === undefined) {
+    return
+  }
+
+  if (!isRecord(names)) {
+    issues.push(`${prefix}.names must be an object`)
+
+    return
+  }
+
+  for (const member of Object.keys(names)) {
+    if (member !== 'tables' && member !== 'columns') {
+      issues.push(`${prefix}.names.${member} is not a supported x-relational-db-schema member`)
+    }
+  }
+
+  if (names.tables !== undefined) {
+    if (!isRecord(names.tables)) {
+      issues.push(`${prefix}.names.tables must be an object`)
+    } else {
+      for (const [tableId, newName] of Object.entries(names.tables)) {
+        const fieldPrefix = `${prefix}.names.tables.${tableId}`
+
+        if (!claimTableIds.includes(tableId)) {
+          issues.push(`${fieldPrefix} does not reference a projected table for this claim`)
+          continue
+        }
+
+        if (typeof newName !== 'string' || newName === '') {
+          issues.push(`${fieldPrefix} must be a non-empty string`)
+          continue
+        }
+
+        const conflict = Object.entries(tables).find(
+          ([existingTableId, existingTable]) =>
+            existingTableId !== tableId && existingTable.name === newName
+        )
+
+        if (conflict) {
+          issues.push(
+            `Projected table name ${newName} for table ${tableId} conflicts with table ${conflict[0]}`
+          )
+          continue
+        }
+
+        const table = tables[tableId]
+
+        table.name = newName
+        tableNameRenames.set(originalTableNames.get(tableId) as string, newName)
+      }
+    }
+  }
+
+  if (names.columns !== undefined) {
+    if (!isRecord(names.columns)) {
+      issues.push(`${prefix}.names.columns must be an object`)
+    } else {
+      for (const [tableId, columnOverrides] of Object.entries(names.columns)) {
+        const tableFieldPrefix = `${prefix}.names.columns.${tableId}`
+
+        if (!claimTableIds.includes(tableId)) {
+          issues.push(`${tableFieldPrefix} does not reference a projected table for this claim`)
+          continue
+        }
+
+        if (!isRecord(columnOverrides)) {
+          issues.push(`${tableFieldPrefix} must be an object`)
+          continue
+        }
+
+        const table = tables[tableId]
+
+        for (const [columnId, newName] of Object.entries(columnOverrides)) {
+          const fieldPrefix = `${tableFieldPrefix}.${columnId}`
+          const columnIndex = table.columns.findIndex(column => column.id === columnId)
+
+          if (columnIndex === -1) {
+            issues.push(`${fieldPrefix} does not reference an existing projected column`)
+            continue
+          }
+
+          if (typeof newName !== 'string' || newName === '') {
+            issues.push(`${fieldPrefix} must be a non-empty string`)
+            continue
+          }
+
+          const conflict = table.columns.find(
+            (column, index) => index !== columnIndex && column.name === newName
+          )
+
+          if (conflict) {
+            issues.push(
+              `Projected column name ${newName} for column ${columnId} in table ${tableId} conflicts with column ${conflict.id}`
+            )
+            continue
+          }
+
+          const oldColumnName = table.columns[columnIndex].name
+
+          table.columns[columnIndex] = { ...table.columns[columnIndex], name: newName }
+          renameTableColumnReferences(table, oldColumnName, newName)
+
+          const originalTableName = originalTableNames.get(tableId) as string
+          let columnRenames = columnNameRenames.get(originalTableName)
+
+          if (!columnRenames) {
+            columnRenames = new Map()
+            columnNameRenames.set(originalTableName, columnRenames)
+          }
+
+          columnRenames.set(oldColumnName, newName)
+        }
+      }
+    }
+  }
+}
+
+function renameTableColumnReferences(
+  table: MutableRelationalDbProjectionTable,
+  oldColumnName: string,
+  newColumnName: string
+) {
+  table.keys.primary.columns = table.keys.primary.columns.map(column =>
+    column === oldColumnName ? newColumnName : column
+  )
+
+  table.keys.foreign = table.keys.foreign.map(foreignKey =>
+    foreignKey.column === oldColumnName ? { ...foreignKey, column: newColumnName } : foreignKey
+  )
+
+  if (table.constraints?.unique) {
+    table.constraints.unique = table.constraints.unique.map(constraint => ({
+      ...constraint,
+      columns: constraint.columns.map(column => (column === oldColumnName ? newColumnName : column))
+    }))
+  }
+
+  if (table.indexes) {
+    table.indexes = table.indexes.map(indexEntry => ({
+      ...indexEntry,
+      columns: indexEntry.columns.map(column => (column === oldColumnName ? newColumnName : column))
+    }))
+  }
+}
+
+function applyForeignKeyTargetRenames(
+  tables: Record<string, MutableRelationalDbProjectionTable>,
+  tableNameRenames: ReadonlyMap<string, string>,
+  columnNameRenames: ReadonlyMap<string, Map<string, string>>
+) {
+  for (const table of Object.values(tables)) {
+    table.keys.foreign = table.keys.foreign.map(foreignKey => {
+      const newTableName = tableNameRenames.get(foreignKey.target.table)
+
+      if (newTableName === undefined) {
+        return foreignKey
+      }
+
+      const columnRenames = columnNameRenames.get(foreignKey.target.table)
+      const newColumnName = columnRenames?.get(foreignKey.target.column)
+
+      return {
+        ...foreignKey,
+        target: {
+          table: newTableName,
+          column: newColumnName ?? foreignKey.target.column
+        }
+      }
+    })
+  }
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {
