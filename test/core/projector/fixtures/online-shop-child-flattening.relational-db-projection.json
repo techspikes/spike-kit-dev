@@ -1,5 +1,5 @@
 {
-  "data-sketch/relational-db-projection": "1.0.0-draft.2",
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
   "tables": {
     "order": {
       "name": "orders",
@@ -10,11 +10,13 @@
           "type": "CHAR(26)"
         }
       ],
-      "primaryKey": {
-        "name": "pk_orders",
-        "columns": ["id"]
-      },
-      "foreignKeys": []
+      "keys": {
+        "primary": {
+          "name": "pk_orders",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
     },
     "order.items[]": {
       "name": "order_items",
@@ -40,21 +42,23 @@
           "type": "VARCHAR(1024)"
         }
       ],
-      "primaryKey": {
-        "name": "pk_order_items",
-        "columns": ["id"]
-      },
-      "foreignKeys": [
-        {
-          "name": "fk_order_items_order",
-          "column": "order",
-          "target": {
-            "table": "orders",
-            "column": "id"
-          },
-          "kind": "structural"
-        }
-      ]
+      "keys": {
+        "primary": {
+          "name": "pk_order_items",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_order_items_order",
+            "column": "order",
+            "target": {
+              "table": "orders",
+              "column": "id"
+            },
+            "kind": "structural"
+          }
+        ]
+      }
     }
   }
 }

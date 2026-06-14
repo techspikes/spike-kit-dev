@@ -77,7 +77,7 @@ describe('core projector', () => {
     })
 
     const customProjection: RelationalDbProjection = {
-      'data-sketch/relational-db-projection': '1.0.0-draft.2',
+      'data-sketch/relational-db-projection': '1.0.0-draft.3',
       tables: {}
     }
 
@@ -182,7 +182,7 @@ describe('core projector', () => {
       }
     ])
 
-    assert.deepEqual(projection.tables.order?.foreignKeys, [
+    assert.deepEqual(projection.tables.order?.keys.foreign, [
       {
         name: 'fk_orders_customer',
         column: 'customer',
@@ -205,7 +205,7 @@ describe('core projector', () => {
 
     const projection = sketch.projections.relationalDb()
 
-    assert.deepEqual(projection.tables.order?.foreignKeys, [
+    assert.deepEqual(projection.tables.order?.keys.foreign, [
       {
         name: 'fk_orders_customer',
         column: 'customer',
@@ -217,7 +217,7 @@ describe('core projector', () => {
       }
     ])
 
-    assert.deepEqual(projection.tables['order.items[]']?.foreignKeys, [
+    assert.deepEqual(projection.tables['order.items[]']?.keys.foreign, [
       {
         name: 'fk_order_items_order',
         column: 'order',
@@ -238,7 +238,7 @@ describe('core projector', () => {
       }
     ])
 
-    assert.deepEqual(projection.tables.productCategory?.foreignKeys, [
+    assert.deepEqual(projection.tables.productCategory?.keys.foreign, [
       {
         name: 'fk_product_categories_product',
         column: 'product',
@@ -293,7 +293,7 @@ describe('core projector', () => {
       }
     ])
 
-    assert.deepEqual(projection.tables['order.items[]']?.foreignKeys, [
+    assert.deepEqual(projection.tables['order.items[]']?.keys.foreign, [
       {
         name: 'fk_order_items_order',
         column: 'order',
@@ -427,7 +427,7 @@ describe('core projector', () => {
       }
     ])
 
-    assert.deepEqual(projection.tables.product?.foreignKeys, [
+    assert.deepEqual(projection.tables.product?.keys.foreign, [
       {
         name: 'fk_products_category',
         column: 'category',

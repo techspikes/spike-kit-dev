@@ -1,5 +1,5 @@
 {
-  "data-sketch/relational-db-projection": "1.0.0-draft.2",
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
   "tables": {
     "customer": {
       "name": "customers",
@@ -35,11 +35,13 @@
           "type": "VARCHAR(1024)"
         }
       ],
-      "primaryKey": {
-        "name": "pk_customers",
-        "columns": ["id"]
-      },
-      "foreignKeys": []
+      "keys": {
+        "primary": {
+          "name": "pk_customers",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
     },
     "product": {
       "name": "products",
@@ -70,11 +72,13 @@
           "type": "VARCHAR(1024)"
         }
       ],
-      "primaryKey": {
-        "name": "pk_products",
-        "columns": ["id"]
-      },
-      "foreignKeys": []
+      "keys": {
+        "primary": {
+          "name": "pk_products",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
     },
     "order": {
       "name": "orders",
@@ -100,21 +104,23 @@
           "type": "CHAR(26)"
         }
       ],
-      "primaryKey": {
-        "name": "pk_orders",
-        "columns": ["id"]
-      },
-      "foreignKeys": [
-        {
-          "name": "fk_orders_customer",
-          "column": "customer",
-          "target": {
-            "table": "customers",
-            "column": "id"
-          },
-          "kind": "explicit"
-        }
-      ]
+      "keys": {
+        "primary": {
+          "name": "pk_orders",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_orders_customer",
+            "column": "customer",
+            "target": {
+              "table": "customers",
+              "column": "id"
+            },
+            "kind": "explicit"
+          }
+        ]
+      }
     },
     "order.items[]": {
       "name": "order_items",
@@ -145,30 +151,32 @@
           "type": "CHAR(26)"
         }
       ],
-      "primaryKey": {
-        "name": "pk_order_items",
-        "columns": ["id"]
-      },
-      "foreignKeys": [
-        {
-          "name": "fk_order_items_order",
-          "column": "order",
-          "target": {
-            "table": "orders",
-            "column": "id"
-          },
-          "kind": "structural"
+      "keys": {
+        "primary": {
+          "name": "pk_order_items",
+          "columns": ["id"]
         },
-        {
-          "name": "fk_order_items_product",
-          "column": "product",
-          "target": {
-            "table": "products",
-            "column": "id"
+        "foreign": [
+          {
+            "name": "fk_order_items_order",
+            "column": "order",
+            "target": {
+              "table": "orders",
+              "column": "id"
+            },
+            "kind": "structural"
           },
-          "kind": "explicit"
-        }
-      ]
+          {
+            "name": "fk_order_items_product",
+            "column": "product",
+            "target": {
+              "table": "products",
+              "column": "id"
+            },
+            "kind": "explicit"
+          }
+        ]
+      }
     }
   }
 }
