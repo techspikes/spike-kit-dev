@@ -122,8 +122,9 @@ Rules:
   it is `no`.
 - `Description` is the comma-separated aliases for the source detail path when
   aliases are available; otherwise it is empty.
-- The implicit surrogate key column `id` has an empty description unless an
-  alias is explicitly available for `id`.
+- The implicit surrogate key column `id` always has an empty description.
+  `id` is a reserved identity detail path and cannot appear in `details` or
+  `aliases`, so it never has aliases.
 - Markdown table cell text escapes backslashes, pipes, and underscores.
 
 ## Constraint Sections
@@ -225,8 +226,6 @@ claims:
     relations:
       customer: customer
     x-rdbms-schema:
-      names:
-        order: order_ref
       data-types:
         status:
           type: VARCHAR
@@ -268,23 +267,53 @@ Rules:
 
 ### Name Overrides
 
-`names` is keyed by Data Sketch detail path, relation source path, or the
-reserved key `id` for the surrogate key column. The claim's own logical ID may
-also be used as a key to rename the projected table.
+`names` has two members, `tables` and `columns`, both keyed using identifiers
+from the Relational DB Projection of the claim that carries the
+`x-rdbms-schema` extension.
+
+- `names.tables` is keyed by projected table ID (the claim's own table ID, or a
+  child table ID such as `order.items[]`). Each value replaces that table's
+  projected `name`.
+- `names.columns` is keyed by projected table ID, then by projected column `id`
+  (a source detail path, a relation source path, the reserved key `id` for the
+  surrogate key column, or a generated structural foreign key column `id`).
+  Each value replaces that column's projected `name`.
+
+Example: renaming the `order_items` child table and its structural foreign key
+column `order`, which otherwise collides with the SQL `ORDER` keyword (see the
+DDL Section caution above):
 
 ```yaml
-x-rdbms-schema:
-  names:
-    order: order_ref
+claims:
+  order:
+    name: orders
+    reason: |-
+      Order state is needed after checkout so the service can create an order
+      and return its detail.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - status
+      - items[].quantity
+    x-rdbms-schema:
+      names:
+        tables:
+          order.items[]: order_line_items
+        columns:
+          order.items[]:
+            order: order_ref
 ```
 
 Rules:
 
-- A matching `names` entry replaces the default projected table or column name.
+- A matching `names.tables` entry replaces the default projected table name.
+- A matching `names.columns` entry replaces the default projected column name
+  for the named table only.
 - `names` is the primary mechanism for resolving collisions between generated
-  identifiers and SQL reserved words, such as a structural foreign key column
-  generated from a claim ID `order` (see the DDL Section caution above).
-- Missing keys continue to use the default projected name.
+  identifiers and SQL reserved words.
+- Missing table IDs or column `id` values continue to use the default projected
+  name.
 
 ### Data Type Overrides
 
