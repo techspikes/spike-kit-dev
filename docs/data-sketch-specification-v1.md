@@ -113,7 +113,7 @@ sources:
 | Field | Required | Description |
 |---|---:|---|
 | `openapi` | no | Path to the OpenAPI YAML or JSON file used to validate trace names. |
-| `arrazo` | no | Reserved for an Arazzo Specification file used to trace workflows. |
+| `arazzo` | no | Reserved for an Arazzo Specification file used to trace workflows. |
 | `asyncapi` | no | Reserved for an AsyncAPI file used to trace channels. |
 
 Rules:
@@ -127,7 +127,7 @@ Rules:
 - Duplicate `operationId` values in the OpenAPI file are invalid.
 - An unreadable file, invalid YAML or JSON, or a missing traced operation name is
   a trace validation error.
-- `sources.arrazo` is reserved for future trace validation with
+- `sources.arazzo` is reserved for future trace validation with
   `traces.workflows`.
 - `sources.asyncapi` is reserved for future trace validation with
   `traces.channels`.

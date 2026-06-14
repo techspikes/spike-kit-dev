@@ -391,12 +391,17 @@ The Relational DB projector intentionally keeps data types, primary keys, and
 foreign keys simple.
 
 Composite primary keys, composite foreign keys, uniqueness constraints, check
-constraints, indexes, and other physical schema choices belong to a
-renderer-specific extension such as `x-rdbms-schema`.
+constraints, indexes, table and column name overrides, and other physical
+schema choices belong to a renderer-specific extension such as `x-rdbms-schema`.
 The Relational DB projection does not include those extension fields. A renderer
 that applies overrides should read them from the built-in Extension Projection
 alongside the Relational DB projection. The Relational DB projector itself does
 not interpret renderer-specific override extensions.
+
+Projected names that collide with target RDBMS reserved words (for example, a
+structural foreign key column named `order`, generated from a claim ID `order`)
+are a renderer-specific concern. A renderer should resolve such collisions using
+its override extension's name overrides, such as `x-rdbms-schema.names`.
 
 ---
 

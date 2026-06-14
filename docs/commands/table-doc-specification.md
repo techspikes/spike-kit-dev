@@ -47,8 +47,10 @@ The command uses:
   keys, foreign keys, SQL types, and nullability.
 
 The command does not interpret `x-rdbms-schema` in this version. Data type
-overrides, uniqueness constraints, indexes, check constraints, and other
-physical schema choices are outside the first `table-doc` rendering scope.
+overrides, name overrides, uniqueness constraints, indexes, check constraints,
+and other physical schema choices are outside the first `table-doc` rendering
+scope. See x-rdbms-schema Extension for the override format a future `table-doc`
+version, or another renderer, may read from the built-in Extension Projection.
 
 ## Markdown Output
 
@@ -60,6 +62,23 @@ The frontmatter contains:
 - `source`: source Data Sketch file basename.
 - `sha256`: SHA-256 digest of the normalized parsed Data Sketch.
 - `generated_at`: generation timestamp in ISO 8601 format.
+
+### Normalization
+
+The normalized parsed Data Sketch is the validated Data Sketch `spec` object
+(the document shape described by the Data Sketch Specification, before
+projection) serialized as follows:
+
+- Object keys are sorted in ascending UTF-16 code unit order at every nesting
+  level, regardless of source key order.
+- Arrays preserve their original element order.
+- The serialized form is compact JSON: no insignificant whitespace, no
+  trailing newline.
+- The serialized string is UTF-8 encoded before hashing.
+
+This makes `sha256` independent of the source file format (YAML or JSON), key
+order, and whitespace, so two Data Sketch files with the same validated content
+produce the same digest.
 
 The document body starts with:
 
@@ -165,6 +184,185 @@ Rules:
 - Foreign key DDL references the projected target table and target column.
 - The DDL does not render uniqueness constraints, indexes, check constraints, or
   custom data type overrides in this version.
+
+> [!CAUTION]
+> Projected table, column, and constraint names are derived directly from claim
+> IDs, claim names, and detail paths, and are not checked against SQL reserved
+> words. Because identifiers are not quoted, a generated name that collides with
+> a reserved word (for example a structural foreign key column named `order`,
+> generated from a claim ID `order`) may produce DDL that fails on a target
+> RDBMS. Use `x-rdbms-schema` overrides (see x-rdbms-schema Extension) to rename
+> or retype the affected columns and constraints for the target RDBMS.
+
+## x-rdbms-schema Extension
+
+### Purpose
+
+`x-rdbms-schema` is a `table-doc` extension for describing RDBMS-specific
+schema choices that are outside the core Data Sketch vocabulary.
+
+The Relational DB projector does not interpret `x-rdbms-schema`. A renderer
+such as `table-doc` reads `x-rdbms-schema` from the built-in Extension
+Projection when it renders table specifications from a Relational DB
+projection.
+
+### Placement
+
+`x-rdbms-schema` may be written on a claim.
+
+```yaml
+claims:
+  order:
+    name: orders
+    details:
+      - orderNumber
+      - status
+    aliases:
+      orderNumber:
+        - order number
+      status:
+        - order status
+    relations:
+      customer: customer
+    x-rdbms-schema:
+      names:
+        order: order_ref
+      data-types:
+        status:
+          type: VARCHAR
+          length: 20
+      keys:
+        primary:
+          - id
+        foreign:
+          - name: fk_orders_customer
+            columns:
+              - customer
+            references:
+              table: customers
+              columns:
+                - id
+        unique:
+          - name: uq_orders_order_number
+            columns:
+              - order_number
+      indexes:
+        - name: ix_orders_status
+          columns:
+            - status
+```
+
+### Supported Members
+
+Rules:
+
+- `names` overrides projected table and column names.
+- `data-types` overrides projected column data types.
+- `keys.primary` overrides the primary key rendered for the table.
+- `keys.foreign` defines explicit foreign keys.
+- `keys.unique` defines unique constraints.
+- `indexes` defines non-unique indexes.
+- Composite primary keys and composite foreign keys may be expressed by listing
+  multiple columns in this extension.
+- Extension-provided names are used as-is.
+
+### Name Overrides
+
+`names` is keyed by Data Sketch detail path, relation source path, or the
+reserved key `id` for the surrogate key column. The claim's own logical ID may
+also be used as a key to rename the projected table.
+
+```yaml
+x-rdbms-schema:
+  names:
+    order: order_ref
+```
+
+Rules:
+
+- A matching `names` entry replaces the default projected table or column name.
+- `names` is the primary mechanism for resolving collisions between generated
+  identifiers and SQL reserved words, such as a structural foreign key column
+  generated from a claim ID `order` (see the DDL Section caution above).
+- Missing keys continue to use the default projected name.
+
+### Data Type Overrides
+
+`data-types` is keyed by Data Sketch detail path.
+
+```yaml
+x-rdbms-schema:
+  data-types:
+    status:
+      type: VARCHAR
+      length: 20
+```
+
+Rules:
+
+- A matching `data-types` entry takes precedence over default `table-doc` type
+  rendering.
+- Missing detail paths continue to use the default `table-doc` type rendering.
+
+### Key And Constraint Overrides
+
+Primary key:
+
+```yaml
+x-rdbms-schema:
+  keys:
+    primary:
+      - id
+```
+
+Foreign key:
+
+```yaml
+x-rdbms-schema:
+  keys:
+    foreign:
+      - name: fk_orders_customer
+        columns:
+          - customer
+        references:
+          table: customers
+          columns:
+            - id
+```
+
+Unique constraint:
+
+```yaml
+x-rdbms-schema:
+  keys:
+    unique:
+      - name: uq_orders_order_number
+        columns:
+          - order_number
+```
+
+Rules:
+
+- `keys.primary` replaces the default primary key for the table.
+- `keys.foreign` entries take precedence over generated foreign key definitions
+  for the same columns.
+- `keys.unique` renders unique constraints.
+
+### Index Overrides
+
+```yaml
+x-rdbms-schema:
+  indexes:
+    - name: ix_orders_status
+      columns:
+        - status
+```
+
+Rules:
+
+- `indexes` renders non-unique indexes.
+- Index names and column names are used as provided.
+  `x-rdbms-schema.keys.unique` is used for uniqueness.
 
 ## Example
 

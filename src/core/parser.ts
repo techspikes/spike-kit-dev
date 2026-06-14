@@ -11,7 +11,7 @@ const invalidClaimIdPattern = /[.[\]]/u
 const validDetailPathSegmentPattern = /^[^[\]]+(?:\[\])?$/u
 const rootFields = new Set(['data-sketch', 'info', 'sources', 'claims'])
 const infoFields = new Set(['name'])
-const sourcesFields = new Set(['openapi', 'arrazo', 'asyncapi'])
+const sourcesFields = new Set(['openapi', 'arazzo', 'asyncapi'])
 const claimFields = new Set([
   'name',
   'reason',
@@ -49,7 +49,7 @@ const specificationSchema = v.looseObject({
   sources: v.optional(
     v.looseObject({
       openapi: v.optional(nonEmptyString),
-      arrazo: v.optional(nonEmptyString),
+      arazzo: v.optional(nonEmptyString),
       asyncapi: v.optional(nonEmptyString)
     })
   ),
