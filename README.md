@@ -30,6 +30,7 @@ The CLI is installed as `shot`, named after the shot used when making espresso.
 npx shot --help
 npx shot openapi-summary path/to/openapi.yaml
 npx shot spec-check path/to/data-sketch.yaml
+npx shot table-doc path/to/data-sketch.yaml --output path/to/table-doc.md
 ```
 
 ## Commands
@@ -53,6 +54,15 @@ npx shot spec-check path/to/data-sketch.yaml
 The command parses and validates a Data Sketch. When `sources.openapi` is
 present, it also validates `traces.operations` against OpenAPI Operation Object
 `operationId` values.
+
+### Write a Table Document
+
+```sh
+npx shot table-doc path/to/data-sketch.yaml --output path/to/table-doc.md
+```
+
+The command validates a Data Sketch, builds the Relational DB Projection, and
+writes a Markdown table document for schema review.
 
 ## Data Sketch Example
 
@@ -140,7 +150,8 @@ npm test
 ## Documentation
 
 - [Data Sketch Specification v1](docs/data-sketch-specification-v1.md)
-- [`openapi-summary` command specification](docs/commands/openapi-summary-command-specification.md)
-- [`spec-check` command specification](docs/commands/spec-check-command-specification.md)
+- [`openapi-summary` command specification](docs/commands/openapi-summary-specification.md)
+- [`spec-check` command specification](docs/commands/spec-check-specification.md)
+- [`table-doc` command specification](docs/commands/table-doc-specification.md)
 - [Relational DB Projection Specification](docs/projections/relational-db-projection.md)
 - [Extension Projection Specification](docs/projections/extension-projection.md)
