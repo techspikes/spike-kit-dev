@@ -371,6 +371,7 @@ uppercase:
 | `VARCHAR` | `length` (required) | `VARCHAR(length)` |
 | `INTEGER` | — | `INTEGER` |
 | `BOOLEAN` | — | `BOOLEAN` |
+| `DECIMAL` | `precision`, `scale` (both required) | `DECIMAL(precision, scale)` |
 
 Rules:
 
@@ -378,10 +379,13 @@ Rules:
   rendering.
 - Missing detail paths continue to use the default `table-doc` type rendering.
 - `CHAR` and `VARCHAR` require `length`.
-- Any other `type` value (including `NUMERIC`, `DECIMAL`, `SMALLINT`, `FLOAT`,
-  `REAL`, `DOUBLE PRECISION`, `DATE`, `TIME`, `TIMESTAMP`, `BIT`, and long-form
-  aliases such as `CHARACTER`, `CHARACTER VARYING`, or `INT`), or a missing or
-  invalid parameter for the matched `type`, is a validation error.
+- `DECIMAL` requires both `precision` and `scale`. A `DECIMAL` without `scale`
+  is a validation error.
+- `NUMERIC` is not accepted, even as an alias for `DECIMAL`.
+- Any other `type` value (including `NUMERIC`, `SMALLINT`, `FLOAT`, `REAL`,
+  `DOUBLE PRECISION`, `DATE`, `TIME`, `TIMESTAMP`, `BIT`, and long-form aliases
+  such as `CHARACTER`, `CHARACTER VARYING`, or `INT`), or a missing or invalid
+  parameter for the matched `type`, is a validation error.
 
 ### Foreign Key Overrides
 
