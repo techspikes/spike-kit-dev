@@ -13,7 +13,7 @@ sources:
 claims:
   customer:
     name: customers
-    x-rdbms-schema:
+    x-relational-db-schema:
       tableComment: Customer records
     reason: |-
       Customer profile information is needed when customers are created and

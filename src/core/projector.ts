@@ -2,7 +2,7 @@ import type { Specification } from './parser.ts'
 import type { DataSketch } from './spec.ts'
 
 export type RelationalDbProjection = {
-  readonly 'data-sketch/relational-db-projection': '1.0.0-draft.2'
+  readonly 'data-sketch/relational-db-projection': '1.0.0-draft.3'
   readonly tables: Readonly<Record<string, RelationalDbProjectionTable>>
 }
 
@@ -19,8 +19,12 @@ type ExtensionProjectionEntry = {
 type RelationalDbProjectionTable = {
   readonly name: string
   readonly columns: readonly RelationalDbProjectionColumn[]
-  readonly primaryKey: RelationalDbProjectionPrimaryKey
-  readonly foreignKeys: readonly RelationalDbProjectionForeignKey[]
+  readonly keys: RelationalDbProjectionKeys
+}
+
+type RelationalDbProjectionKeys = {
+  readonly primary: RelationalDbProjectionPrimaryKey
+  readonly foreign: readonly RelationalDbProjectionForeignKey[]
 }
 
 type RelationalDbProjectionColumn = {
@@ -57,8 +61,10 @@ type RelationalDbProjectionForeignKeyKind = 'explicit' | 'structural' | 'inferre
 type MutableRelationalDbProjectionTable = {
   name: string
   columns: RelationalDbProjectionColumn[]
-  primaryKey: RelationalDbProjectionPrimaryKey
-  foreignKeys: RelationalDbProjectionForeignKey[]
+  keys: {
+    primary: RelationalDbProjectionPrimaryKey
+    foreign: RelationalDbProjectionForeignKey[]
+  }
 }
 
 type DetailProjectionInput = {
@@ -138,7 +144,7 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
   }
 
   return {
-    'data-sketch/relational-db-projection': '1.0.0-draft.2',
+    'data-sketch/relational-db-projection': '1.0.0-draft.3',
     tables
   }
 }
@@ -210,11 +216,13 @@ function ensureProjectionTable(
           type: 'CHAR(26)'
         }
       ],
-      primaryKey: {
-        name: `pk_${tableName}`,
-        columns: ['id']
-      },
-      foreignKeys: []
+      keys: {
+        primary: {
+          name: `pk_${tableName}`,
+          columns: ['id']
+        },
+        foreign: []
+      }
     }
   }
 
@@ -571,7 +579,7 @@ function addProjectionForeignKey(
     })
   }
 
-  table.foreignKeys.push({
+  table.keys.foreign.push({
     name: `fk_${table.name}_${columnName}`,
     column: columnName,
     target: {
@@ -624,11 +632,11 @@ function addProjectionStructuralForeignKey(
 
   const foreignKeyName = `fk_${table.name}_${columnName}`
 
-  if (table.foreignKeys.some(foreignKey => foreignKey.name === foreignKeyName)) {
+  if (table.keys.foreign.some(foreignKey => foreignKey.name === foreignKeyName)) {
     return
   }
 
-  table.foreignKeys.push({
+  table.keys.foreign.push({
     name: foreignKeyName,
     column: columnName,
     target: {

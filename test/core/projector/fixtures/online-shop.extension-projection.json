@@ -24,7 +24,7 @@
     {
       "path": "claims.customer",
       "values": {
-        "x-rdbms-schema": {
+        "x-relational-db-schema": {
           "tableComment": "Customer records"
         }
       }

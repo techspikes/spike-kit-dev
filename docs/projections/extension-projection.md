@@ -31,7 +31,7 @@ Rules:
 ```yaml
 path: claims.order
 values:
-  x-rdbms-schema:
+  x-relational-db-schema:
     tableComment: Order records
 ```
 
@@ -69,7 +69,7 @@ info:
 claims:
   customer:
     name: customers
-    x-rdbms-schema:
+    x-relational-db-schema:
       tableComment: Customer records
     reason: |-
       Customer profile information is needed when customers are created.
@@ -97,7 +97,7 @@ extensions:
 
   - path: claims.customer
     values:
-      x-rdbms-schema:
+      x-relational-db-schema:
         tableComment: Customer records
 
   - path: claims.customer.traces

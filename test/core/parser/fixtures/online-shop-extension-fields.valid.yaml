@@ -12,7 +12,7 @@ sources:
 claims:
   customer:
     name: customers
-    x-rdbms-schema: customer overrides
+    x-relational-db-schema: customer overrides
     reason: |-
       Customer profile information is needed when customers are created and
       later looked up for ordering and support context.

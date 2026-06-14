@@ -16,7 +16,7 @@ matches a claim ID imply claim-to-claim relationships by convention.
 ## Root Shape
 
 ```yaml
-data-sketch/relational-db-projection: 1.0.0-draft.2
+data-sketch/relational-db-projection: 1.0.0-draft.3
 tables: {}
 ```
 
@@ -62,11 +62,12 @@ tables:
       - id: id
         name: id
         type: CHAR(26)
-    primaryKey:
-      name: pk_orders
-      columns:
-        - id
-    foreignKeys: []
+    keys:
+      primary:
+        name: pk_orders
+        columns:
+          - id
+      foreign: []
 ```
 
 Fields:
@@ -74,9 +75,10 @@ Fields:
 - table ID: map key under `tables`.
 - `name`: projected table name.
 - `columns`: ordered projected column definitions.
-- `primaryKey`: primary key constraint.
-- `foreignKeys`: ordered foreign key constraints with generated names and kind
-  markers.
+- `keys`: primary key and foreign key constraints.
+  - `keys.primary`: primary key constraint.
+  - `keys.foreign`: ordered foreign key constraints with generated names and kind
+    markers.
 
 Rules:
 
@@ -88,11 +90,11 @@ Rules:
   snake_case and removing `[]`.
 - Each array-of-objects path segment creates a table boundary. Nested
   array-of-objects segments create nested child tables.
-- `primaryKey` is always set to the surrogate key column.
-- `primaryKey.name` is generated as `pk_<projected table name>`.
+- `keys.primary` is always set to the surrogate key column.
+- `keys.primary.name` is generated as `pk_<projected table name>`.
   For example, `orders` becomes `pk_orders`, and `order_items` becomes
   `pk_order_items`.
-- `foreignKeys` contains structural parent-child foreign keys, foreign keys
+- `keys.foreign` contains structural parent-child foreign keys, foreign keys
   created from Data Sketch `relations`, and claim ID exact-match foreign keys.
 - Foreign key names are generated as `fk_<source table name>_<column name>`.
 - Foreign key `kind` values classify why the projector created the foreign key
@@ -327,17 +329,18 @@ tables:
       - id: customer
         name: customer
         type: CHAR(26)
-    primaryKey:
-      name: pk_orders
-      columns:
-        - id
-    foreignKeys:
-      - name: fk_orders_customer
-        column: customer
-        target:
-          table: customers
-          column: id
-        kind: explicit
+    keys:
+      primary:
+        name: pk_orders
+        columns:
+          - id
+      foreign:
+        - name: fk_orders_customer
+          column: customer
+          target:
+            table: customers
+            column: id
+          kind: explicit
 ```
 
 Claim ID exact-match projection example:
@@ -364,23 +367,24 @@ tables:
       - id: items[].product
         name: product
         type: CHAR(26)
-    primaryKey:
-      name: pk_order_items
-      columns:
-        - id
-    foreignKeys:
-      - name: fk_order_items_order
-        column: order
-        target:
-          table: orders
-          column: id
-        kind: structural
-      - name: fk_order_items_product
-        column: product
-        target:
-          table: products
-          column: id
-        kind: inferred
+    keys:
+      primary:
+        name: pk_order_items
+        columns:
+          - id
+      foreign:
+        - name: fk_order_items_order
+          column: order
+          target:
+            table: orders
+            column: id
+          kind: structural
+        - name: fk_order_items_product
+          column: product
+          target:
+            table: products
+            column: id
+          kind: inferred
 ```
 
 ---
@@ -392,7 +396,8 @@ foreign keys simple.
 
 Composite primary keys, composite foreign keys, uniqueness constraints, check
 constraints, indexes, table and column name overrides, and other physical
-schema choices belong to a renderer-specific extension such as `x-rdbms-schema`.
+schema choices belong to a renderer-specific extension such as
+`x-relational-db-schema`.
 The Relational DB projection does not include those extension fields. A renderer
 that applies overrides should read them from the built-in Extension Projection
 alongside the Relational DB projection. The Relational DB projector itself does
@@ -401,7 +406,7 @@ not interpret renderer-specific override extensions.
 Projected names that collide with target RDBMS reserved words (for example, a
 structural foreign key column named `order`, generated from a claim ID `order`)
 are a renderer-specific concern. A renderer should resolve such collisions using
-its override extension's name overrides, such as `x-rdbms-schema.names`.
+its override extension's name overrides, such as `x-relational-db-schema.names`.
 
 ---
 
@@ -442,7 +447,7 @@ claims:
 Projection:
 
 ```yaml
-data-sketch/relational-db-projection: 1.0.0-draft.2
+data-sketch/relational-db-projection: 1.0.0-draft.3
 tables:
   customer:
     name: customers
@@ -465,11 +470,12 @@ tables:
       - id: address.postalCode
         name: address_postal_code
         type: VARCHAR(1024)
-    primaryKey:
-      name: pk_customers
-      columns:
-        - id
-    foreignKeys: []
+    keys:
+      primary:
+        name: pk_customers
+        columns:
+          - id
+      foreign: []
 
   product:
     name: products
@@ -486,11 +492,12 @@ tables:
       - id: inventoryStatus
         name: inventory_status
         type: VARCHAR(1024)
-    primaryKey:
-      name: pk_products
-      columns:
-        - id
-    foreignKeys: []
+    keys:
+      primary:
+        name: pk_products
+        columns:
+          - id
+      foreign: []
 
   order:
     name: orders
@@ -507,17 +514,18 @@ tables:
       - id: customer
         name: customer
         type: CHAR(26)
-    primaryKey:
-      name: pk_orders
-      columns:
-        - id
-    foreignKeys:
-      - name: fk_orders_customer
-        column: customer
-        target:
-          table: customers
-          column: id
-        kind: explicit
+    keys:
+      primary:
+        name: pk_orders
+        columns:
+          - id
+      foreign:
+        - name: fk_orders_customer
+          column: customer
+          target:
+            table: customers
+            column: id
+          kind: explicit
 
   "order.items[]":
     name: order_items
@@ -537,23 +545,24 @@ tables:
       - id: items[].product
         name: product
         type: CHAR(26)
-    primaryKey:
-      name: pk_order_items
-      columns:
-        - id
-    foreignKeys:
-      - name: fk_order_items_order
-        column: order
-        target:
-          table: orders
-          column: id
-        kind: structural
-      - name: fk_order_items_product
-        column: product
-        target:
-          table: products
-          column: id
-        kind: explicit
+    keys:
+      primary:
+        name: pk_order_items
+        columns:
+          - id
+      foreign:
+        - name: fk_order_items_order
+          column: order
+          target:
+            table: orders
+            column: id
+          kind: structural
+        - name: fk_order_items_product
+          column: product
+          target:
+            table: products
+            column: id
+          kind: explicit
 ```
 
 ---
@@ -585,17 +594,18 @@ tables:
       - id: items[].stocks.quantity
         name: stocks_quantity
         type: VARCHAR(1024)
-    primaryKey:
-      name: pk_order_items
-      columns:
-        - id
-    foreignKeys:
-      - name: fk_order_items_order
-        column: order
-        target:
-          table: orders
-          column: id
-        kind: structural
+    keys:
+      primary:
+        name: pk_order_items
+        columns:
+          - id
+      foreign:
+        - name: fk_order_items_order
+          column: order
+          target:
+            table: orders
+            column: id
+          kind: structural
 ```
 
 Nested array child table:
@@ -617,17 +627,18 @@ tables:
       - id: order
         name: order
         type: CHAR(26)
-    primaryKey:
-      name: pk_order_items
-      columns:
-        - id
-    foreignKeys:
-      - name: fk_order_items_order
-        column: order
-        target:
-          table: orders
-          column: id
-        kind: structural
+    keys:
+      primary:
+        name: pk_order_items
+        columns:
+          - id
+      foreign:
+        - name: fk_order_items_order
+          column: order
+          target:
+            table: orders
+            column: id
+          kind: structural
 
   "order.items[].stocks[]":
     name: order_items_stocks
@@ -644,17 +655,18 @@ tables:
       - id: items[].stocks[].quantity
         name: quantity
         type: VARCHAR(1024)
-    primaryKey:
-      name: pk_order_items_stocks
-      columns:
-        - id
-    foreignKeys:
-      - name: fk_order_items_stocks_order_items
-        column: order_items
-        target:
-          table: order_items
-          column: id
-        kind: structural
+    keys:
+      primary:
+        name: pk_order_items_stocks
+        columns:
+          - id
+      foreign:
+        - name: fk_order_items_stocks_order_items
+          column: order_items
+          target:
+            table: order_items
+            column: id
+          kind: structural
 ```
 
 ---

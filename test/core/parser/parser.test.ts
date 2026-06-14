@@ -127,7 +127,7 @@ describe('core parser', () => {
     assert.equal((sketch.spec.info as Record<string, unknown>)['x-owner'], 'shop team')
     assert.equal((sketch.spec.sources as Record<string, unknown>)['x-source-kind'], 'contract')
     assert.equal(
-      (sketch.spec.claims.customer as Record<string, unknown>)['x-rdbms-schema'],
+      (sketch.spec.claims.customer as Record<string, unknown>)['x-relational-db-schema'],
       'customer overrides'
     )
     assert.equal(
