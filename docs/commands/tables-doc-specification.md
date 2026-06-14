@@ -1,8 +1,8 @@
-# Table Doc Command Specification
+# Tables Doc Command Specification
 
 ## Purpose
 
-`shot table-doc [OPTION]... SPEC_FILE --output TABLE_DOC_FILE` validates a Data
+`shot tables-doc [OPTION]... SPEC_FILE --output TABLES_DOC_FILE` validates a Data
 Sketch Specification v1 YAML or JSON file and writes a Markdown table document.
 
 The command is a renderer for the validated Data Sketch Relational DB
@@ -12,13 +12,13 @@ keys, and SQL DDL that can be used for review.
 ## Usage
 
 ```sh
-shot table-doc [OPTION]... SPEC_FILE --output TABLE_DOC_FILE
-shot table-doc [OPTION]... SPEC_FILE -o TABLE_DOC_FILE
+shot tables-doc [OPTION]... SPEC_FILE --output TABLES_DOC_FILE
+shot tables-doc [OPTION]... SPEC_FILE -o TABLES_DOC_FILE
 ```
 
 ## Options
 
-- `-o, --output TABLE_DOC_FILE`: output Markdown file path. This option is
+- `-o, --output TABLES_DOC_FILE`: output Markdown file path. This option is
   required.
 - `-h, --help`: print usage.
 
@@ -32,8 +32,8 @@ shot table-doc [OPTION]... SPEC_FILE -o TABLE_DOC_FILE
   and returns a non-zero exit code.
 - When `SPEC_FILE` is valid, the command parses and validates it with trace
   validation enabled, builds the Relational DB Projection, renders a Markdown
-  table document, writes it to `TABLE_DOC_FILE`, and returns exit code 0.
-- When `TABLE_DOC_FILE` already exists, the command overwrites it.
+  table document, writes it to `TABLES_DOC_FILE`, and returns exit code 0.
+- When `TABLES_DOC_FILE` already exists, the command overwrites it.
 - When parsing, validation, projection, rendering, or writing fails, the command
   prints the error message to stderr and returns a non-zero exit code.
 
@@ -48,7 +48,7 @@ The command uses:
 
 The Relational DB Projection already has any `x-relational-db-schema` overrides
 applied by the projector (see x-relational-db-schema Extension in the
-Relational DB Projection Specification). `table-doc` renders the Relational DB
+Relational DB Projection Specification). `tables-doc` renders the Relational DB
 Projection directly and does not apply `x-relational-db-schema` itself.
 
 ## Markdown Output
@@ -197,7 +197,7 @@ Rules:
 
 ## Override Warnings
 
-After writing the Markdown document, `table-doc` prints one warning per
+After writing the Markdown document, `tables-doc` prints one warning per
 `x-relational-db-schema` override to stderr when the override replaces a value
 that was derived from real information (an "explicit" or
 projection-guaranteed value), and returns exit code `0`. It does not warn when
@@ -231,7 +231,7 @@ example `... overrides a projected type derived from <source>` or
 Command:
 
 ```sh
-shot table-doc online-shop.yaml --output online-shop.table-doc.md
+shot tables-doc online-shop.yaml --output online-shop.tables-doc.md
 ```
 
 Input excerpt:

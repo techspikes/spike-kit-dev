@@ -416,7 +416,7 @@ column name overrides.
 The projector reads `x-relational-db-schema` from the built-in Extension
 Projection and applies it while building that claim's projected table(s), so
 the Relational DB Projection already reflects these overrides (see Application
-Order). Renderers such as `table-doc` read the Relational DB Projection
+Order). Renderers such as `tables-doc` read the Relational DB Projection
 directly and do not apply `x-relational-db-schema` themselves.
 
 ### Placement
