@@ -78,7 +78,7 @@ export function parse(options: { readonly path: string } | { readonly input: str
     }
 
     const parsed = result.output
-    const issues = [...validateExtensionFields(parsed), ...validateClaimShape(parsed)]
+    const issues = [...validateExtensionFields(parsed), ...validateLocalClaimShape(parsed)]
 
     if (issues.length > 0) {
       throw new Error(issues.join('\n'))
@@ -139,7 +139,9 @@ function validateExtensibleObjectFields(
   return issues
 }
 
-function validateClaimShape(spec: Specification): string[] {
+// Parser-level validation stays local to the document shape. Cross-claim references and
+// external sources are checked by validator.ts.
+function validateLocalClaimShape(spec: Specification): string[] {
   const issues: string[] = []
   const claimNames = new Set<string>()
 
@@ -162,11 +164,11 @@ function validateClaimShape(spec: Specification): string[] {
     const relationIds = Object.keys(claim.relations ?? {})
 
     if (claim.details) {
-      issues.push(...validateDetailShape(claimId, detailIds))
+      issues.push(...validateLocalDetailShape(claimId, detailIds))
     }
 
     if (claim.relations) {
-      issues.push(...validateRelationShape(claimId, relationIds))
+      issues.push(...validateRelationSourceShape(claimId, relationIds))
     }
 
     if (claim.details && claim.aliases) {
@@ -202,7 +204,7 @@ function getEffectiveDetailFields(detailIds: readonly string[], relationIds: rea
   return fields
 }
 
-function validateDetailShape(
+function validateLocalDetailShape(
   claimId: string,
   details: NonNullable<Specification['claims'][string]['details']>
 ): string[] {
@@ -226,7 +228,7 @@ function validateDetailShape(
   return issues
 }
 
-function validateRelationShape(claimId: string, relationIds: string[]): string[] {
+function validateRelationSourceShape(claimId: string, relationIds: string[]): string[] {
   const issues: string[] = []
 
   for (const relationId of relationIds) {
