@@ -26,7 +26,7 @@ This specification is intended to be used as:
 | `claim` | A provisional assertion that this service may need to remember a valuable data subject in order to fulfill the Tale. |
 | `name` | An implementation-facing name for a claim. |
 | `detail` | A concrete item that describes or supports a claim. |
-| `relation` | A logical relationship from a claim detail path to another claim. |
+| `relation` | A logical relationship from a source path on a claim to another claim. |
 | `reason` | Human-readable explanation of the context that makes an item worth remembering. |
 | `traces` | Metadata that links claims to user-facing operations. |
 

@@ -22,14 +22,11 @@ claims:
     details:
       - orderNumber
       - status
-      - customer
     aliases:
       orderNumber:
         - order number
       status:
         - order status
-      customer:
-        - order customer
     relations:
       customer: customer
     x-rdbms-schema:

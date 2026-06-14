@@ -113,8 +113,6 @@ claims:
         - getOrderDetail
     details:
       - status
-      - customer
-      - items[].product
       - items[].quantity
     relations:
       customer: customer
