@@ -410,6 +410,58 @@ its override extension's name overrides, such as `x-relational-db-schema.names`.
 
 ---
 
+## Effective Schema
+
+A renderer that applies an override extension such as
+`x-relational-db-schema` combines this projection with the extension's
+overrides to produce an Effective Schema.
+
+### Shape
+
+The Effective Schema has the same `tables` map as the Relational DB
+Projection. Each table has the same `name`, `columns`, `keys.primary`, and
+`keys.foreign` fields as its Relational DB Projection table, plus
+`constraints.unique`, `constraints.check`, and `indexes`, which the Relational
+DB Projection does not have.
+
+When a table's claim carries no applicable override extension, that table's
+Effective Schema entry is identical to its Relational DB Projection entry,
+with empty `constraints.unique`, `constraints.check`, and `indexes`.
+
+### Build Order
+
+A renderer builds a table's Effective Schema entry by applying the override
+extension's overrides in the following order, where each step acts on the
+result of the previous step:
+
+1. Apply type overrides to column types, keyed by projected column `id`.
+2. Apply foreign key overrides to the `keys.foreign` list: an override entry
+   whose column matches an existing `keys.foreign` entry's column replaces
+   that entry's `name`, `column`, and `target`; an override entry that matches
+   no existing entry is appended.
+3. Set `constraints.unique` and `constraints.check` from the override
+   extension's unique and check constraint entries.
+4. Add `indexes` from the override extension's index entries.
+5. Apply table and column name overrides to determine the rendered table and
+   column names. Raw-SQL fields such as check constraint expressions assume
+   these final names and are not rewritten by this step.
+
+The override extension itself defines the vocabulary and matching rules
+referenced above (the type table, the single-column foreign key matching
+rule, and so on). See `x-relational-db-schema Extension` in the Table Doc
+Command Specification for the extension that `table-doc` builds its Effective
+Schema from.
+
+### Validation
+
+Validating an override extension's content against this projection — resolving
+column and table references, rejecting unsupported types or composite keys,
+detecting conflicting override entries, and so on — is a projection-layer
+concern, performed when building the Effective Schema. It is not part of core
+Data Sketch document validation.
+
+---
+
 ## Basic List Form Example
 
 Input Data Sketch excerpt:

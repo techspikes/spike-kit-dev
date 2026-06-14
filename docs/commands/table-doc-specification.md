@@ -48,10 +48,12 @@ The command uses:
   nullability.
 
 The Effective Schema is the built-in Relational DB Projection with any
-`x-relational-db-schema` overrides from the built-in Extension Projection applied (see
-x-relational-db-schema Extension and its Effective Schema subsection). When a claim
-does not carry `x-relational-db-schema`, the Effective Schema for its projected tables
-is identical to the Relational DB Projection.
+`x-relational-db-schema` overrides from the built-in Extension Projection applied, as
+described in the Effective Schema section of the Relational DB Projection
+Specification (the override vocabulary itself is defined below in
+x-relational-db-schema Extension). When a claim does not carry
+`x-relational-db-schema`, the Effective Schema for its projected tables is identical to
+the Relational DB Projection.
 
 ## Markdown Output
 
@@ -476,48 +478,21 @@ Rules:
 
 ### Effective Schema
 
-`table-doc` applies `x-relational-db-schema` to the Relational DB Projection to
-produce the Effective Schema, and renders the Column Table, Constraint
-Sections, and DDL Section from the Effective Schema.
+`table-doc` renders the Column Table, Constraint Sections, and DDL Section
+from the Effective Schema: the Relational DB Projection with
+`x-relational-db-schema` applied, as defined in the Effective Schema section
+of the Relational DB Projection Specification.
 
-The Effective Schema has the same `tables`/`columns`/`keys.primary`/
-`keys.foreign` structure as the Relational DB Projection, plus
-`constraints.unique`, `constraints.check`, and `indexes`, which the Relational DB
-Projection does not have.
+The Build Order steps in that section apply this extension's `types`, the
+override's `keys.foreign` entries, `constraints.unique`/`constraints.check`,
+`indexes`, and `names`, as defined in Type Overrides, Foreign Key Overrides,
+Constraint Overrides, Index Overrides, and Name Overrides below.
 
-`table-doc` builds the Effective Schema by applying overrides in the following
-order, where each step acts on the result of the previous step:
-
-1. Apply `types` to column types, keyed by projected column `id`.
-2. Apply the override's `keys.foreign` entries to the projection's `keys.foreign`
-   list, using the matching and precedence rules in Foreign Key Overrides. The
-   result becomes the Effective Schema's `keys.foreign` list, with the same item
-   shape as the projection (`name`, `column`, `target`, `kind`).
-3. Set `constraints.unique` from the override's `constraints.unique` entries and
-   `constraints.check` from the override's `constraints.check` entries.
-4. Add `indexes` from the override's `indexes` entries.
-5. Apply `names.tables` and `names.columns` to determine the rendered table and
-   column names. `constraints.check.expression` is a raw SQL string that assumes these
-   final names and is not rewritten by this step.
-
-When a claim does not carry `x-relational-db-schema`, the Effective Schema for its
-projected tables has the same `tables`/`columns`/`keys.primary`/`keys.foreign` as
-the Relational DB Projection, and empty `constraints.unique`,
-`constraints.check`, and `indexes`.
-
-The Relational DB Projection is itself an RDBMS-oriented projection, and
-`x-relational-db-schema` is also RDBMS-specific, so the Effective Schema is best
-understood as the final RDBMS-targeted projection — the Relational DB
-Projection completed with `x-relational-db-schema` — rather than rendering-only scratch
-data. `buildRelationalDbProjection` itself does not read `x-relational-db-schema` and
-continues to return a projection derived only from the Data Sketch, so that
-`x-relational-db-schema`'s vocabulary (the type table in Type Overrides, and so on)
-stays a `table-doc`-specific concern and tools that do not care about
-`x-relational-db-schema` (for example `spec-check` and `openapi-summary`) are
-unaffected. Applying `x-relational-db-schema` to produce the Effective Schema is a
-deterministic transformation of the Relational DB Projection and the Extension
-Projection; where this transformation is implemented is left to `table-doc`'s
-implementation.
+Validating `x-relational-db-schema` against the Relational DB Projection
+(resolving column and table references, rejecting unsupported types or
+composite keys, detecting conflicting override entries, and so on) happens
+when `table-doc` builds the Effective Schema. It is not part of core Data
+Sketch document validation.
 
 ### Override Warnings
 
