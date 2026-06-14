@@ -37,7 +37,7 @@ export function validate<P extends Record<string, (() => unknown) | undefined>>(
     validateOperationIds(extractOpenApiOperationIds(openApi), options.sketch.spec)
   }
 
-  validateRelations(options.sketch.spec)
+  validateRelationReferences(options.sketch.spec)
 
   const validatedSketch = {
     ...options.sketch,
@@ -75,7 +75,7 @@ function validateOperationIds(operationIds: Set<string>, spec: Specification) {
   }
 }
 
-function validateRelations(spec: Specification) {
+function validateRelationReferences(spec: Specification) {
   const issues: string[] = []
 
   for (const [claimId, claim] of Object.entries(spec.claims)) {
