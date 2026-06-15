@@ -1,4 +1,7 @@
 import assert from 'node:assert'
+import { rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import { runCli } from '../src/cli.ts'
 import { exec } from './test-helper/exec.ts'
@@ -58,6 +61,25 @@ describe('cli', () => {
     assert.equal(result.exitCode, 0)
     assert.deepEqual(JSON.parse(result.stdout.join('')), expected)
     assert.deepEqual(result.stderr, [])
+  })
+
+  it('dispatches the tables-doc command', async () => {
+    const outputPath = join(tmpdir(), `tables-doc-cli-test-${Date.now()}.md`)
+
+    try {
+      const result = await runShot([
+        'tables-doc',
+        'test/commands/tables-doc/fixtures/online-shop.yaml',
+        '--output',
+        outputPath
+      ])
+
+      assert.equal(result.exitCode, 0)
+      assert.deepEqual(result.stdout, [])
+      assert.deepEqual(result.stderr, [])
+    } finally {
+      rmSync(outputPath, { force: true })
+    }
   })
 
   it('runs the spec-check command from the CLI entrypoint', () => {

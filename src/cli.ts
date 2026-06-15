@@ -2,6 +2,7 @@
 import { fileURLToPath } from 'node:url'
 import { executeOpenApiSummary } from './commands/openapi-summary.ts'
 import { executeSpecCheck } from './commands/spec-check.ts'
+import { executeTableDoc } from './commands/tables-doc.ts'
 
 const usage = () =>
   [
@@ -9,7 +10,8 @@ const usage = () =>
     '',
     'Commands:',
     '  openapi-summary   Summarize an OpenAPI file for AI-assisted Data Sketch drafting.',
-    '  spec-check   Validate a Data Sketch Specification v1 YAML or JSON file.'
+    '  spec-check   Validate a Data Sketch Specification v1 YAML or JSON file.',
+    '  tables-doc   Build and render Relational DB Projection table documentation.'
   ].join('\n')
 
 export function runCli(args: readonly string[]) {
@@ -27,6 +29,10 @@ export function runCli(args: readonly string[]) {
 
   if (command === 'spec-check') {
     return executeSpecCheck(commandArgs)
+  }
+
+  if (command === 'tables-doc') {
+    return executeTableDoc(commandArgs)
   }
 
   console.error(`Unknown command: ${command}`)
