@@ -73,7 +73,8 @@ type RelationalDbProjectionUniqueConstraint = {
 
 type RelationalDbProjectionCheckConstraint = {
   readonly name: string
-  readonly expression: string
+  readonly column: string
+  readonly enum: readonly string[]
 }
 
 type RelationalDbProjectionIndex = {
@@ -1110,22 +1111,13 @@ function applyConstraintOverrides(
     } else {
       constraints.check.forEach((entry, index) => {
         const fieldPrefix = `${prefix}.constraints.check[${index}]`
+        const resolved = resolveCheckConstraint(table, entry, fieldPrefix, issues)
 
-        if (
-          !isRecord(entry) ||
-          typeof entry.name !== 'string' ||
-          entry.name === '' ||
-          typeof entry.expression !== 'string' ||
-          entry.expression === ''
-        ) {
-          issues.push(`${fieldPrefix} must have a non-empty name and expression`)
-
-          return
+        if (resolved) {
+          table.constraints ??= {}
+          table.constraints.check ??= []
+          table.constraints.check.push(resolved)
         }
-
-        table.constraints ??= {}
-        table.constraints.check ??= []
-        table.constraints.check.push({ name: entry.name, expression: entry.expression })
       })
     }
   }
@@ -1194,6 +1186,39 @@ function resolveNamedColumnList(
   }
 
   return { name: entry.name, columns: columnNames }
+}
+
+function resolveCheckConstraint(
+  table: MutableRelationalDbProjectionTable,
+  entry: unknown,
+  fieldPrefix: string,
+  issues: string[]
+) {
+  if (
+    !isRecord(entry) ||
+    typeof entry.name !== 'string' ||
+    entry.name === '' ||
+    typeof entry.column !== 'string' ||
+    !Array.isArray(entry.enum) ||
+    entry.enum.length === 0 ||
+    !entry.enum.every((value): value is string => typeof value === 'string' && value !== '')
+  ) {
+    issues.push(
+      `${fieldPrefix} must have a non-empty name, column, and a non-empty enum array of non-empty strings`
+    )
+
+    return undefined
+  }
+
+  const column = table.columns.find(c => c.id === entry.column)
+
+  if (!column) {
+    issues.push(`${fieldPrefix}.column references unknown column ${entry.column}`)
+
+    return undefined
+  }
+
+  return { name: entry.name, column: column.name, enum: entry.enum }
 }
 
 function applyNameOverrides(
@@ -1341,6 +1366,12 @@ function renameTableColumnReferences(
       ...constraint,
       columns: constraint.columns.map(column => (column === oldColumnName ? newColumnName : column))
     }))
+  }
+
+  if (table.constraints?.check) {
+    table.constraints.check = table.constraints.check.map(constraint =>
+      constraint.column === oldColumnName ? { ...constraint, column: newColumnName } : constraint
+    )
   }
 
   if (table.indexes) {

@@ -92,7 +92,11 @@ Each projected table section contains:
 - a caution block when the source claim has `tentative: true`;
 - a column table;
 - a primary key section;
-- a foreign keys section when the projected table has foreign keys.
+- a foreign keys section when the projected table has foreign keys;
+- a unique constraints section when the projected table's `constraints.unique`
+  is non-empty;
+- a check constraints section when the projected table's `constraints.check`
+  is non-empty.
 
 Child tables created from array-of-objects detail paths use the nearest source
 claim for `reason`, `tentative`, and aliases.
@@ -159,6 +163,43 @@ Rules:
 - `Referenced Column` is that foreign key target column.
 - `Kind` is that foreign key `kind`.
 
+When the projected table's `constraints.unique` list is non-empty, it
+includes:
+
+```md
+### Unique Constraints
+
+| Constraint Name | Columns |
+| --- | --- |
+```
+
+Rules:
+
+- `Constraint Name` is the `name` of the projected table's `constraints.unique`
+  entry.
+- `Columns` is the comma-separated projected `columns` list of that entry.
+- Each `constraints.unique` entry is one row.
+
+When the projected table's `constraints.check` list is non-empty, it includes:
+
+```md
+### Check Constraints
+
+| Constraint Name | Column | Allowed Values |
+| --- | --- | --- |
+```
+
+Rules:
+
+- `Constraint Name` is the `name` of the projected table's `constraints.check`
+  entry.
+- `Column` is that entry's projected `column`.
+- `Allowed Values` is the comma-separated `enum` list of that entry.
+- Each `constraints.check` entry is one row.
+- Markdown table cell text in the unique constraints and check constraints
+  sections escapes backslashes, pipes, and underscores, the same as the column
+  table.
+
 ## DDL Section
 
 The document ends with:
@@ -181,6 +222,9 @@ Rules:
 - Columns with `nullable: true` omit `NOT NULL`.
 - Primary keys, foreign keys, unique constraints, and check constraints are
   rendered as table constraints inside `CREATE TABLE`.
+- Each `constraints.check[]` entry is rendered as
+  `CONSTRAINT <name> CHECK (<column> IN (<enum values, single-quoted and
+  comma-separated>))`.
 - Foreign key DDL references the projected target table and target column.
 - The DDL does not render indexes in this version; `indexes` are part of the
   Relational DB Projection but are not rendered as `CREATE INDEX` statements.
@@ -277,6 +321,20 @@ claims:
         - item quantity
     relations:
       customer: customer
+    x-relational-db-schema:
+      constraints:
+        unique:
+          - name: uq_orders_status_customer
+            columns:
+              - status
+              - customer
+        check:
+          - name: ck_orders_status
+            column: status
+            enum:
+              - pending
+              - shipped
+              - delivered
 ```
 
 OpenAPI excerpt:
@@ -356,6 +414,18 @@ and return its detail.
 | --- | --- | --- | --- | --- |
 | fk\_orders\_customer | customer | customers | id | explicit |
 
+### Unique Constraints
+
+| Constraint Name | Columns |
+| --- | --- |
+| uq\_orders\_status\_customer | status, customer |
+
+### Check Constraints
+
+| Constraint Name | Column | Allowed Values |
+| --- | --- | --- |
+| ck\_orders\_status | status | pending, shipped, delivered |
+
 ## order\_items
 
 Order state is needed after checkout so the service can create an order
@@ -390,7 +460,9 @@ CREATE TABLE orders (
   status VARCHAR(20) NOT NULL,
   customer CHAR(26) NOT NULL,
   CONSTRAINT pk_orders PRIMARY KEY (id),
-  CONSTRAINT fk_orders_customer FOREIGN KEY (customer) REFERENCES customers (id)
+  CONSTRAINT fk_orders_customer FOREIGN KEY (customer) REFERENCES customers (id),
+  CONSTRAINT uq_orders_status_customer UNIQUE (status, customer),
+  CONSTRAINT ck_orders_status CHECK (status IN ('pending', 'shipped', 'delivered'))
 );
 
 CREATE TABLE order_items (

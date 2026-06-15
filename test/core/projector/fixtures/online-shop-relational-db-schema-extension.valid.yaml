@@ -29,9 +29,6 @@ claims:
           - name: uq_customers_email
             columns:
               - email
-        check:
-          - name: ck_customers_email_not_empty
-            expression: "email_address <> ''"
       indexes:
         - name: ix_customers_name
           columns:
@@ -113,6 +110,13 @@ claims:
             columns:
               - status
               - orderedAt
+        check:
+          - name: ck_orders_status
+            column: status
+            enum:
+              - pending
+              - shipped
+              - delivered
       indexes:
         - name: ix_orders_customer
           columns:
@@ -120,6 +124,7 @@ claims:
       names:
         columns:
           order:
+            status: order_status
             orderedAt: order_placed_at
             customer: customer_ref
           "order.items[]":

@@ -48,12 +48,6 @@
             "name": "uq_customers_email",
             "columns": ["email_address"]
           }
-        ],
-        "check": [
-          {
-            "name": "ck_customers_email_not_empty",
-            "expression": "email_address <> ''"
-          }
         ]
       },
       "indexes": [
@@ -116,7 +110,7 @@
         },
         {
           "id": "status",
-          "name": "status",
+          "name": "order_status",
           "type": "VARCHAR(1024)"
         },
         {
@@ -147,7 +141,7 @@
           },
           {
             "name": "fk_orders_status_product",
-            "column": "status",
+            "column": "order_status",
             "target": {
               "table": "items_catalog",
               "column": "id"
@@ -160,7 +154,14 @@
         "unique": [
           {
             "name": "uq_orders_status_ordered_at",
-            "columns": ["status", "order_placed_at"]
+            "columns": ["order_status", "order_placed_at"]
+          }
+        ],
+        "check": [
+          {
+            "name": "ck_orders_status",
+            "column": "order_status",
+            "enum": ["pending", "shipped", "delivered"]
           }
         ]
       },

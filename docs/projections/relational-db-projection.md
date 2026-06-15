@@ -477,10 +477,9 @@ Rules:
 - `indexes` defines non-unique indexes, which may be composite (multiple
   columns).
 - `keys.foreign.columns`, `keys.foreign.references.columns`,
-  `constraints.unique.columns`, and `indexes.columns` reference columns, and
-  `keys.foreign.references.table` references a table, by projected identifier
-  (see Column References). `constraints.check.expression` is the one
-  exception: it is a raw SQL string using final rendered names.
+  `constraints.unique.columns`, `constraints.check.column`, and
+  `indexes.columns` reference columns, and `keys.foreign.references.table`
+  references a table, by projected identifier (see Column References).
 - Composite primary keys and composite foreign keys (more than one column on
   either side) are outside this version's scope. The override extension has no
   `keys.primary` member; the projection's surrogate `id` primary key
@@ -542,10 +541,11 @@ Rules:
 ### Column References
 
 `keys.foreign.columns`, `keys.foreign.references.columns`,
-`constraints.unique.columns`, and `indexes.columns` reference columns by
-**projected column `id`** — the same identifier space as `names.columns` (a
-source detail path, a relation source path, the reserved key `id` for the
-surrogate key column, or a generated structural foreign key column `id`).
+`constraints.unique.columns`, `constraints.check.column`, and
+`indexes.columns` reference columns by **projected column `id`** — the same
+identifier space as `names.columns` (a source detail path, a relation source
+path, the reserved key `id` for the surrogate key column, or a generated
+structural foreign key column `id`).
 `keys.foreign.references.table` references a table by **projected table ID**
 — the same identifier space as `names.tables` (the claim's own table ID, or a
 child table ID such as `order.items[]`).
@@ -557,11 +557,6 @@ before applying `names`, so these overrides are independent of `names` (see
 Application Order). A `keys.foreign`, `constraints`, or `indexes` entry that
 references a column `id` or table ID that does not exist among those projected
 tables and columns is a validation error.
-
-`constraints.check.expression` is the one exception to this convention: it is a
-raw SQL string using the table's final rendered (post-`names`) column names,
-because the projector cannot rewrite identifiers inside an opaque expression
-(see Constraint Overrides).
 
 ### Type Overrides
 
@@ -656,7 +651,11 @@ x-relational-db-schema:
   constraints:
     check:
       - name: ck_orders_status
-        expression: status IN ('pending', 'shipped', 'delivered')
+        column: status
+        enum:
+          - pending
+          - shipped
+          - delivered
 ```
 
 Rules:
@@ -664,10 +663,13 @@ Rules:
 - `constraints.unique` entries have `name` and `columns` (one or more projected
   column `id`s); they are always additive, since the projector does not
   otherwise generate unique constraints.
-- `constraints.check` entries have `name` and `expression` (a non-empty raw SQL
-  boolean expression, used as-is and rendered as `CHECK (expression)`); they
-  are always additive. `expression` uses the table's final rendered column
-  names (see Column References).
+- `constraints.check` entries have `name`, `column` (a single projected column
+  `id` on this table), and `enum` (one or more non-empty strings); they are
+  always additive, since the projector does not otherwise generate check
+  constraints. `column` follows the same Column References convention as
+  `constraints.unique.columns`. Rendering is
+  `CHECK (<column> IN (<enum values>))` (see the DDL Section in the Tables Doc
+  Command Specification for quoting rules).
 
 ### Index Overrides
 
@@ -702,12 +704,11 @@ of the previous step:
    and `constraints.check` from the override's `constraints.check` entries.
 4. Add `indexes` from the override's `indexes` entries.
 5. Apply `names.tables` and `names.columns` to determine the projected table
-   and column `name`s. `constraints.check.expression` is a raw SQL string that
-   assumes these final names and is not rewritten by this step. When a
-   `names.columns` entry renames a column, the new name also replaces that
-   column's name everywhere else it is used within the same table:
-   `keys.primary.columns`, `keys.foreign[].column`,
-   `constraints.unique[].columns`, and `indexes[].columns`.
+   and column `name`s. When a `names.columns` entry renames a column, the new
+   name also replaces that column's name everywhere else it is used within the
+   same table: `keys.primary.columns`, `keys.foreign[].column`,
+   `constraints.unique[].columns`, `constraints.check[].column`, and
+   `indexes[].columns`.
 
 After steps 1-5 have been applied for every claim that carries
 `x-relational-db-schema`, the projector makes one final pass over every

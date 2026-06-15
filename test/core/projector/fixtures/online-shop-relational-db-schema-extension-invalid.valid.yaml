@@ -33,10 +33,21 @@ claims:
         unknownConstraintMember: true
         unique: not-an-array
         check:
-          - name: ck_bad_expr
-            expression: ""
           - name: ""
-            expression: "1=1"
+            column: phoneNumber
+            enum:
+              - active
+          - name: ck_bad_column
+            column: doesNotExist
+            enum:
+              - active
+          - name: ck_empty_enum
+            column: phoneNumber
+            enum: []
+          - name: ck_bad_enum_value
+            column: phoneNumber
+            enum:
+              - ""
       indexes:
         - name: ix_bad_column
           columns:
