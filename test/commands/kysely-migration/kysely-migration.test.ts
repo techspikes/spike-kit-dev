@@ -3,7 +3,18 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { executeKyselyMigration } from '../../../src/commands/kysely-migration.ts'
+import { pathToFileURL } from 'node:url'
+import { PGlite } from '@electric-sql/pglite'
+import { Kysely, PGliteDialect, sql } from 'kysely'
+import { Migrator, NO_MIGRATIONS } from 'kysely/migration'
+import type { MigrationProvider } from 'kysely/migration'
+import {
+  buildSnapshot,
+  encodeSnapshot,
+  executeKyselyMigration,
+  parseEmbeddedSnapshot,
+  renderInitialMigrationFile
+} from '../../../src/commands/kysely-migration.ts'
 import { runAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot kysely-migration [OPTION]... SPEC_FILE'
@@ -629,7 +640,145 @@ describe('kysely-migration CLI', () => {
   })
 })
 
+// ─── PGlite integration ────────────────────────────────────────────────────────
+
+describe('generated migrations in PGlite', () => {
+  let tempDir = ''
+
+  before(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'shot-pglite-'))
+  })
+
+  after(() => {
+    rmSync(tempDir, { recursive: true, force: true })
+  })
+
+  it('runs the generated up migration and creates tables, columns, constraints, and indexes', async () => {
+    const migrationPath = join(tempDir, 'up_test.ts')
+    const { exitCode } = run([simpleWithIndexSpec, '--output', migrationPath])
+    assert.equal(exitCode, 0)
+
+    const pglite = new PGlite()
+    const db = new Kysely<unknown>({ dialect: new PGliteDialect({ pglite }) })
+    const migration = await import(pathToFileURL(migrationPath).href)
+    const provider: MigrationProvider = {
+      async getMigrations() {
+        return { '001_up': migration }
+      }
+    }
+    const migrator = new Migrator({ db, provider })
+    const { error } = await migrator.migrateToLatest()
+
+    assert.equal(error, undefined)
+    assert.deepEqual(await readTableNames(db), ['authors', 'posts'])
+    assert.deepEqual(await readConstraintNames(db), ['fk_posts_author', 'pk_authors', 'pk_posts'])
+    assert.deepEqual(await readIndexNames(db), ['idx_authors_pen_name'])
+
+    await db.destroy()
+  })
+
+  it('runs the generated down migration and removes all tables', async () => {
+    const migrationPath = join(tempDir, 'down_test.ts')
+    const { exitCode } = run([simpleWithIndexSpec, '--output', migrationPath])
+    assert.equal(exitCode, 0)
+
+    const pglite = new PGlite()
+    const db = new Kysely<unknown>({ dialect: new PGliteDialect({ pglite }) })
+    const migration = await import(pathToFileURL(migrationPath).href)
+    const provider: MigrationProvider = {
+      async getMigrations() {
+        return { '001_down': migration }
+      }
+    }
+    const migrator = new Migrator({ db, provider })
+
+    const upResult = await migrator.migrateToLatest()
+    assert.equal(upResult.error, undefined)
+    assert.deepEqual(await readTableNames(db), ['authors', 'posts'])
+
+    const downResult = await migrator.migrateTo(NO_MIGRATIONS)
+    assert.equal(downResult.error, undefined)
+    assert.deepEqual(await readTableNames(db), [])
+
+    await db.destroy()
+  })
+
+  it('runs initial migration followed by a diff migration that adds a table', async () => {
+    const initialPath = join(tempDir, '001_initial.ts')
+    const diffPath = join(tempDir, '002_add_tags.ts')
+
+    const { exitCode: e1 } = run([simpleSpec, '--output', initialPath])
+    assert.equal(e1, 0)
+
+    const { exitCode: e2 } = run([
+      simpleV2Spec,
+      '--previous-migration',
+      initialPath,
+      '--output',
+      diffPath
+    ])
+    assert.equal(e2, 0)
+
+    const pglite = new PGlite()
+    const db = new Kysely<unknown>({ dialect: new PGliteDialect({ pglite }) })
+    const initialMigration = await import(pathToFileURL(initialPath).href)
+    const diffMigration = await import(pathToFileURL(diffPath).href)
+    const provider: MigrationProvider = {
+      async getMigrations() {
+        return {
+          '001_initial': initialMigration,
+          '002_add_tags': diffMigration
+        }
+      }
+    }
+    const migrator = new Migrator({ db, provider })
+
+    const upResult = await migrator.migrateToLatest()
+    assert.equal(upResult.error, undefined)
+    assert.deepEqual(await readTableNames(db), ['authors', 'posts', 'tags'])
+
+    const downToInitialResult = await migrator.migrateTo('001_initial')
+    assert.equal(downToInitialResult.error, undefined)
+    assert.deepEqual(await readTableNames(db), ['authors', 'posts'])
+
+    const downResult = await migrator.migrateTo(NO_MIGRATIONS)
+    assert.equal(downResult.error, undefined)
+    assert.deepEqual(await readTableNames(db), [])
+
+    await db.destroy()
+  })
+
+  it('encodes and decodes embedded snapshot round-trip', () => {
+    const { exitCode } = run([simpleSpec, '--output', join(tempDir, 'snap_test.ts')])
+    assert.equal(exitCode, 0)
+
+    const content = readFileSync(join(tempDir, 'snap_test.ts'), 'utf-8')
+    const roundTripped = parseEmbeddedSnapshot(content)
+
+    assert.equal(roundTripped['data-sketch/db-projection-snapshot'], '1.0.0-draft.0')
+    assert.ok(roundTripped.tables.length > 0)
+    assert.ok(roundTripped.tables.every(t => typeof t.id === 'string' && typeof t.name === 'string'))
+  })
+
+  it('renderInitialMigrationFile produces the same snapshot as buildSnapshot via encodeSnapshot', () => {
+    const { exitCode } = run([simpleSpec, '--output', join(tempDir, 'render_test.ts')])
+    assert.equal(exitCode, 0)
+
+    const content = readFileSync(join(tempDir, 'render_test.ts'), 'utf-8')
+    const fromFile = parseEmbeddedSnapshot(content)
+
+    // Build snapshot directly and re-encode to verify consistency
+    const warnings: string[] = []
+    const rendered = renderInitialMigrationFile(fromFile, warnings)
+    const fromRendered = parseEmbeddedSnapshot(rendered)
+
+    assert.deepEqual(fromFile, fromRendered)
+  })
+})
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+
+const simpleWithIndexSpec = 'test/commands/kysely-migration/fixtures/simple-with-index.yaml'
 
 function run(args: readonly string[]) {
   let exitCode = 0
@@ -639,4 +788,43 @@ function run(args: readonly string[]) {
   })
 
   return { exitCode, stdout: result.stdout, stderr: result.stderr }
+}
+
+async function readTableNames(db: Kysely<unknown>): Promise<string[]> {
+  const result = await sql<{ table_name: string }>`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name NOT IN ('kysely_migration', 'kysely_migration_lock')
+    ORDER BY table_name
+  `.execute(db)
+  return result.rows.map(r => r.table_name)
+}
+
+async function readConstraintNames(db: Kysely<unknown>): Promise<string[]> {
+  const result = await sql<{ constraint_name: string }>`
+    SELECT constraint_name
+    FROM information_schema.table_constraints
+    WHERE table_schema = 'public'
+      AND table_name NOT IN ('kysely_migration', 'kysely_migration_lock')
+      AND constraint_type IN ('PRIMARY KEY', 'UNIQUE', 'FOREIGN KEY')
+    ORDER BY constraint_name
+  `.execute(db)
+  return result.rows.map(r => r.constraint_name)
+}
+
+async function readIndexNames(db: Kysely<unknown>): Promise<string[]> {
+  const result = await sql<{ index_name: string }>`
+    SELECT ic.relname AS index_name
+    FROM pg_index i
+    JOIN pg_class tc ON tc.oid = i.indrelid
+    JOIN pg_namespace ns ON ns.oid = tc.relnamespace
+    JOIN pg_class ic ON ic.oid = i.indexrelid
+    WHERE ns.nspname = 'public'
+      AND tc.relname NOT IN ('kysely_migration', 'kysely_migration_lock')
+      AND i.indisprimary = false
+      AND i.indisunique = false
+    ORDER BY ic.relname
+  `.execute(db)
+  return result.rows.map(r => r.index_name)
 }

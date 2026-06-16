@@ -129,7 +129,7 @@ export function executeKyselyMigration(args: readonly string[]) {
     if (previousMigration) {
       const prevContent = readFileSync(resolveCwdRelativePath(previousMigration), 'utf-8')
       console.log('Previous migration read')
-      beforeSnapshot = readEmbeddedSnapshot(prevContent)
+      beforeSnapshot = parseEmbeddedSnapshot(prevContent)
       console.log('Previous DB projection snapshot parsed')
     }
 
@@ -310,7 +310,7 @@ export function buildSnapshot(
 
 // ─── Snapshot encoding/decoding ───────────────────────────────────────────────
 
-function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: string): string {
+export function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: string): string {
   const json = canonicalizeJson(snapshot)
   const compressed = gzipSync(Buffer.from(json, 'utf-8'))
   const b64 = compressed.toString('base64')
@@ -334,7 +334,7 @@ function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: string): st
   ].join('\n')
 }
 
-function readEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
+export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
   const lines = fileContent.split('\n')
   let inBlock = false
   const blockLines: string[] = []
