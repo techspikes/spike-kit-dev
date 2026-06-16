@@ -125,9 +125,9 @@ Rules:
   it is `no`.
 - `Description` is the comma-separated aliases for the source detail path when
   aliases are available; otherwise it is empty.
-- The implicit surrogate key column `id` always has an empty description.
-  `id` is a reserved identity detail path and cannot appear in `details` or
-  `aliases`, so it never has aliases.
+- The implicit surrogate key column `id` always has the fixed description
+  `Auto-assigned surrogate key`. `id` is a reserved identity detail path and
+  cannot appear in `details` or `aliases`, so it never has user-defined aliases.
 - Markdown table cell text escapes backslashes, pipes, and underscores.
 
 ## Constraint Sections
@@ -398,7 +398,7 @@ and return its detail.
 
 | Column | Data Type | Nullable | Description |
 | --- | --- | --- | --- |
-| id | CHAR(26) | no |  |
+| id | CHAR(26) | no | Auto-assigned surrogate key |
 | status | VARCHAR(20) | no | order status |
 | customer | CHAR(26) | no | order customer |
 
@@ -436,7 +436,7 @@ and return its detail.
 
 | Column | Data Type | Nullable | Description |
 | --- | --- | --- | --- |
-| id | CHAR(26) | no |  |
+| id | CHAR(26) | no | Auto-assigned surrogate key |
 | order | CHAR(26) | no |  |
 | quantity | INTEGER | no | item quantity |
 

@@ -20,6 +20,8 @@ paths:
                 name:
                   type: string
                   maxLength: 100
+                phone:
+                  type: string
       responses:
         '201':
           description: Customer created

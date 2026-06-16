@@ -3,19 +3,17 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import {
-  canonicalizeJson,
-  executeTableDoc,
-  renderTablesDoc
-} from '../../../src/commands/tables-doc.ts'
-import { parse } from '../../../src/core/parser.ts'
-import { validate } from '../../../src/core/validator.ts'
+import { executeTableDoc } from '../../../src/commands/tables-doc.ts'
+import { parse, renderTablesDoc, validate } from '../../../src/index.ts'
 import { runAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot tables-doc [OPTION]... SPEC_FILE'
 const fixtureSpec = 'test/commands/tables-doc/fixtures/online-shop.yaml'
+const escapingSpec = 'test/commands/tables-doc/fixtures/escaping.yaml'
 
-describe('tables-doc command', () => {
+// ─── CLI behaviour ─────────────────────────────────────────────────────────────
+
+describe('tables-doc CLI', () => {
   let tempDir = ''
 
   before(() => {
@@ -58,7 +56,7 @@ describe('tables-doc command', () => {
     assert.deepEqual(stderr, [])
   })
 
-  it('Given a valid spec file, When the command executes, Then it writes a Markdown document to the output file', () => {
+  it('Given a valid spec file, When the command executes, Then it writes a complete Markdown document', () => {
     const outputPath = join(tempDir, 'output.md')
     const { exitCode, stdout, stderr } = run([fixtureSpec, '--output', outputPath])
 
@@ -68,29 +66,48 @@ describe('tables-doc command', () => {
 
     const content = readFileSync(outputPath, 'utf-8')
 
+    // frontmatter
     assert.match(content, /^---\n/)
     assert.match(content, /\nsource: online-shop\.yaml\n/)
     assert.match(content, /\nsha256: [0-9a-f]{64}\n/)
     assert.match(content, /\ngenerated_at: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
     assert.match(content, /---\n\n# online-shop\n/)
 
+    // table sections present
     assert.match(content, /\n## customers\n/)
     assert.match(content, /\n## orders\n/)
-    assert.match(content, /> \[!CAUTION\]\n> This table is tentative and needs human review\./)
     assert.match(content, /\n## order_items\n/)
 
-    assert.match(content, /\| Column \| Data Type \| Nullable \| Description \|/)
+    // tentative caution only on orders
+    assert.match(content, /> \[!CAUTION\]\n> This table is tentative and needs human review\./)
+
+    // surrogate key fixed description
     assert.match(content, /\| id \| CHAR\(26\) \| no \| Auto-assigned surrogate key \|/)
 
+    // nullable column (phone is optional in OpenAPI)
+    assert.match(content, /\| phone \| VARCHAR\(1024\) \| yes \|/)
+
+    // aliases rendered in description
     assert.match(content, /order status/)
     assert.match(content, /item quantity/)
 
+    // constraint sections on orders
     assert.match(content, /### Primary Key/)
     assert.match(content, /### Foreign Keys/)
     assert.match(content, /### Unique Constraints/)
     assert.match(content, /### Check Constraints/)
-    assert.match(content, /\| ck\\_orders\\_status \| status \| pending, shipped, delivered \|/)
 
+    // customers table has no FK / unique / check sections
+    const customersSection = content.slice(
+      content.indexOf('\n## customers\n'),
+      content.indexOf('\n## orders\n')
+    )
+
+    assert.ok(!customersSection.includes('### Foreign Keys'))
+    assert.ok(!customersSection.includes('### Unique Constraints'))
+    assert.ok(!customersSection.includes('### Check Constraints'))
+
+    // DDL
     assert.match(content, /\n## DDL\n\n```sql\n/)
     assert.match(content, /CREATE TABLE orders \(/)
     assert.match(
@@ -101,12 +118,23 @@ describe('tables-doc command', () => {
     assert.match(content, /\n```\n$/)
   })
 
-  it('Given a valid spec file, When the command executes with -o, Then it writes the same output as --output', () => {
+  it('Given a valid spec file, When the command executes with -o, Then it writes to the output file', () => {
     const outputPath = join(tempDir, 'short-flag.md')
     const { exitCode, stderr } = run([fixtureSpec, '-o', outputPath])
 
     assert.equal(exitCode, 0)
     assert.deepEqual(stderr, [])
+
+    const content = readFileSync(outputPath, 'utf-8')
+
+    assert.match(content, /^---\n/)
+  })
+
+  it('Given an existing output file, When the command executes, Then it overwrites the file', () => {
+    const outputPath = join(tempDir, 'overwrite.md')
+
+    run([fixtureSpec, '-o', outputPath])
+    run([fixtureSpec, '-o', outputPath])
 
     const content = readFileSync(outputPath, 'utf-8')
 
@@ -127,6 +155,68 @@ describe('tables-doc command', () => {
     assert.equal(sha1, sha2)
   })
 
+  it('Given two specs with identical content but different key order, When the command executes, Then sha256 values match', () => {
+    const outputPath1 = join(tempDir, 'sha256-key-ordered.md')
+    const outputPath2 = join(tempDir, 'sha256-key-reordered.md')
+
+    run([escapingSpec, '-o', outputPath1])
+    run(['test/commands/tables-doc/fixtures/escaping.reordered.yaml', '-o', outputPath2])
+
+    const sha1 = extractSha256(readFileSync(outputPath1, 'utf-8'))
+    const sha2 = extractSha256(readFileSync(outputPath2, 'utf-8'))
+
+    assert.ok(sha1, 'sha256 should be present')
+    assert.equal(sha1, sha2)
+  })
+
+  it('Given a spec without an OpenAPI source, When the command executes, Then detail columns use the VARCHAR(1024) fallback type', () => {
+    const outputPath = join(tempDir, 'no-openapi.md')
+    const { exitCode, stderr } = run([
+      'test/commands/tables-doc/fixtures/no-openapi.yaml',
+      '--output',
+      outputPath
+    ])
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(stderr, [])
+
+    const content = readFileSync(outputPath, 'utf-8')
+
+    assert.match(content, /\| name \| VARCHAR\(1024\) \| no \|/)
+    assert.match(content, /\| email \| VARCHAR\(1024\) \| no \|/)
+  })
+
+  it('Given a spec with special characters in aliases and enum values, When the command executes, Then cell text and DDL are correctly escaped', () => {
+    const outputPath = join(tempDir, 'escaping.md')
+    const { exitCode, stderr } = run([escapingSpec, '--output', outputPath])
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(stderr, [])
+
+    const content = readFileSync(outputPath, 'utf-8')
+
+    // pipe in alias → \| in Markdown cell
+    assert.ok(content.includes('pipe\\|alias'), 'pipe in alias should be escaped in cell')
+
+    // backslash in alias → \\ in Markdown cell
+    assert.ok(content.includes('back\\\\slash'), 'backslash in alias should be escaped in cell')
+
+    // constraint name underscores → \_ in Markdown cell
+    assert.ok(
+      content.includes('ck\\_items\\_status'),
+      'underscores in constraint name should be escaped'
+    )
+
+    // pipe in enum → \| in Allowed Values cell
+    assert.ok(content.includes('pipe\\|enum'), 'pipe in enum should be escaped in Markdown cell')
+
+    // single quote in enum → '' in DDL (SQL string literal escape)
+    assert.ok(content.includes("'O''Brien'"), 'single quote in enum should be doubled in DDL')
+
+    // pipe in enum value is NOT escaped in DDL (only SQL rules apply)
+    assert.ok(content.includes("'pipe|enum'"), 'pipe in enum should be unescaped in DDL')
+  })
+
   it('Given a non-existent spec file, When the command executes, Then it prints an error to stderr and returns a non-zero exit code', () => {
     const outputPath = join(tempDir, 'error.md')
     const { exitCode, stdout, stderr } = run(['nonexistent.yaml', '--output', outputPath])
@@ -137,56 +227,40 @@ describe('tables-doc command', () => {
   })
 })
 
-describe('canonicalizeJson', () => {
-  it('sorts object keys in UTF-16 order', () => {
-    const result = canonicalizeJson({ b: 1, a: 2 })
+// ─── Library contract ──────────────────────────────────────────────────────────
 
-    assert.equal(result, '{"a":2,"b":1}')
-  })
-
-  it('preserves array element order', () => {
-    const result = canonicalizeJson([3, 1, 2])
-
-    assert.equal(result, '[3,1,2]')
-  })
-
-  it('handles null', () => {
-    assert.equal(canonicalizeJson(null), 'null')
-  })
-
-  it('handles nested objects', () => {
-    const result = canonicalizeJson({ z: { b: 1, a: 2 }, a: [{ c: 3, b: 4 }] })
-
-    assert.equal(result, '{"a":[{"b":4,"c":3}],"z":{"a":2,"b":1}}')
-  })
-})
-
-describe('renderTablesDoc', () => {
-  it('Given a spec with a nullable column, When rendered, Then the column shows nullable: yes', () => {
-    const sketch = parse({
-      path: fixtureSpec
-    })
+describe('renderTablesDoc library contract', () => {
+  it('Given an optional OpenAPI field, When renderTablesDoc is called, Then the column shows Nullable: yes', () => {
+    const sketch = parse({ path: fixtureSpec })
     const validated = validate({ sketch, trace: true })
     const projection = validated.projections.relationalDb()
+    const content = renderTablesDoc(validated.spec, projection, fixtureSpec)
 
-    const nullableProjection = {
-      ...projection,
-      tables: {
-        ...projection.tables,
-        customer: {
-          ...projection.tables.customer,
-          columns: projection.tables.customer.columns.map(col =>
-            col.name === 'name' ? { ...col, nullable: true as const } : col
-          )
-        }
-      }
-    }
+    // phone is not required in OpenAPI → nullable: true in projection
+    assert.match(content, /\| phone \| VARCHAR\(1024\) \| yes \|/)
+  })
 
-    const content = renderTablesDoc(validated.spec, nullableProjection, 'test.yaml')
+  it('Given aliases with pipe and backslash, When renderTablesDoc is called, Then cell text is escaped', () => {
+    const sketch = parse({ path: escapingSpec })
+    const validated = validate({ sketch, trace: true })
+    const projection = validated.projections.relationalDb()
+    const content = renderTablesDoc(validated.spec, projection, escapingSpec)
 
-    assert.match(content, /\| name \| VARCHAR\(100\) \| yes \|/)
+    assert.ok(content.includes('pipe\\|alias'), 'pipe in alias should be escaped')
+    assert.ok(content.includes('back\\\\slash'), 'backslash in alias should be escaped')
+  })
+
+  it('Given an enum value with a single quote, When renderTablesDoc is called, Then the DDL uses SQL-escaped literals', () => {
+    const sketch = parse({ path: escapingSpec })
+    const validated = validate({ sketch, trace: true })
+    const projection = validated.projections.relationalDb()
+    const content = renderTablesDoc(validated.spec, projection, escapingSpec)
+
+    assert.ok(content.includes("'O''Brien'"), 'single quote should be doubled in DDL')
   })
 })
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function run(args: readonly string[]) {
   let exitCode = 0

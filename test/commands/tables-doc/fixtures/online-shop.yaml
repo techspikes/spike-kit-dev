@@ -15,6 +15,7 @@ claims:
         - createCustomer
     details:
       - name
+      - phone
 
   order:
     name: orders

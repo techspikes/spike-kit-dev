@@ -210,7 +210,7 @@ function renderCreateTable(table: RelationalDbProjection['tables'][string]): str
   ]
 }
 
-export function canonicalizeJson(value: unknown): string {
+function canonicalizeJson(value: unknown): string {
   if (value === null || typeof value !== 'object') {
     return JSON.stringify(value)
   }

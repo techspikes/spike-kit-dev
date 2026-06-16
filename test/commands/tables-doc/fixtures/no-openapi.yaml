@@ -1,0 +1,15 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: no-openapi-shop
+
+claims:
+  customer:
+    name: customers
+    reason: Customer data stored without an OpenAPI source.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+      - email
