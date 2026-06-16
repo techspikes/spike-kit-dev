@@ -4,28 +4,33 @@
 
 `shot kysely-migration [OPTION]... SPEC_FILE --output MIGRATION_FILE` validates a Data
 Sketch Specification v1 YAML or JSON file and writes a Kysely-compatible TypeScript
-migration file.
+initial migration or diff migration file.
 
 The command is a renderer for the validated Data Sketch Relational DB Projection. It
-generates an initial TypeScript migration suitable for use with the `kysely` npm
-package's `Migrator`.
+generates TypeScript migrations suitable for use with the `kysely` npm package's
+`Migrator`.
 
 ## Usage
 
 ```sh
 shot kysely-migration [OPTION]... SPEC_FILE --output MIGRATION_FILE
 shot kysely-migration [OPTION]... SPEC_FILE -o MIGRATION_FILE
+shot kysely-migration [OPTION]... SPEC_FILE --previous-migration PREV_FILE --output MIGRATION_FILE
+shot kysely-migration [OPTION]... SPEC_FILE -p PREV_FILE --output MIGRATION_FILE
 ```
 
 ## Options
 
 - `-o, --output MIGRATION_FILE`: output TypeScript file path. Required.
+- `-p, --previous-migration PREV_FILE`: read the embedded snapshot from a previously
+  generated migration file and generate a diff migration against the current projection.
+  Without this option, the command generates an initial migration.
 - `--types-output TYPES_FILE`: write a separate TypeScript declaration file containing
   `export interface Database`. The path must end with `.d.ts`.
 - `--include-tentative`: explicitly include tables from claims with `tentative: true`.
   Without this option, tentative claims are excluded and reported as warnings.
-- `--dry-run`: perform read, parse, validation, projection, and render validation, but
-  write no files. Exits with status `0` on success.
+- `--dry-run`: perform read, parse, validation, projection, previous snapshot reading,
+  and render validation, but write no files. Exits with status `0` on success.
 - `-h, --help`: print usage to stdout and exit with status `0`.
 
 ## Behavior
@@ -34,16 +39,21 @@ shot kysely-migration [OPTION]... SPEC_FILE -o MIGRATION_FILE
   exit code 0.
 - When `SPEC_FILE` is not provided, or `--output` is not provided, the command prints
   usage to stderr and returns a non-zero exit code.
-- When `SPEC_FILE` is valid, the command parses and validates it with trace validation
-  enabled, builds the Relational DB Projection, renders a Kysely TypeScript migration,
-  writes it to `MIGRATION_FILE`, and returns exit code 0.
+- When `SPEC_FILE` is valid and `--previous-migration` is not provided, the command
+  generates an initial migration, writes it to `MIGRATION_FILE`, and returns exit
+  code 0.
+- When `--previous-migration` is provided, the command reads the embedded snapshot
+  from `PREV_FILE`, generates a diff migration from the before snapshot to the current
+  projection snapshot, writes it to `MIGRATION_FILE`, and returns exit code 0.
 - When `MIGRATION_FILE` already exists, the command overwrites it.
 - When `--types-output` is provided, the command writes the `Database` interface
-  declaration file after writing `MIGRATION_FILE`.
+  declaration file after writing `MIGRATION_FILE`. In diff migration mode,
+  `--types-output` renders the type file from the after (current) projection snapshot.
 - When `--dry-run` is provided, the command performs all steps except writing files.
   On success it prints `Dry run completed` and exits with status 0.
-- When parsing, validation, projection, or rendering fails, the command prints the
-  error message to stderr and returns a non-zero exit code. No partial file is written.
+- When parsing, validation, projection, previous snapshot reading, or rendering fails,
+  the command prints the error message to stderr and returns a non-zero exit code. No
+  partial file is written.
 - Warnings do not change the exit code.
 
 ## Rendering Inputs
@@ -68,9 +78,230 @@ to stderr:
 Warning: Tentative claim excluded from migration: <table-name>
 ```
 
+## DB Projection Snapshot
+
+The DB Projection Snapshot is a normalized JSON model of the Relational DB Projection
+state. It is embedded in every generated migration file and type file for use as the
+`--previous-migration` before snapshot in a future diff migration.
+
+```ts
+type DbProjectionSnapshot = {
+  'data-sketch/db-projection-snapshot': '1.0.0-draft.0'
+  tables: SnapshotTable[]
+}
+
+type SnapshotTable = {
+  id: string                       // projection table key: claim ID, or "claimId.path" for child tables
+  name: string                     // projected physical table name
+  columns: SnapshotColumn[]
+  primaryKey: SnapshotNamedColumns // always present (surrogate id)
+  uniqueConstraints: SnapshotNamedColumns[]
+  foreignKeys: SnapshotForeignKey[]
+  indexes: SnapshotIndex[]
+  checkConstraints: SnapshotCheckConstraint[]
+}
+
+type SnapshotColumn = {
+  id: string      // detail path string (e.g., 'status', 'items[].quantity'); 'id' for the surrogate key
+  name: string    // projected physical column name
+  type: string    // SQL type string from projection (e.g., 'CHAR(26)', 'VARCHAR(20)')
+  nullable: boolean
+}
+
+type SnapshotNamedColumns = {
+  name: string
+  columns: string[]  // physical column names
+}
+
+type SnapshotForeignKey = {
+  name: string
+  column: string  // physical column name
+  target: {
+    table: string   // physical table name
+    column: string  // physical column name
+  }
+}
+
+type SnapshotIndex = {
+  name: string
+  columns: string[]  // physical column names
+}
+
+type SnapshotCheckConstraint = {
+  name: string
+  column: string   // physical column name
+  enum: string[]
+}
+```
+
+Rules:
+
+- `tables` are listed in dependency order (same order as `up`).
+- `columns` are listed in projected order, with `id` first.
+- Table `id` values use the Relational DB Projection table key. For root tables this is
+  the claim ID. For child tables generated from array-of-objects detail paths this is
+  `"<claimId>.<path>"`.
+- Column `id` values use the canonical detail path string from the Data Sketch. The
+  surrogate key column always uses `'id'`.
+- Table and column references (in constraints, FKs, and indexes) use resolved physical
+  names, not logical IDs.
+- Empty collections are represented as empty arrays, not omitted.
+
+## Embedded Snapshot
+
+Every generated migration file and type file begins with an embedded DB Projection
+Snapshot metadata block, encoding the after snapshot.
+
+Encoding:
+
+1. JSON-serialize the snapshot with object keys sorted in ascending UTF-16 code unit
+   order at every nesting level. Arrays preserve element order. No insignificant
+   whitespace. (Same normalization as the `sha256` field in `tables-doc`.)
+2. Encode the compact JSON as UTF-8 bytes.
+3. gzip the UTF-8 bytes.
+4. base64-encode the gzip bytes, wrapping at 76 characters per line.
+5. Write the base64 text as a `payload` value in a line-commented YAML-style front
+   matter block at the top of the file.
+
+```ts
+// ---
+// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0
+// generated_at: <UTC ISO 8601>
+// payload: |
+//   <base64 chunk>
+//   <base64 chunk>
+// ---
+```
+
+`generated_at` is the UTC ISO 8601 generation timestamp.
+`data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0` is the fixed embedded
+snapshot identifier. Version `1.0.0-draft.0` uses gzip+base64 as its fixed payload
+encoding.
+
+When reading a `--previous-migration` file, the snapshot reader scans the full source
+for line-commented YAML front matter blocks delimited by `// ---`, strips the leading
+`// ` comment marker, and parses each candidate block as YAML. The first block with
+`data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0` and a string `payload`
+value is the embedded snapshot. Other comments before or after the block are ignored.
+The command accepts only snapshots with the `1.0.0-draft.0` identifier.
+
+## Diff Migration
+
+A diff migration compares the embedded snapshot in the file passed to
+`--previous-migration` (the before snapshot) with the snapshot generated from the
+current Data Sketch (the after snapshot).
+
+Diff comparison covers:
+
+- table additions and deletions
+- column additions, deletions, type changes, and nullable changes
+- primary key additions, deletions, and changes
+- unique constraint additions, deletions, and changes
+- foreign key additions, deletions, and changes
+- non-unique index additions, deletions, and changes
+
+The command does not infer renames. It treats projection table keys (claim IDs) and
+column detail path IDs as stable logical identifiers:
+
+- When the same table `id` has a different `name` in the after snapshot, the command
+  generates a table rename.
+- When the same table `id` contains the same column `id` with a different `name`, the
+  command generates a column rename.
+- When a logical `id` disappears and a new one appears, the command generates a
+  deletion and an addition, not a rename, even when physical names look similar.
+- Constraints and indexes have no logical IDs; name changes are treated as a deletion
+  plus an addition.
+
+To request a data-preserving physical rename in a diff migration, keep the Data Sketch
+claim key or detail path unchanged and change only the `x-relational-db-schema`
+`names.tables` or `names.columns` override value.
+
+Potentially destructive diffs — deletions, column type changes, nullable changes — are
+generated without an additional opt-in flag. `up` moves from the before snapshot to the
+after snapshot. `down` moves from the after snapshot back to the before snapshot.
+
+Check constraint diffs are not rendered. The command emits a warning for each check
+constraint that is added or removed in the diff, matching initial migration behavior.
+
+The embedded snapshot in the generated diff migration file contains the after snapshot.
+
+### Diff Operation Order
+
+`up` renders diff operations in this fixed order:
+
+1. Drop non-unique indexes that are removed or changed.
+2. Drop unique constraints, foreign keys, and primary keys that are removed or changed,
+   using `alterTable(...).dropConstraint(name)`.
+3. Rename tables using `renameTable(oldName, newName)`.
+4. Rename columns using `alterTable(...).renameColumn(oldName, newName)`.
+5. Drop columns that are removed, using `alterTable(...).dropColumn(name)`.
+6. Drop tables that are removed, in reverse dependency order.
+7. Alter existing columns that have type or nullable changes, using
+   `alterTable(...).alterColumn(name, builder)`.
+8. Add new tables, in dependency order, using the same `createTable` form as initial
+   migrations.
+9. Add new columns to existing tables, using `alterTable(...).addColumn(name, type, builder?)`.
+10. Add new or changed primary keys, foreign keys, and unique constraints using
+    `alterTable(...).addPrimaryKeyConstraint`, `.addForeignKeyConstraint`,
+    `.addUniqueConstraint`.
+11. Add new or changed non-unique indexes using `createIndex`.
+
+`down` renders the same diff in the opposite direction, returning from the after
+snapshot to the before snapshot, using the same operation order applied to the reversed
+diff.
+
+### Diff `up` and `down` Form
+
+```ts
+export async function up(db: Kysely<MigrationDatabase>): Promise<void> {
+  // Step 1-2: drop removed/changed indexes and constraints
+  await db.schema.dropIndex('<index-name>').execute()
+  await db.schema.alterTable('<table>').dropConstraint('<constraint-name>').execute()
+
+  // Step 3-4: renames
+  await db.schema.renameTable('<old-table>', '<new-table>').execute()
+  await db.schema.alterTable('<table>').renameColumn('<old-col>', '<new-col>').execute()
+
+  // Step 5-6: drops
+  await db.schema.alterTable('<table>').dropColumn('<col>').execute()
+  await db.schema.dropTable('<removed-table>').execute()
+
+  // Step 7: alter columns
+  await db.schema
+    .alterTable('<table>')
+    .alterColumn('<col>', col => col.setDataType('<new-type>').setNotNull())
+    .execute()
+
+  // Step 8: add new tables (same form as initial migration)
+  await db.schema.createTable('<new-table>')...execute()
+
+  // Step 9: add new columns
+  await db.schema
+    .alterTable('<table>')
+    .addColumn('<new-col>', '<type>', col => col.notNull())
+    .execute()
+
+  // Steps 10-11: add new/changed constraints and indexes
+  await db.schema.alterTable('<table>').addPrimaryKeyConstraint('<pk>', ['id']).execute()
+  await db.schema.alterTable('<table>').addForeignKeyConstraint('<fk>', ['<col>'], '<ref-table>', ['id']).execute()
+  await db.schema.alterTable('<table>').addUniqueConstraint('<uq>', ['<col>']).execute()
+  await db.schema.createIndex('<index-name>').on('<table>').columns(['<col>']).execute()
+}
+```
+
+Within each step, operations are applied in dependency order (tables referenced by
+foreign keys before tables that reference them, or in reverse for deletions).
+
+`MigrationDatabase` in a diff migration reflects the after snapshot schema. The diff
+`up` function migrates from the before to the after schema using `MigrationDatabase`.
+The diff `down` function uses an analogous `MigrationDatabase` reflecting the before
+snapshot schema.
+
 ## TypeScript Output
 
-The generated file begins with an embedded snapshot metadata block, followed by the
+### Initial Migration
+
+The generated file begins with the embedded snapshot metadata block, followed by the
 Kysely import, a local `MigrationDatabase` interface, and the exported `up` and `down`
 functions.
 
@@ -100,36 +331,6 @@ export async function down(db: Kysely<MigrationDatabase>): Promise<void> {
 }
 ```
 
-## Embedded Snapshot
-
-The embedded snapshot block at the top of the file preserves the Relational DB
-Projection state for future diff migration support.
-
-Encoding:
-
-1. Normalize the Relational DB Projection to compact JSON with object keys sorted in
-   ascending UTF-16 code unit order at every nesting level. Arrays preserve element
-   order. (Same normalization as the `sha256` field in `tables-doc`.)
-2. Encode the compact JSON as UTF-8 bytes.
-3. gzip the UTF-8 bytes.
-4. base64-encode the gzip bytes, wrapping at 76 characters per line.
-5. Write the base64 text as a `payload` value in a line-commented YAML-style front
-   matter block at the top of the file.
-
-```ts
-// ---
-// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0
-// generated_at: 2026-06-16T00:00:00.000Z
-// payload: |
-//   <base64 chunk>
-//   <base64 chunk>
-// ---
-```
-
-`generated_at` is the UTC ISO 8601 generation timestamp.
-`data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0` is the fixed embedded
-snapshot identifier.
-
 ## MigrationDatabase Interface
 
 The local `MigrationDatabase` interface maps each projected table and its columns to
@@ -146,10 +347,12 @@ SQL type to TypeScript type mapping:
 
 Nullable columns (`nullable: true`) append ` | null` to the TypeScript type.
 
-Tables are listed in dependency order (same order as `up`). Columns are listed in
-projected order, with `id` first.
+In an initial migration, tables are listed in dependency order. In a diff migration,
+`MigrationDatabase` for `up` reflects the after snapshot schema; tables are listed in
+after-snapshot dependency order. `MigrationDatabase` for `down` reflects the before
+snapshot schema.
 
-## `up` Function
+## `up` Function (Initial Migration)
 
 The `up` function creates all tables and indexes in dependency order. Tables referenced
 by foreign keys are created before tables that reference them.
@@ -191,14 +394,11 @@ await db.schema
   .execute()
 ```
 
-- Index columns are in the order defined in the projection.
-
-## `down` Function
+## `down` Function (Initial Migration)
 
 The `down` function drops indexes and tables in the reverse of `up` order.
 
-Indexes are dropped before tables. Tables are dropped in reverse dependency order
-(the reverse of their creation order).
+Indexes are dropped before tables. Tables are dropped in reverse dependency order.
 
 ```ts
 await db.schema.dropIndex('<index-name>').execute()
@@ -207,16 +407,20 @@ await db.schema.dropTable('<table>').execute()
 
 ## Check Constraint Warning
 
-The command does not render check constraints from `constraints.check`. Kysely's
-portable schema builder does not support check constraints without the `sql` template
-tag, and this command does not use the `sql` template tag.
+The command does not render check constraints from `constraints.check` in either
+initial or diff migrations. Kysely's portable schema builder does not support check
+constraints without the `sql` template tag, and this command does not use the `sql`
+template tag.
 
-For each check constraint present in the projection, the command writes a warning to
-stderr:
+For each check constraint present in the after projection, the command writes a warning
+to stderr:
 
 ```
 Warning: Check constraint ignored by migration renderer: <table-name>.<constraint-name>
 ```
+
+In diff migration mode, the command also warns for check constraints that are added or
+removed in the diff.
 
 Check constraints remain visible in the `tables-doc` Markdown output and DDL section.
 
@@ -238,18 +442,27 @@ export interface Database {
 ```
 
 The `Database` interface uses the same type mapping, column order, and table order as
-`MigrationDatabase`.
+`MigrationDatabase` for `up`. In diff migration mode, `--types-output` renders the type
+file from the after (current) projection snapshot.
 
 ## SQL and Kysely Compatibility
 
 Generated migrations target SQL92-compatible DDL through Kysely schema builder APIs.
 
-The command does not use the Kysely `sql` template tag. Generated migrations are
-compatible with all standard Kysely dialects.
+The command does not use the Kysely `sql` template tag. Diff migrations that cannot be
+expressed through Kysely schema builder APIs are rejected during rendering with a
+non-zero exit code.
+
+Rejected in this version:
+
+- Column `alterColumn` type or nullable changes that Kysely cannot express portably
+  (these are generated but flagged as requiring dialect-specific support in the
+  rendered comment).
+- Any diff operation that requires raw SQL.
 
 ## Progress Output
 
-Successful generation reports progress to stdout:
+Successful initial migration generation reports to stdout:
 
 ```
 Data Sketch read
@@ -263,19 +476,39 @@ Migration generated
 
 `Type definitions written` is emitted only when `--types-output` is used.
 
+Successful diff migration generation also reports these steps after reading `PREV_FILE`:
+
+```
+Data Sketch read
+Validating Data Sketch
+Building Relational DB Projection
+Previous migration read
+Previous DB projection snapshot parsed
+Rendering diff migration
+Migration written
+Type definitions written
+Migration generated
+```
+
 Successful dry-run reports:
 
 ```
 Data Sketch read
 Validating Data Sketch
 Building Relational DB Projection
+[Previous migration read]
+[Previous DB projection snapshot parsed]
 Rendering migration
 Dry run completed
 ```
 
+Lines in brackets are emitted only when `--previous-migration` is used.
+
 Argument errors write `Error: <reason>`, a blank line, and usage text to stderr.
 
 ## Example
+
+### Initial Migration
 
 Command:
 
@@ -353,4 +586,60 @@ Warnings emitted to stderr for the `ck_orders_status` check constraint:
 
 ```
 Warning: Check constraint ignored by migration renderer: orders.ck_orders_status
+```
+
+### Diff Migration
+
+Scenario: a new `note` claim (`notes` table) is added to the spec, and
+`orders.status` is widened from `VARCHAR(20)` to `VARCHAR(50)` via a type override.
+
+Command:
+
+```sh
+shot kysely-migration online-shop-v2.yaml --previous-migration 0001_initial.ts --output 0002_add_notes.ts
+```
+
+Output excerpt:
+
+```ts
+// ---
+// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0
+// generated_at: 2026-06-16T01:00:00.000Z
+// payload: |
+//   <base64>
+// ---
+
+import type { Kysely } from 'kysely'
+
+interface MigrationDatabase {
+  'customers': { 'id': string; 'name': string }
+  'notes': { 'id': string; 'body': string }
+  'orders': { 'id': string; 'status': string; 'customer': string }
+  'order_items': { 'id': string; 'order': string; 'quantity': number }
+}
+
+export async function up(db: Kysely<MigrationDatabase>): Promise<void> {
+  // Step 7: alter changed column
+  await db.schema
+    .alterTable('orders')
+    .alterColumn('status', col => col.setDataType('varchar(50)'))
+    .execute()
+
+  // Step 8: add new table
+  await db.schema
+    .createTable('notes')
+    .addColumn('id', 'char(26)', column => column.notNull())
+    .addColumn('body', 'text', column => column.notNull())
+    .addPrimaryKeyConstraint('pk_notes', ['id'])
+    .execute()
+}
+
+export async function down(db: Kysely<MigrationDatabase>): Promise<void> {
+  await db.schema.dropTable('notes').execute()
+
+  await db.schema
+    .alterTable('orders')
+    .alterColumn('status', col => col.setDataType('varchar(20)'))
+    .execute()
+}
 ```
