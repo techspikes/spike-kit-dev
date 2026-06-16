@@ -1,0 +1,14 @@
+data-sketch: 1.0.0-draft.2
+info:
+  name: simple
+
+claims:
+  author:
+    name: authors
+    reason: Authors write posts.
+    traces:
+      operations:
+        - createAuthor
+    details:
+      - pen_name
+      - status

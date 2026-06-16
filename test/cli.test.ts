@@ -82,6 +82,23 @@ describe('cli', () => {
     }
   })
 
+  it('dispatches the kysely-migration command', async () => {
+    const outputPath = join(tmpdir(), `kysely-migration-cli-test-${Date.now()}.ts`)
+
+    try {
+      const result = await runShot([
+        'kysely-migration',
+        'test/commands/kysely-migration/fixtures/simple.yaml',
+        '--output',
+        outputPath
+      ])
+
+      assert.equal(result.exitCode, 0)
+    } finally {
+      rmSync(outputPath, { force: true })
+    }
+  })
+
   it('runs the spec-check command from the CLI entrypoint', () => {
     const result = runAndCapture(() => {
       exec('node src/cli.ts spec-check test/commands/spec-check/fixtures/online-shop.valid.yaml')

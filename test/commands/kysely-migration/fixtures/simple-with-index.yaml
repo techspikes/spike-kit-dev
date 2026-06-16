@@ -1,0 +1,29 @@
+data-sketch: 1.0.0-draft.2
+info:
+  name: simple
+
+claims:
+  author:
+    name: authors
+    reason: Authors write posts.
+    traces:
+      operations:
+        - createAuthor
+    details:
+      - pen_name
+    x-relational-db-schema:
+      indexes:
+        - name: idx_authors_pen_name
+          columns:
+            - pen_name
+  post:
+    name: posts
+    reason: Posts are written by authors.
+    traces:
+      operations:
+        - createPost
+    details:
+      - title
+      - author
+    relations:
+      author: author
