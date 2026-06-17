@@ -109,6 +109,7 @@ type OpenApiFieldProjectionInput = {
   readonly path: string
   readonly schemaType: string
   readonly maxLength?: number
+  readonly format?: string
   readonly required: boolean
 }
 
@@ -349,6 +350,12 @@ function getInferredColumnType(
   }
 
   if (fieldType === 'string') {
+    const formatType = getInferredStringFormatType(matches)
+
+    if (formatType) {
+      return formatType
+    }
+
     const maxLengths = matches
       .map(match => match.maxLength)
       .filter((maxLength): maxLength is number => typeof maxLength === 'number')
@@ -359,6 +366,32 @@ function getInferredColumnType(
   }
 
   return 'VARCHAR(1024)'
+}
+
+function getInferredStringFormatType(
+  matches: readonly OpenApiFieldProjectionInput[]
+): RelationalDbProjectionColumnType | undefined {
+  const formats = new Set(matches.map(match => match.format))
+
+  if (formats.size !== 1) {
+    return undefined
+  }
+
+  const [format] = formats
+
+  if (format === 'date-time') {
+    return 'CHAR(25)'
+  }
+
+  if (format === 'date') {
+    return 'CHAR(10)'
+  }
+
+  if (format === 'time') {
+    return 'CHAR(14)'
+  }
+
+  return undefined
 }
 
 function getOpenApiProjectionType(schemaType: string) {
@@ -488,6 +521,7 @@ function getSchemaFieldProjectionInputs(
         path: pathPrefix,
         schemaType,
         ...(getMaxLength(schema) !== undefined ? { maxLength: getMaxLength(schema) } : {}),
+        ...(getFormat(schema) !== undefined ? { format: getFormat(schema) } : {}),
         required: ancestorsRequired
       }
     ]
@@ -533,6 +567,7 @@ function getArraySchemaFieldProjectionInputs(
       path: arrayPath,
       schemaType: itemType,
       ...(getMaxLength(items) !== undefined ? { maxLength: getMaxLength(items) } : {}),
+      ...(getFormat(items) !== undefined ? { format: getFormat(items) } : {}),
       required: ancestorsRequired
     }
   ]
@@ -550,6 +585,10 @@ function getMaxLength(schema: Record<string, unknown>) {
   return Number.isInteger(schema.maxLength) && Number(schema.maxLength) > 0
     ? Number(schema.maxLength)
     : undefined
+}
+
+function getFormat(schema: Record<string, unknown>) {
+  return typeof schema.format === 'string' ? schema.format : undefined
 }
 
 function addProjectionForeignKeys(

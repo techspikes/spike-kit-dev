@@ -1,0 +1,63 @@
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /events:
+    post:
+      operationId: createEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - occurredAt
+              properties:
+                occurredAt:
+                  type: string
+                  format: date-time
+                scheduledDate:
+                  type: string
+                  format: date
+                alarmTime:
+                  type: string
+                  format: time
+                occurrences:
+                  type: array
+                  items:
+                    type: string
+                    format: date-time
+      responses:
+        '201':
+          description: Created event
+
+  /event-conflicts:
+    post:
+      operationId: createEventConflict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - occurredAt
+              properties:
+                occurredAt:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Created event conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  occurredAt:
+                    type: string
+                    format: date

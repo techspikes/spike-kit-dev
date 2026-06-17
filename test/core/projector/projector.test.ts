@@ -492,6 +492,61 @@ describe('core projector', () => {
     ])
   })
 
+  it('buildRelationalDbProjection infers fixed-length CHAR types from OpenAPI date/time string formats', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-string-format-inference.valid.yaml'
+      })
+    })
+
+    const projection = sketch.projections.relationalDb()
+
+    assert.deepEqual(projection.tables.event?.columns, [
+      {
+        id: 'id',
+        name: 'id',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'occurredAt',
+        name: 'occurred_at',
+        type: 'CHAR(25)'
+      },
+      {
+        id: 'scheduledDate',
+        name: 'scheduled_date',
+        type: 'CHAR(10)',
+        nullable: true
+      },
+      {
+        id: 'alarmTime',
+        name: 'alarm_time',
+        type: 'CHAR(14)',
+        nullable: true
+      },
+      {
+        id: 'occurrences[]',
+        name: 'occurrences',
+        type: 'CHAR(25)',
+        nullable: true
+      }
+    ])
+
+    assert.deepEqual(projection.tables.eventConflict?.columns, [
+      {
+        id: 'id',
+        name: 'id',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'occurredAt',
+        name: 'occurred_at',
+        type: 'VARCHAR(1024)',
+        nullable: true
+      }
+    ])
+  })
+
   it('buildRelationalDbProjection projects nested array details into child tables', () => {
     const sketch = validate({
       sketch: parse({ path: 'test/core/projector/fixtures/online-shop-nested-array.valid.yaml' }),

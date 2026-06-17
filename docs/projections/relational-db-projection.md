@@ -230,11 +230,18 @@ Rules:
   OpenAPI operations.
 - OpenAPI field paths must exactly match Data Sketch detail paths to influence
   a column type.
+- OpenAPI `string` with `format: date-time` becomes `CHAR(25)`.
+- OpenAPI `string` with `format: date` becomes `CHAR(10)`.
+- OpenAPI `string` with `format: time` becomes `CHAR(14)`.
+- These `format` rules take precedence over `maxLength`.
+- When matching OpenAPI strings specify different `format` values (or only
+  some of them specify a `format`), the format rules above do not apply and
+  the column type falls back to the `maxLength` rules below.
 - OpenAPI `string` with `maxLength` becomes `VARCHAR(maxLength)`.
 - When multiple matching OpenAPI strings specify `maxLength`, the largest
   specified value is used.
-- When no matching OpenAPI string specifies `maxLength`, the column type falls
-  back to `VARCHAR(1024)`.
+- When no matching OpenAPI string specifies `maxLength` or a recognized
+  `format`, the column type falls back to `VARCHAR(1024)`.
 - OpenAPI `integer` and `number` become `INTEGER`.
 - OpenAPI `boolean` becomes `BOOLEAN`.
 - Conflicting OpenAPI types fall back to `VARCHAR(1024)`.
