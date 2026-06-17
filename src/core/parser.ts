@@ -17,6 +17,7 @@ const claimFields = new Set([
   'reason',
   'traces',
   'details',
+  'optionals',
   'aliases',
   'relations',
   'tentative'
@@ -30,12 +31,14 @@ const tracesSchema = v.looseObject({
 })
 
 const aliasesSchema = v.pipe(v.record(v.string(), nonEmptyStringList), v.minEntries(1))
+const optionalsSchema = v.pipe(v.record(v.string(), v.boolean()), v.minEntries(1))
 
 const claimSchema = v.looseObject({
   name: implementationName,
   reason: nonEmptyString,
   traces: tracesSchema,
   details: v.optional(nonEmptyStringList),
+  optionals: v.optional(optionalsSchema),
   aliases: v.optional(aliasesSchema),
   relations: v.optional(v.record(v.string(), nonEmptyString)),
   tentative: v.optional(v.boolean())
@@ -175,6 +178,10 @@ function validateLocalClaimShape(spec: Specification): string[] {
       issues.push(...validateAliasShape(claimId, detailIds, claim.aliases))
     }
 
+    if (claim.details && claim.optionals) {
+      issues.push(...validateOptionalsShape(claimId, detailIds, claim.optionals))
+    }
+
     const effectiveDetailIds = [...new Set([...detailIds, ...relationIds])]
     const effectiveDetailFields = getEffectiveDetailFields(detailIds, relationIds)
 
@@ -253,6 +260,20 @@ function validateAliasShape(
     detailIds.has(aliasPath)
       ? []
       : [`claims.${claimId}.aliases.${aliasPath} must also be listed in details`]
+  )
+}
+
+function validateOptionalsShape(
+  claimId: string,
+  details: NonNullable<Specification['claims'][string]['details']>,
+  optionals: NonNullable<Specification['claims'][string]['optionals']>
+): string[] {
+  const detailIds = new Set(details)
+
+  return Object.keys(optionals).flatMap(optionalPath =>
+    detailIds.has(optionalPath)
+      ? []
+      : [`claims.${claimId}.optionals.${optionalPath} must also be listed in details`]
   )
 }
 

@@ -138,10 +138,12 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
     ensureProjectionTable(tables, claimId, claim.name)
 
     const details = claim.details as NonNullable<Specification['claims'][string]['details']>
+    const optionalOverrides = new Map(Object.entries(claim.optionals ?? {}))
 
     const detailInputs = getDetailProjectionInputs(
       details,
-      getOpenApiFieldProjectionInputs(sketch.sources?.openapi, claim.traces.operations)
+      getOpenApiFieldProjectionInputs(sketch.sources?.openapi, claim.traces.operations),
+      optionalOverrides
     )
 
     for (const detail of detailInputs) {
@@ -161,18 +163,15 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
       })
     }
 
+    const hasExplicitRelations = Object.keys(claim.relations ?? {}).length > 0
+
     if (claim.relations) {
       addProjectionForeignKeys(tables, sketch.spec, claimId, claim.name, claim.relations)
     }
 
-    addProjectionClaimIdMatchForeignKeys(
-      tables,
-      sketch.spec,
-      claimId,
-      claim.name,
-      detailInputs,
-      claim.relations
-    )
+    if (!hasExplicitRelations) {
+      addProjectionClaimIdMatchForeignKeys(tables, sketch.spec, claimId, claim.name, detailInputs)
+    }
   }
 
   const issues: string[] = []
@@ -306,30 +305,27 @@ function addProjectionColumn(
 
 function getDetailProjectionInputs(
   details: NonNullable<Specification['claims'][string]['details']>,
-  openApiFields: readonly OpenApiFieldProjectionInput[]
+  openApiFields: readonly OpenApiFieldProjectionInput[],
+  optionalOverrides: ReadonlyMap<string, boolean>
 ): DetailProjectionInput[] {
   return details.map(path => ({
     path,
-    ...getDetailProjection(path, openApiFields)
+    ...getDetailProjection(path, openApiFields, optionalOverrides)
   }))
 }
 
 function getDetailProjection(
   path: string,
-  openApiFields: readonly OpenApiFieldProjectionInput[]
+  openApiFields: readonly OpenApiFieldProjectionInput[],
+  optionalOverrides: ReadonlyMap<string, boolean>
 ): Omit<DetailProjectionInput, 'path'> {
   const matches = openApiFields.filter(field => field.path === path)
-
-  if (matches.length === 0) {
-    return {
-      type: 'VARCHAR(1024)',
-      nullable: false
-    }
-  }
+  const type = matches.length === 0 ? 'VARCHAR(1024)' : getInferredColumnType(matches)
+  const inferredNullable = matches.some(match => !match.required)
 
   return {
-    type: getInferredColumnType(matches),
-    nullable: matches.some(match => !match.required)
+    type,
+    nullable: optionalOverrides.get(path) ?? inferredNullable
   }
 }
 
@@ -573,13 +569,10 @@ function addProjectionClaimIdMatchForeignKeys(
   spec: Specification,
   claimId: string,
   claimName: string,
-  details: readonly DetailProjectionInput[],
-  relations: Specification['claims'][string]['relations']
+  details: readonly DetailProjectionInput[]
 ) {
-  const explicitRelationPaths = new Set(Object.keys(relations ?? {}))
-
   for (const detail of details) {
-    if (detail.path.endsWith('[]') || explicitRelationPaths.has(detail.path)) {
+    if (detail.path.endsWith('[]')) {
       continue
     }
 

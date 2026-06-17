@@ -260,6 +260,29 @@ describe('core projector', () => {
     ])
   })
 
+  it('buildRelationalDbProjection skips claim ID exact-match inference when the claim has any explicit relation', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-relations-disable-inferred.valid.yaml'
+      }),
+      trace: false
+    })
+
+    const projection = sketch.projections.relationalDb()
+
+    assert.deepEqual(projection.tables.order?.keys.foreign, [
+      {
+        name: 'fk_orders_assigned_category',
+        column: 'assigned_category',
+        target: {
+          table: 'categories',
+          column: 'id'
+        },
+        kind: 'explicit'
+      }
+    ])
+  })
+
   it('buildRelationalDbProjection projects relation-only source paths into child tables', () => {
     const sketch = validate({
       sketch: parse({
@@ -436,6 +459,35 @@ describe('core projector', () => {
           column: 'id'
         },
         kind: 'explicit'
+      }
+    ])
+  })
+
+  it('buildRelationalDbProjection lets optionals override OpenAPI-inferred nullability', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml'
+      })
+    })
+
+    const projection = sketch.projections.relationalDb()
+
+    assert.deepEqual(projection.tables.widget?.columns, [
+      {
+        id: 'id',
+        name: 'id',
+        type: 'CHAR(26)'
+      },
+      {
+        id: 'requiredField',
+        name: 'required_field',
+        type: 'VARCHAR(40)',
+        nullable: true
+      },
+      {
+        id: 'optionalField',
+        name: 'optional_field',
+        type: 'VARCHAR(40)'
       }
     ])
   })

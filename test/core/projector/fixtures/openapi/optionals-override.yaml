@@ -1,0 +1,28 @@
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /widgets:
+    post:
+      operationId: createWidget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requiredField
+              properties:
+                requiredField:
+                  type: string
+                  maxLength: 40
+                optionalField:
+                  type: string
+                  maxLength: 40
+      responses:
+        '201':
+          description: Created widget

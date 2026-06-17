@@ -163,6 +163,7 @@ claims:
 | `reason` | yes | Context explaining why the claim may need to be remembered. |
 | `traces` | yes | User-facing operation trace metadata. |
 | `details` | yes | Concrete items that describe or support the claim. |
+| `optionals` | no | Per-detail nullable overrides, keyed by detail path. |
 | `aliases` | no | Business-facing aliases keyed by detail path. |
 | `relations` | no | Logical relationships from source paths on this claim to other claims. |
 | `tentative` | no | Whether this claim is tentative and needs stakeholder review. Defaults to `false`. |
@@ -279,6 +280,36 @@ details:
   - '[].product'
 ```
 
+## Optionals
+
+Built-in relational projection infers whether a detail is nullable from the
+OpenAPI request body `required` list of the claim's traced operations. Use
+claim-level `optionals` to override that inferred determination for specific
+detail paths.
+
+```yaml
+details:
+  - status
+  - internalNote
+
+optionals:
+  status: true
+  internalNote: false
+```
+
+Rules:
+
+- `optionals` is optional.
+- `optionals` must be a non-empty map when present.
+- Each `optionals` key must be a detail path listed in the same claim's
+  `details`.
+- Each `optionals` value is a boolean: `true` marks the detail nullable,
+  `false` marks it required.
+- A detail path not listed in `optionals` keeps the OpenAPI-inferred
+  determination.
+
+---
+
 ## Aliases
 
 Use claim-level `aliases` when details need business-facing names or other
@@ -304,8 +335,9 @@ Rules:
 - Each `aliases` key must be a detail path listed in the same claim's
   `details`.
 - Each `aliases` value must be a non-empty list of non-empty strings.
-- Core Data Sketch does not store detail types, required flags, storage types,
-  constraints, or indexes.
+- Core Data Sketch does not store detail types, storage types, constraints, or
+  indexes. `optionals` is the one exception: it stores an explicit
+  required/optional override per detail path.
 
 ---
 
@@ -349,6 +381,9 @@ Rules:
 - Relational projections may also infer foreign keys when a detail path's final
   segment exactly matches a claim ID. An explicit `relations` entry takes
   precedence over inferred relation behavior for the same detail path.
+- When a claim has one or more `relations` entries, relational projections do
+  not infer foreign keys by claim ID match anywhere in that claim, even for
+  detail paths that have no `relations` entry of their own.
 - Relational projections mark inferred foreign keys so renderers can discard
   them when a stricter renderer policy is needed.
 
@@ -415,7 +450,8 @@ Rules:
   them after parsing and validation.
 - `claims` and `relations` are maps whose keys are logical IDs or paths; they
   are not extension containers.
-- `details`, `aliases`, and `relations` are not extension containers.
+- `details`, `optionals`, `aliases`, and `relations` are not extension
+  containers.
 
 ---
 

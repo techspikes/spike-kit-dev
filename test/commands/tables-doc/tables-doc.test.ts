@@ -240,6 +240,20 @@ describe('renderTablesDoc library contract', () => {
     assert.match(content, /\| phone \| VARCHAR\(1024\) \| yes \|/)
   })
 
+  it('Given optionals overrides, When renderTablesDoc is called, Then Nullable reflects the override', () => {
+    const optionalsSpec = 'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml'
+    const sketch = parse({ path: optionalsSpec })
+    const validated = validate({ sketch, trace: true })
+    const projection = validated.projections.relationalDb()
+    const content = renderTablesDoc(validated.spec, projection, optionalsSpec)
+
+    // requiredField is required in OpenAPI but optionals overrides it to nullable
+    assert.match(content, /\| required\\_field \| VARCHAR\(40\) \| yes \|/)
+
+    // optionalField is optional in OpenAPI but optionals overrides it to required
+    assert.match(content, /\| optional\\_field \| VARCHAR\(40\) \| no \|/)
+  })
+
   it('Given aliases with pipe and backslash, When renderTablesDoc is called, Then cell text is escaped', () => {
     const sketch = parse({ path: escapingSpec })
     const validated = validate({ sketch, trace: true })

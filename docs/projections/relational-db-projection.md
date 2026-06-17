@@ -267,6 +267,9 @@ Rules:
   emits `nullable: true`.
 - If all matching traced OpenAPI fields are required, the projected column omits
   `nullable`.
+- A claim-level `optionals` entry for a detail path overrides the
+  OpenAPI-inferred determination above for that path: `true` emits
+  `nullable: true`, `false` omits `nullable`.
 - Explicit and inferred foreign key columns omit `nullable` because they use the
   target table's required surrogate key type.
 
@@ -286,6 +289,9 @@ Rules:
   split.
 - `kind: inferred` marks a foreign key inferred from a detail path
   whose final segment exactly matches a claim ID.
+- A claim with one or more Data Sketch `relations` entries never produces
+  `kind: inferred` foreign keys for that claim, even for detail paths that
+  have no `relations` entry of their own.
 - `kind: extension` marks a foreign key added by an
   `x-relational-db-schema.keys.foreign` override that does not match any
   existing foreign key (see `x-relational-db-schema Extension`).

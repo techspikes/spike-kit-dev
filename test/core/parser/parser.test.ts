@@ -118,6 +118,18 @@ describe('core parser', () => {
     })
   })
 
+  it('parse accepts claim-level detail optionals overrides', () => {
+    const sketch = parse({
+      path: 'test/core/parser/fixtures/online-shop-detail-optionals.valid.yaml'
+    })
+
+    assert.deepEqual(sketch.spec.claims.product.details, ['name', 'discontinued'])
+    assert.deepEqual(sketch.spec.claims.product.optionals, {
+      name: false,
+      discontinued: true
+    })
+  })
+
   it('parse accepts x-* extension fields on extensible objects', () => {
     const sketch = parse({
       path: 'test/core/parser/fixtures/online-shop-extension-fields.valid.yaml'
@@ -319,6 +331,16 @@ describe('core parser', () => {
           path: 'test/core/parser/fixtures/online-shop-empty-detail-alias.invalid.yaml'
         }),
       /claims\.product\.aliases\.name: Invalid length/
+    )
+  })
+
+  it('parse rejects optionals for paths that are not listed in details', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-unknown-detail-optional.invalid.yaml'
+        }),
+      /claims\.product\.optionals\.sku must also be listed in details/
     )
   })
 

@@ -182,6 +182,28 @@ describe('kysely-migration CLI', () => {
     )
   })
 
+  it('Given a spec with optionals overrides, When the command executes, Then notNull reflects the override', () => {
+    const outputPath = join(tempDir, 'optionals-override.ts')
+    const { exitCode } = run([
+      'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml',
+      '--output',
+      outputPath
+    ])
+
+    assert.equal(exitCode, 0)
+
+    const content = readFileSync(outputPath, 'utf-8')
+
+    // requiredField is required in OpenAPI but optionals overrides it to nullable
+    assert.match(content, /\.addColumn\('required_field', 'varchar\(40\)'\)\n/)
+
+    // optionalField is optional in OpenAPI but optionals overrides it to required
+    assert.match(
+      content,
+      /\.addColumn\('optional_field', 'varchar\(40\)', column => column\.notNull\(\)\)/
+    )
+  })
+
   it('Given --dry-run, When the command executes, Then no files are written and stdout contains "Dry run completed"', () => {
     const outputPath = join(tempDir, 'dry-run.ts')
     const { exitCode, stdout } = run([
