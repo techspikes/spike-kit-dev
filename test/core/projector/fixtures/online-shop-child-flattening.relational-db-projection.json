@@ -7,8 +7,7 @@
         {
           "id": "id",
           "name": "id",
-          "type": "CHAR(26)",
-          "description": "Auto-assigned surrogate key"
+          "type": "CHAR(26)"
         }
       ],
       "keys": {
@@ -25,8 +24,7 @@
         {
           "id": "id",
           "name": "id",
-          "type": "CHAR(26)",
-          "description": "Auto-assigned surrogate key"
+          "type": "CHAR(26)"
         },
         {
           "id": "order",

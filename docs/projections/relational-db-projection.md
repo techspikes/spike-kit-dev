@@ -44,8 +44,6 @@ Rules:
 - Every projected table receives an implicit surrogate key column named `id`.
 - The surrogate key column is the table primary key.
 - The surrogate key value format is `ULID`.
-- The surrogate key column always receives an automatically added
-  `description` of `Auto-assigned surrogate key`.
 - Every child table created from an array-of-objects path receives an
   automatically added structural foreign key to its immediate parent table.
 - Detail paths whose final segment exactly matches an existing claim ID receive
@@ -155,9 +153,6 @@ Fields:
 - `type`: SQL type string.
 - `nullable`: optional marker emitted only when the projected column may contain
   null values.
-- `description`: optional human-readable note about the column. Emitted only
-  for the automatically added surrogate key column, with the fixed value
-  `Auto-assigned surrogate key`; omitted for every other column.
 
 Name derivation examples:
 
