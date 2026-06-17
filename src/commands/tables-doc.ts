@@ -83,7 +83,7 @@ export function renderTablesDoc(
     lines.push('', `## ${table.name}`, '', claim.reason)
 
     if (claim.tentative === true) {
-      lines.push('', '> [!CAUTION]', '> This table is tentative and needs human review.')
+      lines.push('', '> [!CAUTION]', '> This table is tentative and needs review.')
     }
 
     lines.push('', '| Column | Data Type | Nullable | Description |', '| --- | --- | --- | --- |')

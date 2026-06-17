@@ -79,7 +79,7 @@ describe('tables-doc CLI', () => {
     assert.match(content, /\n## order_items\n/)
 
     // tentative caution only on orders
-    assert.match(content, /> \[!CAUTION\]\n> This table is tentative and needs human review\./)
+    assert.match(content, /> \[!CAUTION\]\n> This table is tentative and needs review\./)
 
     // surrogate key fixed description
     assert.match(content, /\| id \| CHAR\(26\) \| no \| Auto-assigned surrogate key \|/)

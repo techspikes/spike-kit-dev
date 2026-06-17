@@ -105,7 +105,7 @@ The caution block is:
 
 ```md
 > [!CAUTION]
-> This table is tentative and needs human review.
+> This table is tentative and needs review.
 ```
 
 ## Column Table
@@ -394,7 +394,7 @@ Order state is needed after checkout so the service can create an order
 and return its detail.
 
 > [!CAUTION]
-> This table is tentative and needs human review.
+> This table is tentative and needs review.
 
 | Column | Data Type | Nullable | Description |
 | --- | --- | --- | --- |
@@ -432,7 +432,7 @@ Order state is needed after checkout so the service can create an order
 and return its detail.
 
 > [!CAUTION]
-> This table is tentative and needs human review.
+> This table is tentative and needs review.
 
 | Column | Data Type | Nullable | Description |
 | --- | --- | --- | --- |
