@@ -497,7 +497,9 @@ Rules:
   either side) are outside this version's scope. The override extension has no
   `keys.primary` member; the projection's surrogate `id` primary key
   (`tables[].keys.primary`) cannot be replaced or overridden.
-- Extension-provided names are used as-is.
+- Extension-provided names are used as-is. `constraints.unique` and
+  `constraints.check` entries may omit `name`, in which case the projector
+  generates one (see Constraint Overrides).
 - `keys.foreign`, `constraints`, and `indexes` apply only to the claim's own
   projected table, not to any child tables generated from array-of-objects
   paths. `names.tables` and `names.columns` may reference any of the claim's
@@ -646,41 +648,53 @@ Rules:
 
 ### Constraint Overrides
 
-Unique constraint:
+Unique constraint, with an auto-generated `uq_orders_order_number` name:
 
 ```yaml
 x-relational-db-schema:
   constraints:
     unique:
-      - name: uq_orders_order_number
-        columns:
+      - columns:
           - orderNumber
 ```
 
-Check constraint:
+Check constraint, with an auto-generated `ck_orders_status` name:
 
 ```yaml
 x-relational-db-schema:
   constraints:
     check:
-      - name: ck_orders_status
-        column: status
+      - column: status
         enum:
           - pending
           - shipped
           - delivered
 ```
 
+An explicit `name` overrides the auto-generated one:
+
+```yaml
+x-relational-db-schema:
+  constraints:
+    unique:
+      - name: uq_orders_order_no
+        columns:
+          - orderNumber
+```
+
 Rules:
 
-- `constraints.unique` entries have `name` and `columns` (one or more projected
-  column `id`s); they are always additive, since the projector does not
-  otherwise generate unique constraints.
-- `constraints.check` entries have `name`, `column` (a single projected column
-  `id` on this table), and `enum` (one or more non-empty strings); they are
-  always additive, since the projector does not otherwise generate check
-  constraints. `column` follows the same Column References convention as
-  `constraints.unique.columns`. Rendering is
+- `constraints.unique` entries have an optional `name` and `columns` (one or
+  more projected column `id`s); they are always additive, since the projector
+  does not otherwise generate unique constraints. When `name` is omitted, it
+  is generated as `uq_<table name>_<column name>[_<column name>...]`, joining
+  the projected column names in the order listed in `columns`.
+- `constraints.check` entries have an optional `name`, `column` (a single
+  projected column `id` on this table), and `enum` (one or more non-empty
+  strings); they are always additive, since the projector does not otherwise
+  generate check constraints. `column` follows the same Column References
+  convention as `constraints.unique.columns`. When `name` is omitted, it is
+  generated as `ck_<table name>_<column name>`. Rendering is
   `CHECK (<column> IN (<enum values>))` (see the DDL Section in the Tables Doc
   Command Specification for quoting rules).
 

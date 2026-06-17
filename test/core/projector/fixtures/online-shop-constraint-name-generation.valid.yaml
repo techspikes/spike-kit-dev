@@ -1,0 +1,35 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  widget:
+    name: widgets
+    reason: |-
+      Widget records are needed for the widget catalog.
+    traces:
+      operations:
+        - createWidget
+    details:
+      - sku
+      - category
+      - status
+    x-relational-db-schema:
+      constraints:
+        unique:
+          - columns:
+              - sku
+          - columns:
+              - category
+              - status
+        check:
+          - column: status
+            enum:
+              - active
+              - retired
+          - name: ck_widgets_explicit_status
+            column: category
+            enum:
+              - tools
+              - parts

@@ -1126,7 +1126,7 @@ function applyConstraintOverrides(
     } else {
       constraints.unique.forEach((entry, index) => {
         const fieldPrefix = `${prefix}.constraints.unique[${index}]`
-        const resolved = resolveNamedColumnList(table, entry, fieldPrefix, issues)
+        const resolved = resolveUniqueConstraint(table, entry, fieldPrefix, issues)
 
         if (resolved) {
           table.constraints ??= {}
@@ -1185,6 +1185,57 @@ function applyIndexOverrides(
   })
 }
 
+function resolveUniqueConstraint(
+  table: MutableRelationalDbProjectionTable,
+  entry: unknown,
+  fieldPrefix: string,
+  issues: string[]
+) {
+  if (
+    !isRecord(entry) ||
+    (entry.name !== undefined && (typeof entry.name !== 'string' || entry.name === '')) ||
+    !Array.isArray(entry.columns) ||
+    entry.columns.length === 0
+  ) {
+    issues.push(
+      `${fieldPrefix} must have a non-empty columns array and, when present, a non-empty name`
+    )
+
+    return undefined
+  }
+
+  const columnNames = resolveColumnNames(table, entry.columns, fieldPrefix, issues)
+
+  if (!columnNames) {
+    return undefined
+  }
+
+  return { name: entry.name ?? `uq_${table.name}_${columnNames.join('_')}`, columns: columnNames }
+}
+
+function resolveColumnNames(
+  table: MutableRelationalDbProjectionTable,
+  columnIds: readonly unknown[],
+  fieldPrefix: string,
+  issues: string[]
+) {
+  const columnNames: string[] = []
+
+  for (const columnId of columnIds) {
+    const column = table.columns.find(c => c.id === columnId)
+
+    if (!column) {
+      issues.push(`${fieldPrefix}.columns references unknown column ${String(columnId)}`)
+
+      return undefined
+    }
+
+    columnNames.push(column.name)
+  }
+
+  return columnNames
+}
+
 function resolveNamedColumnList(
   table: MutableRelationalDbProjectionTable,
   entry: unknown,
@@ -1203,18 +1254,10 @@ function resolveNamedColumnList(
     return undefined
   }
 
-  const columnNames: string[] = []
+  const columnNames = resolveColumnNames(table, entry.columns, fieldPrefix, issues)
 
-  for (const columnId of entry.columns) {
-    const column = table.columns.find(c => c.id === columnId)
-
-    if (!column) {
-      issues.push(`${fieldPrefix}.columns references unknown column ${String(columnId)}`)
-
-      return undefined
-    }
-
-    columnNames.push(column.name)
+  if (!columnNames) {
+    return undefined
   }
 
   return { name: entry.name, columns: columnNames }
@@ -1228,15 +1271,14 @@ function resolveCheckConstraint(
 ) {
   if (
     !isRecord(entry) ||
-    typeof entry.name !== 'string' ||
-    entry.name === '' ||
+    (entry.name !== undefined && (typeof entry.name !== 'string' || entry.name === '')) ||
     typeof entry.column !== 'string' ||
     !Array.isArray(entry.enum) ||
     entry.enum.length === 0 ||
     !entry.enum.every((value): value is string => typeof value === 'string' && value !== '')
   ) {
     issues.push(
-      `${fieldPrefix} must have a non-empty name, column, and a non-empty enum array of non-empty strings`
+      `${fieldPrefix} must have a column, a non-empty enum array of non-empty strings, and, when present, a non-empty name`
     )
 
     return undefined
@@ -1250,7 +1292,7 @@ function resolveCheckConstraint(
     return undefined
   }
 
-  return { name: entry.name, column: column.name, enum: entry.enum }
+  return { name: entry.name ?? `ck_${table.name}_${column.name}`, column: column.name, enum: entry.enum }
 }
 
 function applyNameOverrides(

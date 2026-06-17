@@ -630,10 +630,10 @@ describe('core projector', () => {
           'claims.customer.x-relational-db-schema.types.id must be an object with a type',
           'claims.customer.x-relational-db-schema.constraints.unknownConstraintMember is not a supported x-relational-db-schema member',
           'claims.customer.x-relational-db-schema.constraints.unique must be an array',
-          'claims.customer.x-relational-db-schema.constraints.check[0] must have a non-empty name, column, and a non-empty enum array of non-empty strings',
+          'claims.customer.x-relational-db-schema.constraints.check[0] must have a column, a non-empty enum array of non-empty strings, and, when present, a non-empty name',
           'claims.customer.x-relational-db-schema.constraints.check[1].column references unknown column doesNotExist',
-          'claims.customer.x-relational-db-schema.constraints.check[2] must have a non-empty name, column, and a non-empty enum array of non-empty strings',
-          'claims.customer.x-relational-db-schema.constraints.check[3] must have a non-empty name, column, and a non-empty enum array of non-empty strings',
+          'claims.customer.x-relational-db-schema.constraints.check[2] must have a column, a non-empty enum array of non-empty strings, and, when present, a non-empty name',
+          'claims.customer.x-relational-db-schema.constraints.check[3] must have a column, a non-empty enum array of non-empty strings, and, when present, a non-empty name',
           'claims.customer.x-relational-db-schema.indexes[0].columns references unknown column doesNotExist',
           'claims.customer.x-relational-db-schema.indexes[1] must have a non-empty name and a non-empty columns array',
           'claims.customer.x-relational-db-schema.names.unknownNamesMember is not a supported x-relational-db-schema member',
@@ -664,6 +664,9 @@ describe('core projector', () => {
           'claims.gadget.x-relational-db-schema.names must be an object',
           'claims.doohickey.x-relational-db-schema.keys.unknownMember is not a supported x-relational-db-schema member',
           'claims.thingamajig.x-relational-db-schema.constraints.check must be an array',
+          'claims.thingamajig.x-relational-db-schema.constraints.unique[0] must have a non-empty columns array and, when present, a non-empty name',
+          'claims.thingamajig.x-relational-db-schema.constraints.unique[1] must have a non-empty columns array and, when present, a non-empty name',
+          'claims.thingamajig.x-relational-db-schema.constraints.unique[2].columns references unknown column doesNotExist',
           'claims.thingamajig.x-relational-db-schema.names.tables must be an object',
           'claims.thingamajig.x-relational-db-schema.names.columns must be an object',
           'claims.whatsit.x-relational-db-schema.names.tables.whatsit must be a non-empty string'
@@ -694,5 +697,41 @@ describe('core projector', () => {
     )
 
     assert.deepEqual(sketch.projections.relationalDb(), expected)
+  })
+
+  it('buildRelationalDbProjection auto-generates uq_/ck_ constraint names when omitted', () => {
+    const sketch = validate({
+      sketch: parse({
+        path: 'test/core/projector/fixtures/online-shop-constraint-name-generation.valid.yaml'
+      }),
+      trace: false
+    })
+
+    const projection = sketch.projections.relationalDb()
+
+    assert.deepEqual(projection.tables.widget?.constraints, {
+      unique: [
+        {
+          name: 'uq_widgets_sku',
+          columns: ['sku']
+        },
+        {
+          name: 'uq_widgets_category_status',
+          columns: ['category', 'status']
+        }
+      ],
+      check: [
+        {
+          name: 'ck_widgets_status',
+          column: 'status',
+          enum: ['active', 'retired']
+        },
+        {
+          name: 'ck_widgets_explicit_status',
+          column: 'category',
+          enum: ['tools', 'parts']
+        }
+      ]
+    })
   })
 })

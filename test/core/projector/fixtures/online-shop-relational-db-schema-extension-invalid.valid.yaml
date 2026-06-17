@@ -214,6 +214,13 @@ claims:
     x-relational-db-schema:
       constraints:
         check: not-an-array
+        unique:
+          - name: ""
+            columns:
+              - title
+          - columns: []
+          - columns:
+              - doesNotExist
       names:
         tables: not-an-object
         columns: not-an-object
