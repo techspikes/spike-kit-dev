@@ -350,18 +350,18 @@ function getInferredColumnType(
   }
 
   if (fieldType === 'string') {
-    const formatType = getInferredStringFormatType(matches)
-
-    if (formatType) {
-      return formatType
-    }
-
     const maxLengths = matches
       .map(match => match.maxLength)
       .filter((maxLength): maxLength is number => typeof maxLength === 'number')
 
     if (maxLengths.length > 0) {
       return `VARCHAR(${Math.max(...maxLengths)})`
+    }
+
+    const formatType = getInferredStringFormatType(matches)
+
+    if (formatType) {
+      return formatType
     }
   }
 

@@ -529,6 +529,12 @@ describe('core projector', () => {
         name: 'occurrences',
         type: 'CHAR(25)',
         nullable: true
+      },
+      {
+        id: 'recordedAt',
+        name: 'recorded_at',
+        type: 'VARCHAR(30)',
+        nullable: true
       }
     ])
 

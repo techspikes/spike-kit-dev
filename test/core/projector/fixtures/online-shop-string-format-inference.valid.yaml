@@ -20,6 +20,7 @@ claims:
       - scheduledDate
       - alarmTime
       - occurrences[]
+      - recordedAt
 
   eventConflict:
     name: event_conflicts
