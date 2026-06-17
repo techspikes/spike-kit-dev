@@ -7,7 +7,8 @@
         {
           "id": "id",
           "name": "client_id",
-          "type": "CHAR(26)"
+          "type": "CHAR(26)",
+          "description": "Auto-assigned surrogate key"
         },
         {
           "id": "name",
@@ -63,7 +64,8 @@
         {
           "id": "id",
           "name": "id",
-          "type": "CHAR(26)"
+          "type": "CHAR(26)",
+          "description": "Auto-assigned surrogate key"
         },
         {
           "id": "name",
@@ -106,7 +108,8 @@
         {
           "id": "id",
           "name": "id",
-          "type": "CHAR(26)"
+          "type": "CHAR(26)",
+          "description": "Auto-assigned surrogate key"
         },
         {
           "id": "status",
@@ -178,7 +181,8 @@
         {
           "id": "id",
           "name": "id",
-          "type": "CHAR(26)"
+          "type": "CHAR(26)",
+          "description": "Auto-assigned surrogate key"
         },
         {
           "id": "order",

@@ -168,7 +168,8 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'CHAR(26)'
+        type: 'CHAR(26)',
+        description: 'Auto-assigned surrogate key'
       },
       {
         id: 'status',
@@ -297,7 +298,8 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'CHAR(26)'
+        type: 'CHAR(26)',
+        description: 'Auto-assigned surrogate key'
       },
       {
         id: 'order',
@@ -351,7 +353,8 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'CHAR(26)'
+        type: 'CHAR(26)',
+        description: 'Auto-assigned surrogate key'
       },
       {
         id: 'displayName',
@@ -436,7 +439,8 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'CHAR(26)'
+        type: 'CHAR(26)',
+        description: 'Auto-assigned surrogate key'
       },
       {
         id: 'product',
@@ -476,7 +480,8 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'CHAR(26)'
+        type: 'CHAR(26)',
+        description: 'Auto-assigned surrogate key'
       },
       {
         id: 'requiredField',
@@ -505,7 +510,8 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'CHAR(26)'
+        type: 'CHAR(26)',
+        description: 'Auto-assigned surrogate key'
       },
       {
         id: 'occurredAt',
@@ -542,7 +548,8 @@ describe('core projector', () => {
       {
         id: 'id',
         name: 'id',
-        type: 'CHAR(26)'
+        type: 'CHAR(26)',
+        description: 'Auto-assigned surrogate key'
       },
       {
         id: 'occurredAt',

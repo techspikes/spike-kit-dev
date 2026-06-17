@@ -34,6 +34,7 @@ type RelationalDbProjectionColumn = {
   readonly name: string
   readonly type: RelationalDbProjectionColumnType
   readonly nullable?: true
+  readonly description?: string
 }
 
 type RelationalDbProjectionColumnType =
@@ -272,7 +273,8 @@ function ensureProjectionTable(
         {
           id: 'id',
           name: 'id',
-          type: 'CHAR(26)'
+          type: 'CHAR(26)',
+          description: 'Auto-assigned surrogate key'
         }
       ],
       keys: {
