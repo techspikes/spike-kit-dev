@@ -29,6 +29,7 @@ npx shot --help
 npx shot openapi-summary path/to/openapi.yaml
 npx shot spec-check path/to/data-sketch.yaml
 npx shot tables-doc path/to/data-sketch.yaml --output path/to/tables-doc.md
+npx shot kysely-migration path/to/data-sketch.yaml --output path/to/0001_initial.ts
 ```
 
 ## Commands
@@ -61,6 +62,26 @@ npx shot tables-doc path/to/data-sketch.yaml --output path/to/tables-doc.md
 
 The command validates a Data Sketch, builds the Relational DB Projection, and
 writes a Markdown table document for schema review.
+
+### Generate a Kysely Migration
+
+```sh
+npx shot kysely-migration path/to/data-sketch.yaml --output path/to/0001_initial.ts
+```
+
+The command validates a Data Sketch, builds the Relational DB Projection, and
+writes a Kysely-compatible TypeScript migration. By default it embeds the
+projection snapshot so a later run can generate a diff migration with
+`--previous-migration`.
+
+```sh
+npx shot kysely-migration path/to/data-sketch.yaml \
+  --previous-migration path/to/0001_initial.ts \
+  --output path/to/0002_next.ts
+```
+
+Use `--types-output path/to/database.d.ts` to write an application-facing
+`Database` interface alongside the migration.
 
 ## Data Sketch Example
 
@@ -136,6 +157,8 @@ and database-facing commands.
   columns, primary keys, and foreign keys. It infers SQL:1999-compatible
   column types and nullability from traced OpenAPI fields, then applies
   claim-level `x-relational-db-schema` overrides.
+- The built-in `tables-doc` and `kysely-migration` commands render that
+  projection as review Markdown or Kysely TypeScript migrations.
 
 ## Development
 
@@ -151,4 +174,5 @@ npm test
 - [`openapi-summary` command specification](docs/commands/openapi-summary-specification.md)
 - [`spec-check` command specification](docs/commands/spec-check-specification.md)
 - [`tables-doc` command specification](docs/commands/tables-doc-specification.md)
+- [`kysely-migration` command specification](docs/commands/kysely-migration-specification.md)
 - [Relational DB Projection Specification](docs/projections/relational-db-projection.md)

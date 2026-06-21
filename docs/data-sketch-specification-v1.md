@@ -15,6 +15,8 @@ This specification is intended to be used as:
 
 - input for tools that validate Data Sketch documents
 - traceability between user-facing operations and data claims
+- input for projection tools that render review documents or database-facing
+  artifacts
 
 ---
 
@@ -453,6 +455,20 @@ Rules:
   are not extension containers.
 - `details`, `optionals`, `aliases`, and `relations` are not extension
   containers.
+
+### Built-in Relational Extension
+
+`x-relational-db-schema` is a documented claim-level extension consumed by the
+built-in Relational DB Projection. It is not part of the core Data Sketch
+vocabulary, so `spec-check` only verifies that it is allowed as an `x-*`
+extension field. The relational projector validates its shape when a command
+builds the projection.
+
+The extension can override projected table and column names, projected SQL
+types, foreign keys, unique constraints, check constraints, and non-unique
+indexes. See the
+[Relational DB Projection Specification](projections/relational-db-projection.md#x-relational-db-schema-extension)
+for the complete shape, validation rules, and application order.
 
 ---
 

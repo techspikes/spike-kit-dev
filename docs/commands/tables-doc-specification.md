@@ -129,7 +129,7 @@ Rules:
 - `Nullable` is `yes` when the projected column has `nullable: true`; otherwise
   it is `no`.
 - `Description` is the comma-separated aliases for the source detail path when
-  aliases are available; otherwise it is empty.
+  aliases are available; otherwise it is `-`.
 - The implicit surrogate key column `id` always has the fixed description
   `Auto-assigned surrogate key`. `id` is a reserved identity detail path and
   cannot appear in `details` or `aliases`, so it never has user-defined aliases.
@@ -220,7 +220,8 @@ After the projected table sections, the document includes:
 Rules:
 
 - The DDL uses the Relational DB Projection.
-- Identifiers are not quoted.
+- Identifiers are double-quoted. Embedded double quote characters are escaped by
+  doubling them.
 - SQL keywords are uppercase.
 - SQL type strings are uppercase.
 - Columns without `nullable: true` include `NOT NULL`.
@@ -236,13 +237,11 @@ Rules:
 
 > [!CAUTION]
 > Projected table, column, and constraint names are derived directly from claim
-> IDs, claim names, and detail paths, and are not checked against SQL reserved
-> words. Because identifiers are not quoted, a generated name that collides with
-> a reserved word (for example a structural foreign key column named `order`,
-> generated from a claim ID `order`) may produce DDL that fails on a target
-> RDBMS. Use `x-relational-db-schema` (see x-relational-db-schema Extension in
+> IDs, claim names, and detail paths. The DDL preview uses SQL-standard quoted
+> identifiers, but it does not check target RDBMS naming limits or dialect
+> rules. Use `x-relational-db-schema` (see x-relational-db-schema Extension in
 > the Relational DB Projection Specification) to rename or retype the affected
-> columns and constraints for the target RDBMS.
+> tables, columns, and constraints for the target RDBMS.
 
 ## ER Diagram Section
 
@@ -474,7 +473,7 @@ and return its detail.
 | Column | Data Type | Nullable | Description |
 | --- | --- | --- | --- |
 | id | CHAR(26) | no | Auto-assigned surrogate key |
-| order | CHAR(26) | no |  |
+| order | CHAR(26) | no | - |
 | quantity | INTEGER | no | item quantity |
 
 ### Primary Key
@@ -492,22 +491,22 @@ and return its detail.
 ## DDL
 
 ```sql
-CREATE TABLE orders (
-  id CHAR(26) NOT NULL,
-  status VARCHAR(20) NOT NULL,
-  customer CHAR(26) NOT NULL,
-  CONSTRAINT pk_orders PRIMARY KEY (id),
-  CONSTRAINT fk_orders_customer FOREIGN KEY (customer) REFERENCES customers (id),
-  CONSTRAINT uq_orders_status_customer UNIQUE (status, customer),
-  CONSTRAINT ck_orders_status CHECK (status IN ('pending', 'shipped', 'delivered'))
+CREATE TABLE "orders" (
+  "id" CHAR(26) NOT NULL,
+  "status" VARCHAR(20) NOT NULL,
+  "customer" CHAR(26) NOT NULL,
+  CONSTRAINT "pk_orders" PRIMARY KEY ("id"),
+  CONSTRAINT "fk_orders_customer" FOREIGN KEY ("customer") REFERENCES "customers" ("id"),
+  CONSTRAINT "uq_orders_status_customer" UNIQUE ("status", "customer"),
+  CONSTRAINT "ck_orders_status" CHECK ("status" IN ('pending', 'shipped', 'delivered'))
 );
 
-CREATE TABLE order_items (
-  id CHAR(26) NOT NULL,
-  order CHAR(26) NOT NULL,
-  quantity INTEGER NOT NULL,
-  CONSTRAINT pk_order_items PRIMARY KEY (id),
-  CONSTRAINT fk_order_items_order FOREIGN KEY (order) REFERENCES orders (id)
+CREATE TABLE "order_items" (
+  "id" CHAR(26) NOT NULL,
+  "order" CHAR(26) NOT NULL,
+  "quantity" INTEGER NOT NULL,
+  CONSTRAINT "pk_order_items" PRIMARY KEY ("id"),
+  CONSTRAINT "fk_order_items_order" FOREIGN KEY ("order") REFERENCES "orders" ("id")
 );
 ```
 
