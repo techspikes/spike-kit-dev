@@ -1,6 +1,6 @@
 ---
 source: online-shop-with-tentative-order.valid.yaml
-sha256: e5d8e53960d871238a786e54224079c4be90f6f83b28010a8ae007a12a73138b
+sha256: da664574432f2f9b8455cc8f6355f89f9990338de19fc0adf971a99eb58b440f
 generated_at: <generated_at>
 ---
 

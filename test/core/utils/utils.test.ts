@@ -77,7 +77,7 @@ describe('core utils', () => {
       resolveCwdRelativeFilePath('test/core/utils/fixtures/sketches/online-shop-file-access.valid.yaml')
     )
 
-    assert.match(content, /data-sketch: 1\.0\.0-draft\.2/)
+    assert.match(content, /data-sketch: 1\.0\.0-draft\.3/)
   })
 
   it('readBaseRelativeTextFile reads a fixture file path relative to a base directory', () => {

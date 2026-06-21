@@ -14,7 +14,7 @@ const nonEmptyString = v.pipe(v.string(), v.nonEmpty())
 const nonEmptyStringList = v.pipe(v.array(nonEmptyString), v.nonEmpty())
 
 const specificationSchema = v.looseObject({
-  'data-sketch': v.literal('1.0.0-draft.2'),
+  'data-sketch': v.literal('1.0.0-draft.3'),
   info: v.looseObject({
     name: nonEmptyString
   }),
@@ -48,7 +48,7 @@ const specificationSchema = v.looseObject({
 })
 
 export type Specification = {
-  readonly 'data-sketch': '1.0.0-draft.2'
+  readonly 'data-sketch': '1.0.0-draft.3'
   readonly info: {
     readonly name: string
     readonly [extensionField: string]: unknown

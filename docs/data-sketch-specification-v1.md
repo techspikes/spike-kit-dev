@@ -51,7 +51,7 @@ relationship exists; consuming tools decide how to use it.
 ## Root Structure
 
 ```yaml
-data-sketch: 1.0.0-draft.2
+data-sketch: 1.0.0-draft.3
 
 info:
   name: online-shop
@@ -77,7 +77,7 @@ claims:
 
 | Field | Required | Description |
 |---|---:|---|
-| `data-sketch` | yes | Must be `1.0.0-draft.2`. |
+| `data-sketch` | yes | Must be `1.0.0-draft.3`. |
 | `info` | yes | Information about the Data Sketch. |
 | `sources` | no | External sources used for trace validation. |
 | `claims` | yes | Non-empty map of logical claim IDs to claim definitions. |
@@ -689,7 +689,7 @@ paths:
 ### Data Sketch: Basic List Form
 
 ```yaml
-data-sketch: 1.0.0-draft.2
+data-sketch: 1.0.0-draft.3
 
 info:
   name: online-shop
@@ -750,7 +750,7 @@ claims:
 ### Data Sketch: List Form With Aliases
 
 ```yaml
-data-sketch: 1.0.0-draft.2
+data-sketch: 1.0.0-draft.3
 
 info:
   name: online-shop

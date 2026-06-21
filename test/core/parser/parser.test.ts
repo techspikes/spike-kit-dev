@@ -13,7 +13,7 @@ describe('core parser', () => {
 
     assert.equal(sketch.spec.info.name, 'online-shop')
     assert.equal(sketch.spec.claims.product.name, 'products')
-    assert.equal(sketch.metadata.version, '1.0.0-draft.2')
+    assert.equal(sketch.metadata.version, '1.0.0-draft.3')
     assert.equal(
       sketch.metadata.baseDirectoryPath,
       resolveCwdRelativeDirectoryPath('test/core/parser/fixtures/sketches/online-shop.valid.yaml')

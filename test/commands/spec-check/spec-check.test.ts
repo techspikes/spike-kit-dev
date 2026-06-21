@@ -49,7 +49,7 @@ describe('spec-check command', () => {
     assert.deepEqual(result.stdout, [])
 
     assert.deepEqual(result.stderr, [
-      'data-sketch: Invalid type: Expected "1.0.0-draft.2" but received "1.0.0-draft.1"\n'
+      'data-sketch: Invalid type: Expected "1.0.0-draft.3" but received "1.0.0-draft.1"\n'
     ])
   })
 

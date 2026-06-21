@@ -317,7 +317,7 @@ shot tables-doc online-shop.yaml --output online-shop.tables-doc.md
 Input excerpt:
 
 ```yaml
-data-sketch: 1.0.0-draft.2
+data-sketch: 1.0.0-draft.3
 
 info:
   name: online-shop

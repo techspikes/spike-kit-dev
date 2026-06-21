@@ -1,6 +1,6 @@
 ---
 source: online-shop-without-openapi-source.valid.yaml
-sha256: 652fe389680eabe3590a8cd7f468e5b52d53f64aa0eedf3e02e2eb46dcf73031
+sha256: 8c2a2bccf3caa3bf383ce6f6d1cb955c83293f3a8469d8ce0f0fec4fa24ae61f
 generated_at: <generated_at>
 ---
 

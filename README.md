@@ -86,7 +86,7 @@ Use `--types-output path/to/database.d.ts` to write an application-facing
 ## Data Sketch Example
 
 ```yaml
-data-sketch: 1.0.0-draft.2
+data-sketch: 1.0.0-draft.3
 
 info:
   name: online-shop

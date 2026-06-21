@@ -1,6 +1,6 @@
 ---
 source: test/commands/tables-doc/fixtures/sketches/online-shop-optionals-override.valid.yaml
-sha256: 9d982bf401544bf66b36011d8978c2d4324434e9d8816178849a9b6d90d5deb2
+sha256: 8830bef74d684562571af2c9511a30c9e266e43ebb5f18b1761ae645de187ce2
 generated_at: <generated_at>
 ---
 

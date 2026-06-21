@@ -1,6 +1,6 @@
 ---
 source: online-shop-mermaid-identifier-sanitization.valid.yaml
-sha256: 15e7e34667efd757576f85e0109e7341f469e6bab14d9d312b1dbd44cb58b0ec
+sha256: d273d0695a8252cbacf3383a93958e930e657d9687f122884f810dbda8dedfb7
 generated_at: <generated_at>
 ---
 

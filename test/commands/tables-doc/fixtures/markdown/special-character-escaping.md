@@ -1,6 +1,6 @@
 ---
 source: special-character-escaping.valid.yaml
-sha256: 9299560304bd13ea6fea332af344b281187c6dcd7632291c930991a1fdcfaaca
+sha256: a8602459f85e281acfdee34f8a4612ddeafe0c49b5c2c0752aa3d251bb796105
 generated_at: <generated_at>
 ---
 
