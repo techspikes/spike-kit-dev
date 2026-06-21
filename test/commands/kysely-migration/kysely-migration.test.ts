@@ -1,24 +1,26 @@
 import assert from 'node:assert'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { pathToFileURL } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { Kysely, PGliteDialect, sql } from 'kysely'
 import type { MigrationProvider } from 'kysely/migration'
 import { Migrator, NO_MIGRATIONS } from 'kysely/migration'
 import {
-  buildSnapshot,
-  encodeSnapshot,
   executeKyselyMigration,
   parseEmbeddedSnapshot,
   renderInitialMigrationFile
 } from '../../../src/commands/kysely-migration.ts'
-import { runAndCapture } from '../../test-helper/logger.ts'
+import {
+  createTemporaryDirectory,
+  getFileImportUrl,
+  joinFilePath,
+  readTextFile,
+  removeDirectory,
+  writeTextFile
+} from '../../test-helper/file-access.ts'
+import { runCommandAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot kysely-migration [OPTION]... SPEC_FILE'
-const onlineShopSpec = 'test/commands/tables-doc/fixtures/online-shop.yaml'
+const onlineShopSpec = 'test/commands/tables-doc/fixtures/online-shop-with-openapi-source.yaml'
 const simpleSpec = 'test/commands/kysely-migration/fixtures/simple.yaml'
 const simpleV2Spec = 'test/commands/kysely-migration/fixtures/simple-v2.yaml'
 const typedSpec = 'test/commands/kysely-migration/fixtures/typed.yaml'
@@ -36,18 +38,18 @@ const simpleWithoutCheckSpec = 'test/commands/kysely-migration/fixtures/simple-w
 // ─── CLI behaviour ─────────────────────────────────────────────────────────────
 
 describe('kysely-migration CLI', () => {
-  let tempDir = ''
+  let temporaryDirectoryPath = ''
 
   before(() => {
-    tempDir = mkdtempSync(join(tmpdir(), 'kysely-migration-'))
+    temporaryDirectoryPath = createTemporaryDirectory('kysely-migration-')
   })
 
   after(() => {
-    rmSync(tempDir, { recursive: true, force: true })
+    removeDirectory(temporaryDirectoryPath)
   })
 
   it('Given --help is provided, When the command executes, Then it prints usage and returns exit code 0', () => {
-    const { exitCode, stdout, stderr } = run(['--help'])
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() => executeKyselyMigration(['--help']))
 
     assert.equal(exitCode, 0)
     assert.equal(stdout[0]?.split('\n')[0], usageLine)
@@ -55,7 +57,7 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given -h is provided, When the command executes, Then it prints usage and returns exit code 0', () => {
-    const { exitCode, stdout, stderr } = run(['-h'])
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() => executeKyselyMigration(['-h']))
 
     assert.equal(exitCode, 0)
     assert.equal(stdout[0]?.split('\n')[0], usageLine)
@@ -63,7 +65,7 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given no spec file is provided, When the command executes, Then it prints usage to stderr and returns exit code 1', () => {
-    const { exitCode, stdout, stderr } = run([])
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() => executeKyselyMigration([]))
 
     assert.equal(exitCode, 1)
     assert.deepEqual(stdout, [])
@@ -72,7 +74,7 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given no --output is provided, When the command executes, Then it prints usage to stderr and returns exit code 1', () => {
-    const { exitCode, stdout, stderr } = run([onlineShopSpec])
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() => executeKyselyMigration([onlineShopSpec]))
 
     assert.equal(exitCode, 1)
     assert.deepEqual(stdout, [])
@@ -81,22 +83,26 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given --types-output without .d.ts extension, When the command executes, Then it prints an error and returns exit code 1', () => {
-    const outputPath = join(tempDir, 'migration.ts')
-    const { exitCode, stdout, stderr } = run([onlineShopSpec, '--output', outputPath, '--types-output', 'types.ts'])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'migration.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--types-output', 'types.ts'])
+    )
 
     assert.equal(exitCode, 1)
     assert.deepEqual(stdout, [])
     assert.ok(stderr.join('').includes('.d.ts'))
   })
 
-  it('Given online-shop.yaml with --include-tentative, When the command executes, Then it writes a complete initial migration', () => {
-    const outputPath = join(tempDir, 'initial.ts')
-    const { exitCode, stdout, stderr } = run([onlineShopSpec, '--output', outputPath, '--include-tentative'])
+  it('Given the online shop spec with --include-tentative, When the command executes, Then it writes a complete initial migration', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'initial.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--include-tentative'])
+    )
 
     assert.equal(exitCode, 0)
     assert.ok(stdout.join('').includes('Migration generated'))
 
-    const content = readFileSync(outputPath, 'utf-8')
+    const content = readTextFile(outputFilePath)
 
     // Embedded snapshot block present
     assert.match(content, /\/\/ ---/)
@@ -149,9 +155,11 @@ describe('kysely-migration CLI', () => {
     )
   })
 
-  it('Given online-shop.yaml with --include-tentative and a check constraint, When the command executes, Then stderr has check constraint warning', () => {
-    const outputPath = join(tempDir, 'check-warn.ts')
-    const { stderr } = run([onlineShopSpec, '--output', outputPath, '--include-tentative'])
+  it('Given the online shop spec with --include-tentative and a check constraint, When the command executes, Then stderr has check constraint warning', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'check-warn.ts')
+    const { stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--include-tentative'])
+    )
 
     assert.ok(
       stderr.join('').includes('Warning: Check constraint ignored by migration renderer: orders.ck_orders_status')
@@ -159,16 +167,18 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given a spec with optionals overrides, When the command executes, Then notNull reflects the override', () => {
-    const outputPath = join(tempDir, 'optionals-override.ts')
-    const { exitCode } = run([
-      'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml',
-      '--output',
-      outputPath
-    ])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'optionals-override.ts')
+    const { exitCode } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml',
+        '--output',
+        outputFilePath
+      ])
+    )
 
     assert.equal(exitCode, 0)
 
-    const content = readFileSync(outputPath, 'utf-8')
+    const content = readTextFile(outputFilePath)
 
     // requiredField is required in OpenAPI but optionals overrides it to nullable
     assert.match(content, /\.addColumn\('required_field', 'varchar\(40\)'\)\n/)
@@ -178,24 +188,28 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given --dry-run, When the command executes, Then no files are written and stdout contains "Dry run completed"', () => {
-    const outputPath = join(tempDir, 'dry-run.ts')
-    const { exitCode, stdout } = run([simpleSpec, '--output', outputPath, '--dry-run'])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'dry-run.ts')
+    const { exitCode, stdout } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', outputFilePath, '--dry-run'])
+    )
 
     assert.equal(exitCode, 0)
     assert.ok(stdout.join('').includes('Dry run completed'))
 
     // File should NOT be written
-    assert.throws(() => readFileSync(outputPath), 'File should not exist after dry-run')
+    assert.throws(() => readTextFile(outputFilePath), 'File should not exist after dry-run')
   })
 
   it('Given a spec with a tentative claim, When the command executes without --include-tentative, Then the tentative table is excluded and a warning is emitted', () => {
-    // online-shop.yaml has 'order' claim with tentative: true
-    const outputPath = join(tempDir, 'tentative-excluded.ts')
-    const { exitCode, stderr } = run([onlineShopSpec, '--output', outputPath])
+    // The online shop spec has 'order' claim with tentative: true
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'tentative-excluded.ts')
+    const { exitCode, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath])
+    )
 
     assert.equal(exitCode, 0)
 
-    const content = readFileSync(outputPath, 'utf-8')
+    const content = readTextFile(outputFilePath)
 
     // orders should NOT appear (tentative)
     assert.ok(!content.includes("createTable('orders')"), 'orders should be excluded')
@@ -212,31 +226,43 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given a spec with a tentative claim, When the command executes with --include-tentative, Then the tentative table is included', () => {
-    const outputPath = join(tempDir, 'tentative-included.ts')
-    const { exitCode } = run([onlineShopSpec, '--output', outputPath, '--include-tentative'])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'tentative-included.ts')
+    const { exitCode } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--include-tentative'])
+    )
 
     assert.equal(exitCode, 0)
 
-    const content = readFileSync(outputPath, 'utf-8')
+    const content = readTextFile(outputFilePath)
 
     assert.match(content, /createTable\('orders'\)/)
   })
 
   it('Given --previous-migration pointing to the same spec, When the command executes, Then it generates an empty diff migration', () => {
     // First run: generate initial migration
-    const initialPath = join(tempDir, 'diff-initial.ts')
-    const { exitCode: exitCode1 } = run([simpleSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Second run: diff against the same initial (no changes expected)
-    const diffPath = join(tempDir, 'diff-empty.ts')
-    const { exitCode: exitCode2, stdout } = run([simpleSpec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-empty.ts')
+    const { exitCode: exitCode2, stdout } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        simpleSpec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
     assert.ok(stdout.join('').includes('Migration generated'))
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // Still has embedded snapshot and Kysely import
     assert.match(content, /\/\/ data-sketch\/embedded-db-projection-snapshot: 1\.0\.0-draft\.0/)
@@ -253,18 +279,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given --previous-migration with simple.yaml, When the command runs against simple-v2.yaml, Then diff migration adds the new tag table', () => {
     // First run: initial migration for simple.yaml
-    const initialPath = join(tempDir, 'diff-v1.ts')
-    const { exitCode: exitCode1 } = run([simpleSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-v1.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Second run: diff migration to simple-v2.yaml (adds 'tag' claim)
-    const diffPath = join(tempDir, 'diff-v2.ts')
-    const { exitCode: exitCode2 } = run([simpleV2Spec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-v2.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        simpleV2Spec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // up should createTable tags
     assert.match(content, /createTable\('tags'\)/)
@@ -274,16 +310,18 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given --types-output with .d.ts extension, When the command executes, Then the types file is written with Database interface', () => {
-    const outputPath = join(tempDir, 'types-migration.ts')
-    const typesPath = join(tempDir, 'types-db.d.ts')
-    const { exitCode, stdout } = run([simpleSpec, '--output', outputPath, '--types-output', typesPath])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'types-migration.ts')
+    const typesOutputFilePath = joinFilePath(temporaryDirectoryPath, 'types-db.d.ts')
+    const { exitCode, stdout } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', outputFilePath, '--types-output', typesOutputFilePath])
+    )
 
     assert.equal(exitCode, 0)
     assert.ok(stdout.join('').includes('Type definitions written'))
     assert.ok(stdout.join('').includes('Migration generated'))
 
     // Types file must exist
-    const typesContent = readFileSync(typesPath, 'utf-8')
+    const typesContent = readTextFile(typesOutputFilePath)
 
     // Has embedded snapshot
     assert.match(typesContent, /\/\/ data-sketch\/embedded-db-projection-snapshot: 1\.0\.0-draft\.0/)
@@ -296,18 +334,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given a diff that adds a nullable column to an existing table, When the command executes, Then it generates addColumn without notNull callback', () => {
     // Generate initial migration from no-phone spec (customers without phone)
-    const initialPath = join(tempDir, 'no-phone-initial.ts')
-    const { exitCode: exitCode1 } = run([onlineShopNoPhoneSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'no-phone-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopNoPhoneSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Diff to spec with nullable phone added
-    const diffPath = join(tempDir, 'add-phone-diff.ts')
-    const { exitCode: exitCode2 } = run([onlineShopV1Spec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'add-phone-diff.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        onlineShopV1Spec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // Nullable addColumn: no notNull callback
     assert.match(content, /alterTable\('customers'\)\.addColumn\('phone', 'varchar\(1024\)'\)\.execute\(\)/)
@@ -317,18 +365,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given a diff that renames a column, When the command executes, Then it generates renameColumn', () => {
     // Generate initial migration from online-shop-v1 (phone column)
-    const initialPath = join(tempDir, 'rename-initial.ts')
-    const { exitCode: exitCode1 } = run([onlineShopV1Spec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'rename-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopV1Spec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Diff to online-shop-v2 (phone renamed to contact_phone)
-    const diffPath = join(tempDir, 'rename-diff.ts')
-    const { exitCode: exitCode2 } = run([onlineShopV2Spec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'rename-diff.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        onlineShopV2Spec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // Column rename in up
     assert.match(content, /renameColumn\('phone', 'contact_phone'\)/)
@@ -338,18 +396,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given a diff that renames tables, When the command executes, Then it generates renameTable and drops/recreates PKs', () => {
     // Generate initial migration from simple.yaml
-    const initialPath = join(tempDir, 'table-rename-initial.ts')
-    const { exitCode: exitCode1 } = run([simpleSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'table-rename-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Diff to simple-renamed.yaml (authors→writers, posts→articles)
-    const diffPath = join(tempDir, 'table-rename-diff.ts')
-    const { exitCode: exitCode2 } = run([simpleRenamedSpec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'table-rename-diff.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        simpleRenamedSpec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // Table renames
     assert.match(content, /renameTable\('authors', 'writers'\)/)
@@ -362,18 +430,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given a diff that changes a column type, When the command executes, Then it generates alterColumn with setDataType', () => {
     // Generate initial migration from typed.yaml
-    const initialPath = join(tempDir, 'col-type-initial.ts')
-    const { exitCode: exitCode1 } = run([typedSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'col-type-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([typedSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Diff to typed-v3.yaml (price changes from DECIMAL(10,2) to DECIMAL(10,4))
-    const diffPath = join(tempDir, 'col-type-diff.ts')
-    const { exitCode: exitCode2 } = run([typedV3Spec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'col-type-diff.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        typedV3Spec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // Column type change
     assert.match(content, /alterColumn\('price', col => col\.setDataType\('decimal\(10, 4\)'\)\.setNotNull\(\)\)/)
@@ -383,21 +461,25 @@ describe('kysely-migration CLI', () => {
 
   it('Given a diff that adds a table with a check constraint, When the command executes, Then it warns about the check constraint', () => {
     // Generate initial migration from online-shop (without tentative = just customers)
-    const initialPath = join(tempDir, 'ck-diff-initial.ts')
-    const { exitCode: exitCode1 } = run([onlineShopSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'ck-diff-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Diff to online-shop with --include-tentative (adds orders table with ck_orders_status)
-    const diffPath = join(tempDir, 'ck-diff.ts')
-    const { exitCode: exitCode2, stderr } = run([
-      onlineShopSpec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath,
-      '--include-tentative'
-    ])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'ck-diff.ts')
+    const { exitCode: exitCode2, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        onlineShopSpec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath,
+        '--include-tentative'
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
@@ -410,20 +492,24 @@ describe('kysely-migration CLI', () => {
 
   it('Given a diff that removes a check constraint from an existing table, When the command executes, Then it warns about the removed check constraint', () => {
     // Generate initial migration from simple-with-check (authors with ck_authors_status)
-    const initialPath = join(tempDir, 'ck-remove-initial.ts')
-    const { exitCode: exitCode1 } = run([simpleWithCheckSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'ck-remove-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleWithCheckSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Diff to simple-without-check (authors table still exists but ck_authors_status removed)
-    const diffPath = join(tempDir, 'ck-remove-diff.ts')
-    const { exitCode: exitCode2, stderr } = run([
-      simpleWithoutCheckSpec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'ck-remove-diff.ts')
+    const { exitCode: exitCode2, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        simpleWithoutCheckSpec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
@@ -436,18 +522,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given a diff that removes an index entirely, When the command executes, Then it drops the index', () => {
     // Generate initial migration from typed.yaml (has idx_products_sku)
-    const initialPath = join(tempDir, 'drop-ix-initial.ts')
-    const { exitCode: exitCode1 } = run([typedSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'drop-ix-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([typedSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Diff to typed-v4.yaml (index removed)
-    const diffPath = join(tempDir, 'drop-ix-diff.ts')
-    const { exitCode: exitCode2 } = run([typedV4Spec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'drop-ix-diff.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        typedV4Spec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // up drops the index
     assert.match(content, /dropIndex\('idx_products_sku'\)/)
@@ -456,21 +552,25 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given --previous-migration pointing to a file without an embedded snapshot, When the command executes, Then it returns exit code 1', () => {
-    const noSnapshotPath = join(tempDir, 'no-snapshot.ts')
-    const outputPath = join(tempDir, 'no-snapshot-output.ts')
+    const noSnapshotFilePath = joinFilePath(temporaryDirectoryPath, 'no-snapshot.ts')
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'no-snapshot-output.ts')
 
     // Write a file that has no embedded snapshot block
-    writeFileSync(noSnapshotPath, '// Just a regular TypeScript file\nexport const x = 1\n')
+    writeTextFile(noSnapshotFilePath, '// Just a regular TypeScript file\nexport const x = 1\n')
 
-    const { exitCode, stderr } = run([simpleSpec, '--output', outputPath, '--previous-migration', noSnapshotPath])
+    const { exitCode, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', outputFilePath, '--previous-migration', noSnapshotFilePath])
+    )
 
     assert.equal(exitCode, 1)
     assert.ok(stderr.join('').includes('No embedded DB projection snapshot found'))
   })
 
   it('Given a non-existent spec file, When the command executes, Then it prints an error to stderr and returns exit code 1', () => {
-    const outputPath = join(tempDir, 'error.ts')
-    const { exitCode, stdout, stderr } = run(['nonexistent.yaml', '--output', outputPath])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'error.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration(['nonexistent.yaml', '--output', outputFilePath])
+    )
 
     assert.equal(exitCode, 1)
     assert.deepEqual(stdout, [])
@@ -478,12 +578,12 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given typed.yaml with DECIMAL and BOOLEAN columns, When the command executes, Then it maps types correctly in the migration', () => {
-    const outputPath = join(tempDir, 'typed-initial.ts')
-    const { exitCode } = run([typedSpec, '--output', outputPath])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'typed-initial.ts')
+    const { exitCode } = runCommandAndCapture(() => executeKyselyMigration([typedSpec, '--output', outputFilePath]))
 
     assert.equal(exitCode, 0)
 
-    const content = readFileSync(outputPath, 'utf-8')
+    const content = readTextFile(outputFilePath)
 
     // DECIMAL maps to number
     assert.match(content, /'price': number/)
@@ -500,18 +600,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given simple.yaml to simple-v3.yaml diff, When the command executes, Then it adds a column to an existing table and a new table with a UQ', () => {
     // Generate initial migration from simple.yaml
-    const initialPath = join(tempDir, 'v3-diff-initial.ts')
-    const { exitCode: exitCode1 } = run([simpleSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'v3-diff-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Generate diff migration to simple-v3.yaml
-    const diffPath = join(tempDir, 'v3-diff.ts')
-    const { exitCode: exitCode2 } = run([simpleV3Spec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'v3-diff.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        simpleV3Spec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // Step 8: createTable tags with UQ
     assert.match(content, /createTable\('tags'\)/)
@@ -528,18 +638,28 @@ describe('kysely-migration CLI', () => {
 
   it('Given typed.yaml to typed-v2.yaml diff with changed UQ and index, When the command executes, Then it generates correct diff operations', () => {
     // Generate initial migration from typed.yaml
-    const initialPath = join(tempDir, 'typed-diff-initial.ts')
-    const { exitCode: exitCode1 } = run([typedSpec, '--output', initialPath])
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'typed-diff-initial.ts')
+    const { exitCode: exitCode1 } = runCommandAndCapture(() =>
+      executeKyselyMigration([typedSpec, '--output', initialMigrationFilePath])
+    )
 
     assert.equal(exitCode1, 0)
 
     // Generate diff migration to typed-v2.yaml (UQ and index columns changed)
-    const diffPath = join(tempDir, 'typed-diff.ts')
-    const { exitCode: exitCode2 } = run([typedV2Spec, '--output', diffPath, '--previous-migration', initialPath])
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'typed-diff.ts')
+    const { exitCode: exitCode2 } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        typedV2Spec,
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath
+      ])
+    )
 
     assert.equal(exitCode2, 0)
 
-    const content = readFileSync(diffPath, 'utf-8')
+    const content = readTextFile(diffMigrationFilePath)
 
     // Step 1: drop changed index
     assert.match(content, /dropIndex\('idx_products_sku'\)/)
@@ -559,25 +679,27 @@ describe('kysely-migration CLI', () => {
 // ─── PGlite integration ────────────────────────────────────────────────────────
 
 describe('generated migrations in PGlite', () => {
-  let tempDir = ''
+  let temporaryDirectoryPath = ''
 
   before(() => {
-    tempDir = mkdtempSync(join(tmpdir(), 'shot-pglite-'))
+    temporaryDirectoryPath = createTemporaryDirectory('shot-pglite-')
   })
 
   after(() => {
-    rmSync(tempDir, { recursive: true, force: true })
+    removeDirectory(temporaryDirectoryPath)
   })
 
   it('runs the generated up migration and creates tables, columns, constraints, and indexes', async () => {
-    const migrationPath = join(tempDir, 'up_test.ts')
-    const { exitCode } = run([simpleWithIndexSpec, '--output', migrationPath])
+    const migrationFilePath = joinFilePath(temporaryDirectoryPath, 'up_test.ts')
+    const { exitCode } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleWithIndexSpec, '--output', migrationFilePath])
+    )
 
     assert.equal(exitCode, 0)
 
     const pglite = new PGlite()
     const db = new Kysely<unknown>({ dialect: new PGliteDialect({ pglite }) })
-    const migration = await import(pathToFileURL(migrationPath).href)
+    const migration = await import(getFileImportUrl(migrationFilePath))
     const provider: MigrationProvider = {
       async getMigrations() {
         return { '001_up': migration }
@@ -595,14 +717,16 @@ describe('generated migrations in PGlite', () => {
   })
 
   it('runs the generated down migration and removes all tables', async () => {
-    const migrationPath = join(tempDir, 'down_test.ts')
-    const { exitCode } = run([simpleWithIndexSpec, '--output', migrationPath])
+    const migrationFilePath = joinFilePath(temporaryDirectoryPath, 'down_test.ts')
+    const { exitCode } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleWithIndexSpec, '--output', migrationFilePath])
+    )
 
     assert.equal(exitCode, 0)
 
     const pglite = new PGlite()
     const db = new Kysely<unknown>({ dialect: new PGliteDialect({ pglite }) })
-    const migration = await import(pathToFileURL(migrationPath).href)
+    const migration = await import(getFileImportUrl(migrationFilePath))
     const provider: MigrationProvider = {
       async getMigrations() {
         return { '001_down': migration }
@@ -624,21 +748,31 @@ describe('generated migrations in PGlite', () => {
   })
 
   it('runs initial migration followed by a diff migration that adds a table', async () => {
-    const initialPath = join(tempDir, '001_initial.ts')
-    const diffPath = join(tempDir, '002_add_tags.ts')
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, '001_initial.ts')
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, '002_add_tags.ts')
 
-    const { exitCode: e1 } = run([simpleSpec, '--output', initialPath])
+    const { exitCode: initialExitCode } = runCommandAndCapture(() =>
+      executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
+    )
 
-    assert.equal(e1, 0)
+    assert.equal(initialExitCode, 0)
 
-    const { exitCode: e2 } = run([simpleV2Spec, '--previous-migration', initialPath, '--output', diffPath])
+    const { exitCode: diffExitCode } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        simpleV2Spec,
+        '--previous-migration',
+        initialMigrationFilePath,
+        '--output',
+        diffMigrationFilePath
+      ])
+    )
 
-    assert.equal(e2, 0)
+    assert.equal(diffExitCode, 0)
 
     const pglite = new PGlite()
     const db = new Kysely<unknown>({ dialect: new PGliteDialect({ pglite }) })
-    const initialMigration = await import(pathToFileURL(initialPath).href)
-    const diffMigration = await import(pathToFileURL(diffPath).href)
+    const initialMigration = await import(getFileImportUrl(initialMigrationFilePath))
+    const diffMigration = await import(getFileImportUrl(diffMigrationFilePath))
     const provider: MigrationProvider = {
       async getMigrations() {
         return {
@@ -668,11 +802,12 @@ describe('generated migrations in PGlite', () => {
   })
 
   it('encodes and decodes embedded snapshot round-trip', () => {
-    const { exitCode } = run([simpleSpec, '--output', join(tempDir, 'snap_test.ts')])
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'snap_test.ts')
+    const { exitCode } = runCommandAndCapture(() => executeKyselyMigration([simpleSpec, '--output', outputFilePath]))
 
     assert.equal(exitCode, 0)
 
-    const content = readFileSync(join(tempDir, 'snap_test.ts'), 'utf-8')
+    const content = readTextFile(outputFilePath)
     const roundTripped = parseEmbeddedSnapshot(content)
 
     assert.equal(roundTripped['data-sketch/db-projection-snapshot'], '1.0.0-draft.0')
@@ -680,12 +815,13 @@ describe('generated migrations in PGlite', () => {
     assert.ok(roundTripped.tables.every(t => typeof t.id === 'string' && typeof t.name === 'string'))
   })
 
-  it('renderInitialMigrationFile produces the same snapshot as buildSnapshot via encodeSnapshot', () => {
-    const { exitCode } = run([simpleSpec, '--output', join(tempDir, 'render_test.ts')])
+  it('renderInitialMigrationFile preserves the embedded snapshot', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'render_test.ts')
+    const { exitCode } = runCommandAndCapture(() => executeKyselyMigration([simpleSpec, '--output', outputFilePath]))
 
     assert.equal(exitCode, 0)
 
-    const content = readFileSync(join(tempDir, 'render_test.ts'), 'utf-8')
+    const content = readTextFile(outputFilePath)
     const fromFile = parseEmbeddedSnapshot(content)
 
     // Build snapshot directly and re-encode to verify consistency
@@ -700,16 +836,6 @@ describe('generated migrations in PGlite', () => {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const simpleWithIndexSpec = 'test/commands/kysely-migration/fixtures/simple-with-index.yaml'
-
-function run(args: readonly string[]) {
-  let exitCode = 0
-
-  const result = runAndCapture(() => {
-    exitCode = executeKyselyMigration(args)
-  })
-
-  return { exitCode, stdout: result.stdout, stderr: result.stderr }
-}
 
 async function readTableNames(db: Kysely<unknown>): Promise<string[]> {
   const result = await sql<{ table_name: string }>`

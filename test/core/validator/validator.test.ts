@@ -1,39 +1,94 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
 import { parse } from '../../../src/core/parser.ts'
-import { validate } from '../../../src/core/validator.ts'
-import { readTextFile } from '../../test-helper/file-access.ts'
+import { coreValidator, openApiValidator, type Validator, validate } from '../../../src/core/validator.ts'
+import { readJsonFile, readTextFile } from '../../test-helper/file-access.ts'
 
 describe('core validator', () => {
-  it('validate marks a sketch as validated and adds built-in projectors when trace is false', () => {
+  it('validate marks a sketch as validated when trace is false', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/validator/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/validator/fixtures/online-shop.valid.yaml' }),
       trace: false
     })
 
     assert.equal(sketch.metadata.validated, true)
-    assert.equal(typeof sketch.projections.extensions, 'function')
-    assert.equal(typeof sketch.projections.relationalDb, 'function')
-
-    assert.deepEqual(sketch.projections.extensions(), {
-      'data-sketch/extension-projection': '1.0.0-draft.2',
-      extensions: []
-    })
-
-    assert.equal(sketch.projections.relationalDb().tables.customer?.name, 'customers')
   })
 
-  it('validate defaults to trace true for spec sources.openapi', () => {
+  it('validate parses a path and marks the sketch as validated', () => {
+    const sketch = validate({ specFilePath: 'test/core/validator/fixtures/online-shop.valid.yaml', trace: false })
+
+    assert.equal(sketch.metadata.validated, true)
+    assert.equal(sketch.spec.info.name, 'online-shop')
+  })
+
+  it('validate runs the core validator without explicit registration', () => {
+    assert.throws(
+      () =>
+        validate({
+          specFilePath: 'test/core/validator/fixtures/online-shop-missing-relation-target-claim.invalid.yaml',
+          trace: false
+        }),
+      /claims\.order\.relations\.customer target claim shopper does not exist/
+    )
+  })
+
+  it('validate does not run the core validator twice when it is explicitly registered', () => {
+    assert.throws(
+      () =>
+        validate({
+          specFilePath: 'test/core/validator/fixtures/online-shop-missing-relation-target-claim.invalid.yaml',
+          trace: false,
+          validators: [coreValidator]
+        }),
+      error => {
+        const issue = 'claims.order.relations.customer target claim shopper does not exist'
+        const message = (error as Error).message
+
+        assert.equal(message.split(issue).length - 1, 1)
+
+        return true
+      }
+    )
+  })
+
+  it('validate runs additional validators', () => {
+    const customValidator: Validator = {
+      name: 'custom',
+      validate: () => ['custom validator issue']
+    }
+
+    assert.throws(
+      () =>
+        validate({
+          specFilePath: 'test/core/validator/fixtures/online-shop.valid.yaml',
+          trace: false,
+          validators: [customValidator]
+        }),
+      /custom validator issue/
+    )
+  })
+
+  it('validate does not load OpenAPI from a sketch source path in pure sketch calls', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/validator/fixtures/online-shop.valid.yaml' })
+      sketch: parse({ specFilePath: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml' }),
+      validators: [openApiValidator]
     })
 
     assert.equal(sketch.metadata.validated, true)
+    assert.equal(sketch.sources?.openapi, undefined)
   })
 
-  it('validate stores the dereferenced OpenAPI source when trace validation uses spec sources.openapi', () => {
+  it('validate does not load OpenAPI from a path unless the OpenAPI validator is registered', () => {
+    const sketch = validate({ specFilePath: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml' })
+
+    assert.equal(sketch.metadata.validated, true)
+    assert.equal(sketch.sources?.openapi, undefined)
+  })
+
+  it('validate stores the dereferenced OpenAPI source when path validation uses openApiValidator', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/validator/fixtures/online-shop-openapi-ref.valid.yaml' })
+      specFilePath: 'test/core/validator/fixtures/online-shop-openapi-ref.valid.yaml',
+      validators: [openApiValidator]
     })
 
     const openApi = sketch.sources?.openapi as Record<string, unknown>
@@ -51,25 +106,55 @@ describe('core validator', () => {
     assert.equal(schema.type, 'object')
   })
 
-  it('validate defaults to trace true for explicit OpenAPI source strings', () => {
+  it('validate accepts explicit OpenAPI source strings', () => {
     const sketch = validate({
-      sketch: parse({ input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
+      sketch: parse({ specSourceText: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
       sources: {
         openapi: readTextFile('test/core/validator/fixtures/openapi/openapi.yaml')
-      }
+      },
+      validators: [openApiValidator]
     })
 
     assert.equal(sketch.metadata.validated, true)
     assert.notEqual(sketch.sources?.openapi, undefined)
   })
 
+  it('validate accepts explicit OpenAPI source objects', () => {
+    const sketch = validate({
+      sketch: parse({ specFilePath: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml' }),
+      sources: {
+        openapi: readJsonFile('test/core/validator/fixtures/openapi/minimal-openapi.json')
+      },
+      validators: [openApiValidator]
+    })
+
+    assert.equal(sketch.metadata.validated, true)
+  })
+
+  it('validate accepts already loaded OpenAPI sources on the sketch', () => {
+    const parsed = parse({ specFilePath: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml' })
+
+    const sketch = validate({
+      sketch: {
+        ...parsed,
+        sources: {
+          openapi: readJsonFile('test/core/validator/fixtures/openapi/minimal-openapi.json')
+        }
+      },
+      validators: [openApiValidator]
+    })
+
+    assert.equal(sketch.metadata.validated, true)
+  })
+
   it('validate does not parse explicit OpenAPI source strings when trace is false', () => {
     const sketch = validate({
-      sketch: parse({ input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
+      sketch: parse({ specSourceText: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
       sources: {
         openapi: 'openapi: ['
       },
-      trace: false
+      trace: false,
+      validators: [openApiValidator]
     })
 
     assert.equal(sketch.metadata.validated, true)
@@ -77,112 +162,83 @@ describe('core validator', () => {
 
   it('validate accepts relation source paths that are also listed in details', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/validator/fixtures/online-shop-relation-source-detail.valid.yaml'
-      }),
+      specFilePath: 'test/core/validator/fixtures/online-shop-relation-source-detail.valid.yaml',
       trace: false
     })
 
     assert.equal(sketch.metadata.validated, true)
-  })
-
-  it('validate rejects missing relation target claims', () => {
-    assert.throws(
-      () =>
-        validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-missing-relation-target-claim.invalid.yaml'
-          }),
-          trace: false
-        }),
-      /claims\.order\.relations\.customer target claim shopper does not exist/
-    )
   })
 
   it('validate accepts relation source paths that are listed only in relations', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/validator/fixtures/online-shop-relation-source-only.valid.yaml'
-      }),
+      specFilePath: 'test/core/validator/fixtures/online-shop-relation-source-only.valid.yaml',
       trace: false
     })
 
     assert.equal(sketch.metadata.validated, true)
   })
 
-  it('validate rejects missing OpenAPI files when trace is true', () => {
+  it('validate rejects missing OpenAPI files when path validation uses openApiValidator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml'
-          }),
-          trace: true
+          specFilePath: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml',
+          validators: [openApiValidator]
         }),
       /Failed to read OpenAPI:/
     )
   })
 
-  it('validate rejects invalid OpenAPI syntax when trace is true', () => {
+  it('validate rejects invalid OpenAPI syntax when path validation uses openApiValidator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-invalid-openapi.invalid.yaml'
-          }),
-          trace: true
+          specFilePath: 'test/core/validator/fixtures/online-shop-invalid-openapi.invalid.yaml',
+          validators: [openApiValidator]
         }),
       /Failed to parse OpenAPI:/
     )
   })
 
-  it('validate rejects missing traced operationIds when trace is true', () => {
+  it('validate rejects missing traced operationIds when path validation uses openApiValidator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml'
-          }),
-          trace: true
+          specFilePath: 'test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml',
+          validators: [openApiValidator]
         }),
       /trace operation missingOperation does not exist in OpenAPI operationId/
     )
   })
 
-  it('validate rejects duplicate OpenAPI operationIds when trace is true', () => {
+  it('validate rejects duplicate OpenAPI operationIds when path validation uses openApiValidator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-duplicate-operation.invalid.yaml'
-          }),
-          trace: true
+          specFilePath: 'test/core/validator/fixtures/online-shop-duplicate-operation.invalid.yaml',
+          validators: [openApiValidator]
         }),
       /OpenAPI operationId createCustomer is duplicated/
     )
   })
 
-  it('validate rejects OpenAPI root values that are not objects when trace is true', () => {
+  it('validate rejects OpenAPI root values that are not objects when path validation uses openApiValidator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-openapi-root-null.invalid.yaml'
-          }),
-          trace: true
+          specFilePath: 'test/core/validator/fixtures/online-shop-openapi-root-null.invalid.yaml',
+          validators: [openApiValidator]
         }),
       /OpenAPI root must be an object/
     )
   })
 
-  it('validate rejects OpenAPI files without object paths when trace is true', () => {
+  it('validate rejects OpenAPI files without object paths when path validation uses openApiValidator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-openapi-missing-paths.invalid.yaml'
-          }),
-          trace: true
+          specFilePath: 'test/core/validator/fixtures/online-shop-openapi-missing-paths.invalid.yaml',
+          validators: [openApiValidator]
         }),
       /OpenAPI paths must be an object/
     )
@@ -193,12 +249,12 @@ describe('core validator', () => {
       () =>
         validate({
           sketch: parse({
-            input: readTextFile('test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml')
+            specSourceText: readTextFile('test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml')
           }),
           sources: {
             openapi: readTextFile('test/core/validator/fixtures/openapi/openapi.yaml')
           },
-          trace: true
+          validators: [openApiValidator]
         }),
       /trace operation missingOperation does not exist in OpenAPI operationId/
     )
@@ -208,13 +264,11 @@ describe('core validator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
-          }),
+          sketch: parse({ specSourceText: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
           sources: {
             openapi: readTextFile('test/core/validator/fixtures/openapi/duplicate-operation-id.yaml')
           },
-          trace: true
+          validators: [openApiValidator]
         }),
       /OpenAPI operationId createCustomer is duplicated/
     )
@@ -224,12 +278,11 @@ describe('core validator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
-          }),
+          sketch: parse({ specSourceText: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
           sources: {
             openapi: readTextFile('test/core/validator/fixtures/openapi/invalid-syntax.yaml')
-          }
+          },
+          validators: [openApiValidator]
         }),
       /Failed to parse OpenAPI:/
     )
@@ -239,13 +292,11 @@ describe('core validator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
-          }),
+          sketch: parse({ specSourceText: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
           sources: {
             openapi: readTextFile('test/core/validator/fixtures/openapi/root-null.yaml')
           },
-          trace: true
+          validators: [openApiValidator]
         }),
       /OpenAPI root must be an object/
     )
@@ -255,13 +306,11 @@ describe('core validator', () => {
     assert.throws(
       () =>
         validate({
-          sketch: parse({
-            input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
-          }),
+          sketch: parse({ specSourceText: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
           sources: {
             openapi: readTextFile('test/core/validator/fixtures/openapi/missing-paths.yaml')
           },
-          trace: true
+          validators: [openApiValidator]
         }),
       /OpenAPI paths must be an object/
     )

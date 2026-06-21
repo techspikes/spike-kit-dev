@@ -1,5 +1,13 @@
 export { renderTablesDoc } from './commands/tables-doc.ts'
-export type { DataSketch, Specification } from './core/parser.ts'
+export type { DataSketch, Specification, ValidatedDataSketch } from './core/parser.ts'
 export { parse } from './core/parser.ts'
-export type { RelationalDbProjection } from './core/projector.ts'
-export { validate } from './core/validator.ts'
+export type {
+  ExtensionProjection,
+  ProjectionContext,
+  ProjectionResolver,
+  Projector,
+  RelationalDbProjection
+} from './core/projector.ts'
+export { extensionProjector, project, relationalDbProjector } from './core/projector.ts'
+export type { ValidateOptions, ValidationSources, Validator, ValidatorContext } from './core/validator.ts'
+export { coreValidator, openApiValidator, validate } from './core/validator.ts'

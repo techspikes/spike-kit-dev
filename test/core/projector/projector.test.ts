@@ -1,34 +1,48 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
-import { parse } from '../../../src/core/parser.ts'
+import { parse, type ValidatedDataSketch } from '../../../src/core/parser.ts'
 import {
   buildExtensionProjection,
   buildRelationalDbProjection,
   type ExtensionProjection,
+  extensionProjector,
+  type Projector,
+  project,
   type RelationalDbProjection,
-  useProjectors
+  relationalDbProjector
 } from '../../../src/core/projector.ts'
-import { validate } from '../../../src/core/validator.ts'
+import { openApiValidator, validate } from '../../../src/core/validator.ts'
 import { readJsonFile } from '../../test-helper/file-access.ts'
 
 describe('core projector', () => {
   it('buildRelationalDbProjection rejects a sketch that has not been validated', () => {
     assert.throws(
-      () => buildRelationalDbProjection(parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
+      () => buildRelationalDbProjection(parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
       /DataSketch must be validated/
     )
   })
 
   it('buildExtensionProjection rejects a sketch that has not been validated', () => {
     assert.throws(
-      () => buildExtensionProjection(parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
+      () => buildExtensionProjection(parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
       /DataSketch must be validated/
     )
   })
 
-  it('validated sketches can build a relational DB projection through the built-in projector', () => {
+  it('project rejects a sketch that has not been validated', () => {
+    assert.throws(
+      () =>
+        project(
+          parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }) as ValidatedDataSketch,
+          []
+        ),
+      /DataSketch must be validated/
+    )
+  })
+
+  it('validated sketches can build a relational DB projection through an explicit projector', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
       trace: false
     })
 
@@ -36,24 +50,24 @@ describe('core projector', () => {
       'test/core/projector/fixtures/online-shop.relational-db-projection.json'
     )
 
-    assert.deepEqual(sketch.projections.relationalDb(), expected)
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
-  it('validated sketches can build an empty extension projection through the built-in projector', () => {
+  it('validated sketches can build an empty extension projection through an explicit projector', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
       trace: false
     })
 
-    assert.deepEqual(sketch.projections.extensions(), {
+    assert.deepEqual(buildExtensionProjectionWithProjector(sketch), {
       'data-sketch/extension-projection': '1.0.0-draft.2',
       extensions: []
     })
   })
 
-  it('validated sketches can build an extension projection through the built-in projector', () => {
+  it('validated sketches can build an extension projection through an explicit projector', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/projector/fixtures/online-shop-extensions.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-extensions.valid.yaml' }),
       trace: false
     })
 
@@ -61,96 +75,115 @@ describe('core projector', () => {
       'test/core/projector/fixtures/online-shop.extension-projection.json'
     )
 
-    assert.deepEqual(sketch.projections.extensions(), expected)
+    assert.deepEqual(buildExtensionProjectionWithProjector(sketch), expected)
   })
 
-  it('useProjectors can overwrite the built-in relational DB projector', () => {
+  it('project builds a custom projection lazily and memoizes the result', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
       trace: false
     })
 
-    const customProjection: RelationalDbProjection = {
-      'data-sketch/relational-db-projection': '1.0.0-draft.3',
-      tables: {}
+    let buildCount = 0
+
+    const customProjector: Projector<string> = {
+      name: 'custom',
+      build: () => {
+        buildCount += 1
+
+        return 'custom projection'
+      }
     }
 
-    const CustomProjector1 = () => customProjection
+    const projections = project(sketch, [customProjector])
 
-    const withCustomProjector = useProjectors(sketch, {
-      relationalDb: CustomProjector1
-    })
-
-    assert.deepEqual(withCustomProjector.projections.relationalDb(), customProjection)
+    assert.equal(buildCount, 0)
+    assert.equal(projections.get('custom'), 'custom projection')
+    assert.equal(projections.get('custom'), 'custom projection')
+    assert.equal(buildCount, 1)
   })
 
-  it('useProjectors adds command projectors and preserves their inferred return types', () => {
+  it('project lets a projector depend on another projection', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
       trace: false
     })
 
-    const CustomProjector1 = () => ({
-      'data-sketch/extend-field-projection': '1.0.0-draft.2',
-      fields: [
-        {
-          path: 'customer.phoneNumber',
-          extensions: {
-            'x-display-label': 'Phone number'
-          }
-        }
-      ]
+    const sourceProjector: Projector<{ readonly value: string }> = {
+      name: 'source',
+      build: () => ({ value: 'source projection' })
+    }
+
+    const dependentProjector: Projector<string> = {
+      name: 'dependent',
+      build: ({ projection }) => projection<{ readonly value: string }>('source').value
+    }
+
+    assert.equal(project(sketch, [dependentProjector, sourceProjector]).get('dependent'), 'source projection')
+  })
+
+  it('project rejects duplicate projector names', () => {
+    const sketch = validate({
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      trace: false
     })
 
-    const CustomProjector2 = () => ({
-      'data-sketch/value-context-projection': '1.0.0-draft.2',
-      values: [
-        {
-          claim: 'customer',
-          reason:
-            'Customer profile information is needed when customers are created and later looked up for ordering and support context.',
-          aliases: ['buyer']
-        }
-      ]
+    const firstProjector: Projector<string> = {
+      name: 'custom',
+      build: () => 'first'
+    }
+
+    const secondProjector: Projector<string> = {
+      name: 'custom',
+      build: () => 'second'
+    }
+
+    assert.throws(() => project(sketch, [firstProjector, secondProjector]), /Projector custom is duplicated/)
+  })
+
+  it('project rejects unregistered projection dependencies', () => {
+    const sketch = validate({
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      trace: false
     })
 
-    const withCommandProjectors = useProjectors(sketch, {
-      customProjector1: CustomProjector1,
-      customProjector2: CustomProjector2
+    const dependentProjector: Projector<string> = {
+      name: 'dependent',
+      build: ({ projection }) => projection('missing')
+    }
+
+    assert.throws(() => project(sketch, [dependentProjector]).get('dependent'), /Projector missing is not registered/)
+  })
+
+  it('project rejects circular projection dependencies', () => {
+    const sketch = validate({
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      trace: false
     })
 
-    assert.deepEqual(withCommandProjectors.projections.customProjector1(), {
-      'data-sketch/extend-field-projection': '1.0.0-draft.2',
-      fields: [
-        {
-          path: 'customer.phoneNumber',
-          extensions: {
-            'x-display-label': 'Phone number'
-          }
-        }
-      ]
-    })
+    const firstProjector: Projector<string> = {
+      name: 'first',
+      build: ({ projection }) => projection('second')
+    }
 
-    assert.deepEqual(withCommandProjectors.projections.customProjector2(), {
-      'data-sketch/value-context-projection': '1.0.0-draft.2',
-      values: [
-        {
-          claim: 'customer',
-          reason:
-            'Customer profile information is needed when customers are created and later looked up for ordering and support context.',
-          aliases: ['buyer']
-        }
-      ]
-    })
+    const secondProjector: Projector<string> = {
+      name: 'second',
+      build: ({ projection }) => projection('first')
+    }
+
+    assert.throws(
+      () => project(sketch, [firstProjector, secondProjector]).get('first'),
+      /Projector first has a circular dependency/
+    )
   })
 
   it('buildRelationalDbProjection projects relations using projected column names', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/projector/fixtures/online-shop-relation-only.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-relation-only.valid.yaml' }),
       trace: false
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables.customer?.columns[4], {
       id: 'tags[]',
@@ -191,13 +224,11 @@ describe('core projector', () => {
 
   it('buildRelationalDbProjection projects claim ID exact-match details as marked foreign keys', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-claim-id-exact-match.valid.yaml'
-      }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-claim-id-exact-match.valid.yaml' }),
       trace: false
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables.order?.keys.foreign, [
       {
@@ -256,13 +287,11 @@ describe('core projector', () => {
 
   it('buildRelationalDbProjection skips claim ID exact-match inference when the claim has any explicit relation', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-relations-disable-inferred.valid.yaml'
-      }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-relations-disable-inferred.valid.yaml' }),
       trace: false
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables.order?.keys.foreign, [
       {
@@ -280,12 +309,12 @@ describe('core projector', () => {
   it('buildRelationalDbProjection projects relation-only source paths into child tables', () => {
     const sketch = validate({
       sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-nested-relation-source-only.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-nested-relation-source-only.valid.yaml'
       }),
       trace: false
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables['order.items[]']?.columns, [
       {
@@ -334,12 +363,11 @@ describe('core projector', () => {
 
   it('buildRelationalDbProjection infers SQL types and nullability from traced OpenAPI fields', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-openapi-inference.valid.yaml'
-      })
+      specFilePath: 'test/core/projector/fixtures/online-shop-openapi-inference.valid.yaml',
+      validators: [openApiValidator]
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables.product?.columns, [
       {
@@ -459,12 +487,11 @@ describe('core projector', () => {
 
   it('buildRelationalDbProjection lets optionals override OpenAPI-inferred nullability', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml'
-      })
+      specFilePath: 'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml',
+      validators: [openApiValidator]
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables.widget?.columns, [
       {
@@ -488,12 +515,11 @@ describe('core projector', () => {
 
   it('buildRelationalDbProjection infers fixed-length CHAR types from OpenAPI date/time string formats', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-string-format-inference.valid.yaml'
-      })
+      specFilePath: 'test/core/projector/fixtures/online-shop-string-format-inference.valid.yaml',
+      validators: [openApiValidator]
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables.event?.columns, [
       {
@@ -549,7 +575,7 @@ describe('core projector', () => {
 
   it('buildRelationalDbProjection projects nested array details into child tables', () => {
     const sketch = validate({
-      sketch: parse({ path: 'test/core/projector/fixtures/online-shop-nested-array.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-nested-array.valid.yaml' }),
       trace: false
     })
 
@@ -557,14 +583,12 @@ describe('core projector', () => {
       'test/core/projector/fixtures/online-shop-nested-array.relational-db-projection.json'
     )
 
-    assert.deepEqual(sketch.projections.relationalDb(), expected)
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection flattens nested object details inside child tables', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-child-flattening.valid.yaml'
-      }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-child-flattening.valid.yaml' }),
       trace: false
     })
 
@@ -572,19 +596,19 @@ describe('core projector', () => {
       'test/core/projector/fixtures/online-shop-child-flattening.relational-db-projection.json'
     )
 
-    assert.deepEqual(sketch.projections.relationalDb(), expected)
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection rejects projected table name conflicts', () => {
     const sketch = validate({
       sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-projected-table-name-conflict.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-projected-table-name-conflict.valid.yaml'
       }),
       trace: false
     })
 
     assert.throws(
-      () => sketch.projections.relationalDb(),
+      () => buildRelationalDbProjectionWithProjector(sketch),
       /Projected table name order_items for table orderItems conflicts with table order\.items\[\]/
     )
   })
@@ -592,13 +616,13 @@ describe('core projector', () => {
   it('buildRelationalDbProjection rejects projected column name conflicts', () => {
     const sketch = validate({
       sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-projected-column-name-conflict.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-projected-column-name-conflict.valid.yaml'
       }),
       trace: false
     })
 
     assert.throws(
-      () => sketch.projections.relationalDb(),
+      () => buildRelationalDbProjectionWithProjector(sketch),
       /Projected column name address_city for column address_city in table customer conflicts with column address\.city/
     )
   })
@@ -606,13 +630,13 @@ describe('core projector', () => {
   it('buildRelationalDbProjection rejects invalid x-relational-db-schema overrides', () => {
     const sketch = validate({
       sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension-invalid.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension-invalid.valid.yaml'
       }),
       trace: false
     })
 
     assert.throws(
-      () => sketch.projections.relationalDb(),
+      () => buildRelationalDbProjectionWithProjector(sketch),
       error => {
         const message = (error as Error).message
 
@@ -678,7 +702,7 @@ describe('core projector', () => {
   it('buildRelationalDbProjection applies x-relational-db-schema overrides', () => {
     const sketch = validate({
       sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension.valid.yaml'
       }),
       trace: false
     })
@@ -687,18 +711,16 @@ describe('core projector', () => {
       'test/core/projector/fixtures/online-shop-relational-db-schema-extension.relational-db-projection.json'
     )
 
-    assert.deepEqual(sketch.projections.relationalDb(), expected)
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection auto-generates uq_/ck_ constraint names when omitted', () => {
     const sketch = validate({
-      sketch: parse({
-        path: 'test/core/projector/fixtures/online-shop-constraint-name-generation.valid.yaml'
-      }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-constraint-name-generation.valid.yaml' }),
       trace: false
     })
 
-    const projection = sketch.projections.relationalDb()
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
 
     assert.deepEqual(projection.tables.widget?.constraints, {
       unique: [
@@ -726,3 +748,11 @@ describe('core projector', () => {
     })
   })
 })
+
+function buildRelationalDbProjectionWithProjector(sketch: ValidatedDataSketch) {
+  return project(sketch, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+}
+
+function buildExtensionProjectionWithProjector(sketch: ValidatedDataSketch) {
+  return project(sketch, [extensionProjector]).get<ExtensionProjection>('extension')
+}

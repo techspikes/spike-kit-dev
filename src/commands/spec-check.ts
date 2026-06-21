@@ -1,6 +1,5 @@
 import { parseArgs } from 'node:util'
-import { parse } from '../core/parser.ts'
-import { validate } from '../core/validator.ts'
+import { openApiValidator, validate } from '../core/validator.ts'
 
 const usage = () =>
   [
@@ -23,7 +22,7 @@ export function executeSpecCheck(args: readonly string[]) {
       }
     })
 
-    const specFile = options.positionals[0]
+    const specFilePath = options.positionals[0]
 
     if (options.values.help) {
       console.log(usage())
@@ -31,15 +30,16 @@ export function executeSpecCheck(args: readonly string[]) {
       return 0
     }
 
-    if (!specFile) {
+    if (!specFilePath) {
       console.log(usage())
 
       return 1
     }
 
     validate({
-      sketch: parse({ path: specFile }),
-      trace: true
+      specFilePath,
+      trace: true,
+      validators: [openApiValidator]
     })
 
     console.log('Specification is valid.')

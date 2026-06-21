@@ -1,6 +1,6 @@
 import { load, YAMLException } from 'js-yaml'
 import * as v from 'valibot'
-import { readCwdRelativeTextFile, resolveCwdRelativeDirectoryPath } from './utils.ts'
+import { readTextFile, resolveCwdRelativeDirectoryPath, resolveCwdRelativeFilePath } from './utils.ts'
 
 // ! Parser validation covers Data Sketch rules that can be checked within one document.
 // ! Cross-claim references and external sources are checked by validator.ts.
@@ -44,35 +44,38 @@ const specificationSchema = v.looseObject({
 
 export type Specification = v.InferOutput<typeof specificationSchema>
 
-export type DataSketch<
-  P extends Record<string, (() => unknown) | undefined> = Record<string, (() => unknown) | undefined>
-> = {
+export type DataSketch = {
   readonly spec: Specification
   readonly sources?: {
     readonly openapi?: unknown
   }
   readonly metadata: {
     readonly version: string
-    readonly basePath: string
+    readonly baseDirectoryPath: string
     readonly validated?: boolean
   }
-  readonly projections: P
 }
 
-export function parse(options: { readonly path: string } | { readonly input: string }): DataSketch {
-  let source: string
-  let basePath: string
+export type ValidatedDataSketch = DataSketch & {
+  readonly metadata: DataSketch['metadata'] & {
+    readonly validated: true
+  }
+}
 
-  if ('path' in options) {
-    source = readCwdRelativeTextFile(options.path)
-    basePath = resolveCwdRelativeDirectoryPath(options.path)
+export function parse(options: { readonly specFilePath: string } | { readonly specSourceText: string }): DataSketch {
+  let specSourceText: string
+  let baseDirectoryPath: string
+
+  if ('specFilePath' in options) {
+    specSourceText = readTextFile(resolveCwdRelativeFilePath(options.specFilePath))
+    baseDirectoryPath = resolveCwdRelativeDirectoryPath(options.specFilePath)
   } else {
-    source = options.input
-    basePath = process.cwd()
+    specSourceText = options.specSourceText
+    baseDirectoryPath = process.cwd()
   }
 
   try {
-    const result = v.safeParse(specificationSchema, load(source))
+    const result = v.safeParse(specificationSchema, load(specSourceText))
 
     if (!result.success) {
       throw new Error(formatValibotIssues(result.issues).join('\n'))
@@ -89,9 +92,8 @@ export function parse(options: { readonly path: string } | { readonly input: str
       spec: parsed,
       metadata: {
         version: parsed['data-sketch'],
-        basePath
-      },
-      projections: {}
+        baseDirectoryPath
+      }
     }
   } catch (error) {
     if (error instanceof YAMLException) {
@@ -279,7 +281,7 @@ function validateDetailPathConflicts(
     segments: detailId.split('.')
   }))
 
-  function getDetailPathIssuePath(detailId: string) {
+  function formatDetailIssuePath(detailId: string) {
     const detailField = detailFields.get(detailId) as 'details' | 'relations'
 
     return `claims.${claimId}.${detailField}.${detailId}`
@@ -323,18 +325,18 @@ function validateDetailPathConflicts(
       const right = detailPaths[otherIndex]
 
       if (isStrictDetailPathPrefix(left.segments, right.segments)) {
-        issues.push(`${getDetailPathIssuePath(left.detailId)} must not be a strict prefix of ${right.detailId}`)
+        issues.push(`${formatDetailIssuePath(left.detailId)} must not be a strict prefix of ${right.detailId}`)
       }
 
       if (isStrictDetailPathPrefix(right.segments, left.segments)) {
-        issues.push(`${getDetailPathIssuePath(right.detailId)} must not be a strict prefix of ${left.detailId}`)
+        issues.push(`${formatDetailIssuePath(right.detailId)} must not be a strict prefix of ${left.detailId}`)
       }
 
       const conflictSegment = getArrayObjectConflictSegment(left.segments, right.segments)
 
       if (conflictSegment) {
         issues.push(
-          `${getDetailPathIssuePath(left.detailId)} conflicts with ${right.detailId} because segment ${conflictSegment} uses both object and array form`
+          `${formatDetailIssuePath(left.detailId)} conflicts with ${right.detailId} because segment ${conflictSegment} uses both object and array form`
         )
       }
     }
@@ -378,12 +380,16 @@ function validateExtensionFields(spec: Specification): string[] {
   return issues
 }
 
-function validateExtensibleObjectFields(path: string, object: Record<string, unknown>, knownFields: readonly string[]) {
+function validateExtensibleObjectFields(
+  objectPath: string,
+  object: Record<string, unknown>,
+  knownFields: readonly string[]
+) {
   const issues: string[] = []
 
   for (const field of Object.keys(object)) {
     if (!knownFields.includes(field) && !field.startsWith('x-')) {
-      const fieldPath = path ? `${path}.${field}` : field
+      const fieldPath = objectPath ? `${objectPath}.${field}` : field
 
       issues.push(`${fieldPath} is not supported; use x-* for extension fields`)
     }
@@ -394,10 +400,10 @@ function validateExtensibleObjectFields(path: string, object: Record<string, unk
 
 function formatValibotIssues(issues: readonly v.InferIssue<typeof specificationSchema>[]) {
   return issues.map(issue => {
-    const path = issue.path?.map(item => String(item.key)).join('.')
+    const issuePath = issue.path?.map(item => String(item.key)).join('.')
 
-    if (path) {
-      return `${path}: ${issue.message}`
+    if (issuePath) {
+      return `${issuePath}: ${issue.message}`
     }
 
     return issue.message

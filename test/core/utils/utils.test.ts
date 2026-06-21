@@ -1,60 +1,77 @@
 import assert from 'node:assert'
-import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import {
-  readBaseRelativeTextFile as readCoreBaseRelativeTextFile,
-  readCwdRelativeTextFile as readCoreCwdRelativeTextFile,
-  resolveCwdRelativeDirectoryPath as resolveCoreCwdRelativeDirectoryPath,
-  resolveCwdRelativePath as resolveCoreCwdRelativePath
-} from '../../../src/core/utils.ts'
-import {
+  getFileName,
   readBaseRelativeTextFile,
-  readCwdRelativeTextFile,
+  readTextFile,
+  resolveBaseRelativeFilePath,
   resolveCwdRelativeDirectoryPath,
-  resolveCwdRelativePath
-} from '../../test-helper/file-access.ts'
+  resolveCwdRelativeFilePath,
+  resolveDirectoryPath,
+  writeTextFile
+} from '../../../src/core/utils.ts'
+import { joinFilePath, readTextFile as readTestTextFile } from '../../test-helper/file-access.ts'
 
 describe('core utils', () => {
-  it('resolveCwdRelativePath resolves a relative fixture path from the current working directory', () => {
+  it('resolveCwdRelativeFilePath resolves a relative fixture file path from the current working directory', () => {
     assert.equal(
-      resolveCoreCwdRelativePath('test/core/utils/fixtures/online-shop.valid.yaml'),
-      join(process.cwd(), 'test/core/utils/fixtures/online-shop.valid.yaml')
+      resolveCwdRelativeFilePath('test/core/utils/fixtures/online-shop.valid.yaml'),
+      joinFilePath(process.cwd(), 'test/core/utils/fixtures/online-shop.valid.yaml')
     )
   })
 
-  it('resolveCwdRelativePath returns an absolute fixture path unchanged', () => {
-    const fixturePath = join(process.cwd(), 'test/core/utils/fixtures/online-shop.valid.yaml')
+  it('resolveCwdRelativeFilePath returns an absolute fixture file path unchanged', () => {
+    const fixtureFilePath = joinFilePath(process.cwd(), 'test/core/utils/fixtures/online-shop.valid.yaml')
 
-    assert.equal(resolveCoreCwdRelativePath(fixturePath), resolveCwdRelativePath(fixturePath))
+    assert.equal(resolveCwdRelativeFilePath(fixtureFilePath), fixtureFilePath)
   })
 
   it('resolveCwdRelativeDirectoryPath returns the fixture directory path', () => {
     assert.equal(
-      resolveCoreCwdRelativeDirectoryPath('test/core/utils/fixtures/online-shop.valid.yaml'),
-      join(process.cwd(), 'test/core/utils/fixtures')
+      resolveCwdRelativeDirectoryPath('test/core/utils/fixtures/online-shop.valid.yaml'),
+      joinFilePath(process.cwd(), 'test/core/utils/fixtures')
     )
   })
 
-  it('readCwdRelativeTextFile reads a fixture path from the current working directory', () => {
-    const content = readCoreCwdRelativeTextFile('test/core/utils/fixtures/online-shop.valid.yaml')
+  it('resolveDirectoryPath returns the parent directory path', () => {
+    assert.equal(resolveDirectoryPath('/tmp/example/file.txt'), '/tmp/example')
+  })
+
+  it('resolveBaseRelativeFilePath resolves a relative file path from a base directory', () => {
+    assert.equal(
+      resolveBaseRelativeFilePath(joinFilePath(process.cwd(), 'test/core/utils/fixtures'), 'online-shop.valid.yaml'),
+      joinFilePath(process.cwd(), 'test/core/utils/fixtures/online-shop.valid.yaml')
+    )
+  })
+
+  it('resolveBaseRelativeFilePath returns an absolute file path unchanged', () => {
+    const fixtureFilePath = joinFilePath(process.cwd(), 'test/core/utils/fixtures/online-shop.valid.yaml')
+
+    assert.equal(resolveBaseRelativeFilePath('unused-base-directory', fixtureFilePath), fixtureFilePath)
+  })
+
+  it('getFileName returns the final file path segment', () => {
+    assert.equal(getFileName('test/core/utils/fixtures/online-shop.valid.yaml'), 'online-shop.valid.yaml')
+  })
+
+  it('readTextFile reads a fixture file path', () => {
+    const fixtureFilePath = resolveCwdRelativeFilePath('test/core/utils/fixtures/online-shop.valid.yaml')
+    const content = readTextFile(fixtureFilePath)
 
     assert.match(content, /data-sketch: 1\.0\.0-draft\.2/)
   })
 
-  it('readBaseRelativeTextFile reads an absolute fixture path', () => {
-    const fixturePath = join(process.cwd(), 'test/core/utils/fixtures/online-shop.valid.yaml')
-    const content = readCoreBaseRelativeTextFile('unused-base-path', fixturePath)
+  it('readBaseRelativeTextFile reads a fixture file path relative to a base directory', () => {
+    const content = readBaseRelativeTextFile('test/core/utils/fixtures', 'online-shop.valid.yaml')
 
-    assert.equal(content, readBaseRelativeTextFile('unused-base-path', fixturePath))
+    assert.equal(content, readTestTextFile('test/core/utils/fixtures/online-shop.valid.yaml'))
   })
 
-  it('readBaseRelativeTextFile reads a fixture path relative to a base directory', () => {
-    const content = readCoreBaseRelativeTextFile('test/core/utils/fixtures', 'online-shop.valid.yaml')
+  it('writeTextFile writes text to a file path', () => {
+    const outputFilePath = '/tmp/spike-kit-utils-write-text-file.txt'
 
-    assert.equal(content, readCwdRelativeTextFile('test/core/utils/fixtures/online-shop.valid.yaml'))
-    assert.equal(
-      resolveCoreCwdRelativeDirectoryPath('test/core/utils/fixtures/online-shop.valid.yaml'),
-      resolveCwdRelativeDirectoryPath('test/core/utils/fixtures/online-shop.valid.yaml')
-    )
+    writeTextFile(outputFilePath, 'written by utils')
+
+    assert.equal(readTextFile(outputFilePath), 'written by utils')
   })
 })

@@ -1,12 +1,10 @@
 import { createHash } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
-import { basename } from 'node:path'
 import { parseArgs } from 'node:util'
 import type { Specification } from '../core/parser.ts'
-import { parse } from '../core/parser.ts'
 import type { RelationalDbProjection } from '../core/projector.ts'
-import { resolveCwdRelativePath } from '../core/utils.ts'
-import { validate } from '../core/validator.ts'
+import { project, relationalDbProjector } from '../core/projector.ts'
+import { getFileName, resolveCwdRelativeFilePath, writeTextFile } from '../core/utils.ts'
+import { openApiValidator, validate } from '../core/validator.ts'
 
 const usage = () =>
   [
@@ -31,8 +29,8 @@ export function executeTableDoc(args: readonly string[]) {
       }
     })
 
-    const specFile = options.positionals[0]
-    const outputFile = options.values.output
+    const specFilePath = options.positionals[0]
+    const outputFilePath = options.values.output
 
     if (options.values.help) {
       console.log(usage())
@@ -40,18 +38,22 @@ export function executeTableDoc(args: readonly string[]) {
       return 0
     }
 
-    if (!specFile || !outputFile) {
+    if (!specFilePath || !outputFilePath) {
       console.log(usage())
 
       return 1
     }
 
-    const sketch = parse({ path: specFile })
-    const validated = validate({ sketch, trace: true })
-    const projection = validated.projections.relationalDb()
-    const markdown = renderTablesDoc(validated.spec, projection, specFile)
+    const validated = validate({
+      specFilePath,
+      trace: true,
+      validators: [openApiValidator]
+    })
 
-    writeFileSync(resolveCwdRelativePath(outputFile), markdown)
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+    const markdown = renderTablesDoc(validated.spec, projection, getFileName(specFilePath))
+
+    writeTextFile(resolveCwdRelativeFilePath(outputFilePath), markdown)
 
     return 0
   } catch (error) {
@@ -61,10 +63,10 @@ export function executeTableDoc(args: readonly string[]) {
   }
 }
 
-export function renderTablesDoc(spec: Specification, projection: RelationalDbProjection, specFile: string): string {
+export function renderTablesDoc(spec: Specification, projection: RelationalDbProjection, sourceLabel: string): string {
   const lines: string[] = [
     '---',
-    `source: ${basename(specFile)}`,
+    `source: ${sourceLabel}`,
     `sha256: ${computeSha256(spec)}`,
     `generated_at: ${new Date().toISOString()}`,
     '---',

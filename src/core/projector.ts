@@ -1,4 +1,4 @@
-import type { DataSketch, Specification } from './parser.ts'
+import type { DataSketch, Specification, ValidatedDataSketch } from './parser.ts'
 
 export type RelationalDbProjection = {
   readonly 'data-sketch/relational-db-projection': '1.0.0-draft.3'
@@ -114,16 +114,83 @@ type OpenApiFieldProjectionInput = {
 
 const httpMethods = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'])
 
-export function useProjectors<
-  P extends Record<string, (() => unknown) | undefined>,
-  Next extends Record<string, (() => unknown) | undefined>
->(sketch: DataSketch<P>, projectors: Next): DataSketch<P & Next> {
-  return {
-    ...sketch,
-    projections: {
-      ...sketch.projections,
-      ...projectors
+export type Projector<T = unknown> = {
+  readonly name: string
+  readonly build: (context: ProjectionContext) => T
+}
+
+export type ProjectionContext = {
+  readonly sketch: ValidatedDataSketch
+  readonly projection: <T = unknown>(name: string) => T
+}
+
+export type ProjectionResolver = {
+  readonly get: <T = unknown>(name: string) => T
+}
+
+export const relationalDbProjector: Projector<RelationalDbProjection> = {
+  name: 'relationalDb',
+  build: ({ sketch }) => buildRelationalDbProjection(sketch)
+}
+
+export const extensionProjector: Projector<ExtensionProjection> = {
+  name: 'extension',
+  build: ({ sketch }) => buildExtensionProjection(sketch)
+}
+
+export function project(sketch: ValidatedDataSketch, projectors: readonly Projector[]): ProjectionResolver {
+  if (sketch.metadata.validated !== true) {
+    throw new Error('DataSketch must be validated before projecting')
+  }
+
+  const projectorsByName = new Map<string, Projector>()
+
+  for (const projector of projectors) {
+    if (projectorsByName.has(projector.name)) {
+      throw new Error(`Projector ${projector.name} is duplicated`)
     }
+
+    projectorsByName.set(projector.name, projector)
+  }
+
+  const projections = new Map<string, unknown>()
+  const activeProjectors = new Set<string>()
+
+  const context: ProjectionContext = {
+    sketch,
+    projection: name => getProjection(name)
+  }
+
+  function getProjection<T = unknown>(name: string): T {
+    if (projections.has(name)) {
+      return projections.get(name) as T
+    }
+
+    const projector = projectorsByName.get(name)
+
+    if (!projector) {
+      throw new Error(`Projector ${name} is not registered`)
+    }
+
+    if (activeProjectors.has(name)) {
+      throw new Error(`Projector ${name} has a circular dependency`)
+    }
+
+    activeProjectors.add(name)
+
+    try {
+      const projection = projector.build(context)
+
+      projections.set(name, projection)
+
+      return projection as T
+    } finally {
+      activeProjectors.delete(name)
+    }
+  }
+
+  return {
+    get: name => getProjection(name)
   }
 }
 
@@ -227,14 +294,14 @@ export function buildExtensionProjection(sketch: DataSketch): ExtensionProjectio
 
 function addExtensionProjectionEntry(
   entries: ExtensionProjectionEntry[],
-  path: string,
+  extensionPath: string,
   object: Record<string, unknown>
 ) {
   const values = Object.fromEntries(Object.entries(object).filter(([field]) => field.startsWith('x-')))
 
   if (Object.keys(values).length > 0) {
     entries.push({
-      path,
+      path: extensionPath,
       values
     })
   }
@@ -297,24 +364,24 @@ function getDetailProjectionInputs(
   openApiFields: readonly OpenApiFieldProjectionInput[],
   optionalOverrides: ReadonlyMap<string, boolean>
 ): DetailProjectionInput[] {
-  return details.map(path => ({
-    path,
-    ...getDetailProjection(path, openApiFields, optionalOverrides)
+  return details.map(detailPath => ({
+    path: detailPath,
+    ...getDetailProjection(detailPath, openApiFields, optionalOverrides)
   }))
 }
 
 function getDetailProjection(
-  path: string,
+  detailPath: string,
   openApiFields: readonly OpenApiFieldProjectionInput[],
   optionalOverrides: ReadonlyMap<string, boolean>
 ): Omit<DetailProjectionInput, 'path'> {
-  const matches = openApiFields.filter(field => field.path === path)
+  const matches = openApiFields.filter(field => field.path === detailPath)
   const type = matches.length === 0 ? 'VARCHAR(1024)' : getInferredColumnType(matches)
   const inferredNullable = matches.some(match => !match.required)
 
   return {
     type,
-    nullable: optionalOverrides.get(path) ?? inferredNullable
+    nullable: optionalOverrides.get(detailPath) ?? inferredNullable
   }
 }
 
@@ -578,8 +645,8 @@ function addProjectionForeignKeys(
   claimName: string,
   relations: NonNullable<Specification['claims'][string]['relations']>
 ) {
-  for (const [path, relation] of Object.entries(relations)) {
-    addProjectionForeignKey(tables, spec, claimId, claimName, path, relation, 'explicit')
+  for (const [relationPath, relation] of Object.entries(relations)) {
+    addProjectionForeignKey(tables, spec, claimId, claimName, relationPath, relation, 'explicit')
   }
 }
 
@@ -610,24 +677,24 @@ function addProjectionForeignKey(
   spec: Specification,
   claimId: string,
   claimName: string,
-  path: string,
+  detailPath: string,
   targetClaimId: string,
   kind: RelationalDbProjectionForeignKeyKind
 ) {
-  const tablePathSegments = getTablePathSegments(path)
+  const tablePathSegments = getTablePathSegments(detailPath)
   const tableId = getTableId(claimId, tablePathSegments)
   const tableName = getTableName(claimId, claimName, tablePathSegments)
 
   ensureProjectionTables(tables, claimId, claimName, tablePathSegments)
 
   const table = ensureProjectionTable(tables, tableId, tableName)
-  const columnName = getColumnName(path, tablePathSegments)
+  const columnName = getColumnName(detailPath, tablePathSegments)
   const targetClaim = spec.claims[targetClaimId] as Specification['claims'][string]
-  const matchingColumn = table.columns.find(column => column.id === path)
+  const matchingColumn = table.columns.find(column => column.id === detailPath)
 
   if (matchingColumn) {
     table.columns = table.columns.map(column =>
-      column.id === path
+      column.id === detailPath
         ? {
             ...column,
             type: 'CHAR(26)'
@@ -636,7 +703,7 @@ function addProjectionForeignKey(
     )
   } else {
     addProjectionColumn(tableId, table, {
-      id: path,
+      id: detailPath,
       name: columnName,
       type: 'CHAR(26)'
     })
@@ -726,8 +793,8 @@ function getParentTablePathSegments(tablePathSegments: readonly string[]) {
   return tablePathSegments.slice(0, parentTableSegmentIndex + 1)
 }
 
-function getTablePathSegments(path: string) {
-  const segments = path.split('.')
+function getTablePathSegments(detailPath: string) {
+  const segments = detailPath.split('.')
   let tableSegmentIndex = -1
 
   for (let index = 0; index < segments.length - 1; index += 1) {
@@ -759,14 +826,14 @@ function getTableName(claimId: string, claimName: string, tablePathSegments: rea
   return [claimId, ...tablePathSegments].map(toSnakeCase).join('_')
 }
 
-function getColumnName(path: string, tablePathSegments: readonly string[]) {
-  const columnSegments = path.split('.').slice(tablePathSegments.length)
+function getColumnName(detailPath: string, tablePathSegments: readonly string[]) {
+  const columnSegments = detailPath.split('.').slice(tablePathSegments.length)
 
   return columnSegments.map(toSnakeCase).join('_')
 }
 
-function getLastDetailPathSegmentName(path: string) {
-  const segments = path.split('.')
+function getLastDetailPathSegmentName(detailPath: string) {
+  const segments = detailPath.split('.')
 
   return segments[segments.length - 1]
 }
@@ -842,13 +909,13 @@ function applyTypeOverrides(
     return
   }
 
-  for (const [path, override] of Object.entries(types)) {
-    const fieldPrefix = `${prefix}.types.${path}`
+  for (const [detailPath, override] of Object.entries(types)) {
+    const fieldPrefix = `${prefix}.types.${detailPath}`
 
     const match = claimTableIds
       .map(tableId => ({
         tableId,
-        columnIndex: tables[tableId].columns.findIndex(c => c.id === path)
+        columnIndex: tables[tableId].columns.findIndex(c => c.id === detailPath)
       }))
       .find(({ columnIndex }) => columnIndex !== -1)
 

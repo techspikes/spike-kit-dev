@@ -4,7 +4,7 @@ info:
   name: online-shop
 
 sources:
-  openapi: ./openapi/openapi.yaml
+  openapi: ./openapi/online-shop.openapi.yaml
 
 claims:
   customer:

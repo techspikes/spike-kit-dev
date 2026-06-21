@@ -1,8 +1,12 @@
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { load, YAMLException } from 'js-yaml'
 import Oas from 'oas'
+import {
+  readTextFile,
+  resolveBaseRelativeFilePath,
+  resolveCwdRelativeFilePath,
+  resolveDirectoryPath
+} from '../core/utils.ts'
 
 type OpenApiSummary = {
   readonly 'openapi-summary': '1.0.0-draft.1'
@@ -64,7 +68,7 @@ export function executeOpenApiSummary(args: readonly string[]) {
       }
     })
 
-    const openApiFile = options.positionals[0]
+    const openApiFilePath = options.positionals[0]
 
     if (options.values.help) {
       console.log(usage())
@@ -72,13 +76,13 @@ export function executeOpenApiSummary(args: readonly string[]) {
       return 0
     }
 
-    if (!openApiFile) {
+    if (!openApiFilePath) {
       console.log(usage())
 
       return 1
     }
 
-    const summary = buildOpenApiSummaryFromFile(openApiFile)
+    const summary = buildOpenApiSummaryFromFile(openApiFilePath)
 
     console.log(JSON.stringify(summary, null, 2))
 
@@ -90,11 +94,15 @@ export function executeOpenApiSummary(args: readonly string[]) {
   }
 }
 
-function buildOpenApiSummaryFromFile(openApiFile: string): OpenApiSummary {
-  const openApiPath = resolve(openApiFile)
+function buildOpenApiSummaryFromFile(openApiFilePath: string): OpenApiSummary {
+  const resolvedOpenApiFilePath = resolveCwdRelativeFilePath(openApiFilePath)
   const documents = new Map<string, unknown>()
 
-  const openApi = resolveReferences(loadYamlOrJsonFile(openApiPath, documents), openApiPath, documents)
+  const openApi = resolveReferences(
+    loadYamlOrJsonFile(resolvedOpenApiFilePath, documents),
+    resolvedOpenApiFilePath,
+    documents
+  )
 
   const openApiRecord = assertRecord(openApi, 'OpenAPI root must be an object')
   const paths = assertRecord(openApiRecord.paths, 'OpenAPI paths must be an object')
@@ -104,25 +112,27 @@ function buildOpenApiSummaryFromFile(openApiFile: string): OpenApiSummary {
   return {
     'openapi-summary': '1.0.0-draft.1',
     info: getInfo(openApiRecord.info),
-    operations: Object.entries(operationsByPath).flatMap(([path, operations]) =>
+    operations: Object.entries(operationsByPath).flatMap(([operationPath, operations]) =>
       Object.entries(operations)
         .filter(([method]) => httpMethods.has(method))
-        .map(([method, operation]) => getOperationSummary(path, method, operation.schema, paths[path]))
+        .map(([method, operation]) =>
+          getOperationSummary(operationPath, method, operation.schema, paths[operationPath])
+        )
     )
   }
 }
 
-function loadYamlOrJsonFile(path: string, documents: Map<string, unknown>) {
-  const absolutePath = resolve(path)
+function loadYamlOrJsonFile(filePath: string, documents: Map<string, unknown>) {
+  const resolvedFilePath = resolveCwdRelativeFilePath(filePath)
 
-  if (documents.has(absolutePath)) {
-    return documents.get(absolutePath)
+  if (documents.has(resolvedFilePath)) {
+    return documents.get(resolvedFilePath)
   }
 
   let document: unknown
 
   try {
-    document = load(readFileSync(absolutePath, 'utf-8'))
+    document = load(readTextFile(resolvedFilePath))
   } catch (error) {
     if (error instanceof YAMLException) {
       throw new Error(`Failed to parse OpenAPI: ${error.message}`)
@@ -131,34 +141,34 @@ function loadYamlOrJsonFile(path: string, documents: Map<string, unknown>) {
     throw new Error(`Failed to read OpenAPI: ${String(error)}`)
   }
 
-  documents.set(absolutePath, document)
+  documents.set(resolvedFilePath, document)
 
   return document
 }
 
-function resolveReferences(input: unknown, currentFile: string, documents: Map<string, unknown>) {
-  return resolveReferencesWithStack(input, currentFile, documents, new Set<string>())
+function resolveReferences(openApi: unknown, currentFilePath: string, documents: Map<string, unknown>) {
+  return resolveReferencesWithStack(openApi, currentFilePath, documents, new Set<string>())
 }
 
 function resolveReferencesWithStack(
-  input: unknown,
-  currentFile: string,
+  openApi: unknown,
+  currentFilePath: string,
   documents: Map<string, unknown>,
   stack: Set<string>
 ): unknown {
-  if (Array.isArray(input)) {
-    return input.map(item => resolveReferencesWithStack(item, currentFile, documents, stack))
+  if (Array.isArray(openApi)) {
+    return openApi.map(item => resolveReferencesWithStack(item, currentFilePath, documents, stack))
   }
 
-  if (!isRecord(input)) {
-    return input
+  if (!isRecord(openApi)) {
+    return openApi
   }
 
-  const ref = typeof input.$ref === 'string' ? input.$ref : undefined
+  const ref = typeof openApi.$ref === 'string' ? openApi.$ref : undefined
 
   if (ref) {
-    const resolved = resolveReference(ref, currentFile, documents, stack)
-    const siblingEntries = Object.entries(input).filter(([field]) => field !== '$ref')
+    const resolved = resolveReference(ref, currentFilePath, documents, stack)
+    const siblingEntries = Object.entries(openApi).filter(([field]) => field !== '$ref')
 
     if (siblingEntries.length === 0) {
       return resolved
@@ -169,24 +179,24 @@ function resolveReferencesWithStack(
       ...Object.fromEntries(
         siblingEntries.map(([field, value]) => [
           field,
-          resolveReferencesWithStack(value, currentFile, documents, stack)
+          resolveReferencesWithStack(value, currentFilePath, documents, stack)
         ])
       )
     }
   }
 
   return Object.fromEntries(
-    Object.entries(input).map(([field, value]) => [
+    Object.entries(openApi).map(([field, value]) => [
       field,
-      resolveReferencesWithStack(value, currentFile, documents, stack)
+      resolveReferencesWithStack(value, currentFilePath, documents, stack)
     ])
   )
 }
 
-function resolveReference(ref: string, currentFile: string, documents: Map<string, unknown>, stack: Set<string>) {
-  const [filePart, pointerPart = ''] = ref.split('#')
-  const targetFile = getReferenceTargetFile(filePart, currentFile)
-  const stackKey = `${targetFile}#${pointerPart}`
+function resolveReference(ref: string, currentFilePath: string, documents: Map<string, unknown>, stack: Set<string>) {
+  const [refFilePath, pointerPart = ''] = ref.split('#')
+  const targetFilePath = getReferenceTargetFilePath(refFilePath, currentFilePath)
+  const stackKey = `${targetFilePath}#${pointerPart}`
 
   if (stack.has(stackKey)) {
     throw new Error(`Circular OpenAPI $ref is not supported: ${ref}`)
@@ -194,31 +204,31 @@ function resolveReference(ref: string, currentFile: string, documents: Map<strin
 
   stack.add(stackKey)
 
-  const targetDocument = loadYamlOrJsonFile(targetFile, documents)
+  const targetDocument = loadYamlOrJsonFile(targetFilePath, documents)
   const target = getJsonPointerTarget(targetDocument, pointerPart, ref)
-  const resolved = resolveReferencesWithStack(target, targetFile, documents, stack)
+  const resolved = resolveReferencesWithStack(target, targetFilePath, documents, stack)
 
   stack.delete(stackKey)
 
   return resolved
 }
 
-function getReferenceTargetFile(filePart: string, currentFile: string) {
-  if (filePart === '') {
-    return currentFile
+function getReferenceTargetFilePath(refFilePath: string, currentFilePath: string) {
+  if (refFilePath === '') {
+    return currentFilePath
   }
 
-  if (filePart.startsWith('//')) {
-    throw new Error(`Remote OpenAPI $ref is not supported: ${filePart}`)
+  if (refFilePath.startsWith('//')) {
+    throw new Error(`Remote OpenAPI $ref is not supported: ${refFilePath}`)
   }
 
-  const schemeMatch = /^[A-Za-z][A-Za-z0-9+.-]*:/u.exec(filePart)
+  const schemeMatch = /^[A-Za-z][A-Za-z0-9+.-]*:/u.exec(refFilePath)
 
   if (schemeMatch) {
-    throw new Error(`Remote OpenAPI $ref is not supported: ${filePart}`)
+    throw new Error(`Remote OpenAPI $ref is not supported: ${refFilePath}`)
   }
 
-  return resolve(dirname(currentFile), filePart)
+  return resolveBaseRelativeFilePath(resolveDirectoryPath(currentFilePath), refFilePath)
 }
 
 function getJsonPointerTarget(document: unknown, pointer: string, ref: string) {
@@ -259,7 +269,7 @@ function getInfo(input: unknown) {
 }
 
 function getOperationSummary(
-  path: string,
+  operationPath: string,
   method: string,
   operation: Record<string, unknown>,
   pathItem: unknown
@@ -267,14 +277,16 @@ function getOperationSummary(
   /* c8 ignore next */
   const commonPathItem = isRecord(pathItem) ? pathItem : {}
   const operationId =
-    typeof operation.operationId === 'string' && operation.operationId ? operation.operationId : `${method} ${path}`
+    typeof operation.operationId === 'string' && operation.operationId
+      ? operation.operationId
+      : `${method} ${operationPath}`
   const summary = getStringValue(operation.summary) ?? getStringValue(commonPathItem.summary)
   const requestBody = getRequestBodySummary(operation.requestBody)
 
   return {
     operationId,
     method,
-    path,
+    path: operationPath,
     ...(summary ? { summary } : {}),
     tags: Array.isArray(operation.tags) ? operation.tags.filter((tag): tag is string => typeof tag === 'string') : [],
     ...(requestBody ? { requestBody } : {}),

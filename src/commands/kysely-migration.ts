@@ -1,11 +1,10 @@
-import { readFileSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { load as yamlLoad } from 'js-yaml'
-import { parse } from '../core/parser.ts'
 import type { RelationalDbProjection } from '../core/projector.ts'
-import { resolveCwdRelativePath } from '../core/utils.ts'
-import { validate } from '../core/validator.ts'
+import { project, relationalDbProjector } from '../core/projector.ts'
+import { readTextFile, resolveCwdRelativeFilePath, writeTextFile } from '../core/utils.ts'
+import { openApiValidator, validate } from '../core/validator.ts'
 
 // ─── Snapshot types ────────────────────────────────────────────────────────────
 
@@ -76,37 +75,38 @@ export function executeKyselyMigration(args: readonly string[]) {
       return 0
     }
 
-    const specFile = options.positionals[0]
-    const outputFile = options.values.output
-    const previousMigration = options.values['previous-migration']
-    const typesOutput = options.values['types-output']
+    const specFilePath = options.positionals[0]
+    const outputFilePath = options.values.output
+    const previousMigrationFilePath = options.values['previous-migration']
+    const typesOutputFilePath = options.values['types-output']
     const includeTentative = options.values['include-tentative'] ?? false
     const dryRun = options.values['dry-run'] ?? false
 
-    if (!specFile || !outputFile) {
+    if (!specFilePath || !outputFilePath) {
       process.stderr.write(`${usage()}\n`)
 
       return 1
     }
 
-    if (typesOutput !== undefined && !typesOutput.endsWith('.d.ts')) {
+    if (typesOutputFilePath !== undefined && !typesOutputFilePath.endsWith('.d.ts')) {
       process.stderr.write(`Error: --types-output path must end in .d.ts\n\n${usage()}\n`)
 
       return 1
     }
 
-    // Parse
-    const sketch = parse({ path: specFile })
+    // Parse and validate
+    const validated = validate({
+      specFilePath,
+      trace: true,
+      validators: [openApiValidator]
+    })
 
     console.log('Data Sketch read')
-
-    // Validate
     console.log('Validating Data Sketch')
-    const validated = validate({ sketch, trace: true })
 
     // Build projection
     console.log('Building Relational DB Projection')
-    const projection = validated.projections.relationalDb()
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
 
     // Determine included table IDs (filter tentative unless --include-tentative)
     const allTableIds = Object.keys(projection.tables)
@@ -129,11 +129,11 @@ export function executeKyselyMigration(args: readonly string[]) {
     // Read previous migration if provided
     let beforeSnapshot: DbProjectionSnapshot | undefined
 
-    if (previousMigration) {
-      const prevContent = readFileSync(resolveCwdRelativePath(previousMigration), 'utf-8')
+    if (previousMigrationFilePath) {
+      const previousMigrationContent = readTextFile(resolveCwdRelativeFilePath(previousMigrationFilePath))
 
       console.log('Previous migration read')
-      beforeSnapshot = parseEmbeddedSnapshot(prevContent)
+      beforeSnapshot = parseEmbeddedSnapshot(previousMigrationContent)
       console.log('Previous DB projection snapshot parsed')
     }
 
@@ -186,7 +186,7 @@ export function executeKyselyMigration(args: readonly string[]) {
       migrationContent = renderInitialMigrationFile(afterSnapshot, checkWarnings)
     }
 
-    if (typesOutput) {
+    if (typesOutputFilePath) {
       typesContent = renderTypesFile(afterSnapshot)
     }
 
@@ -202,11 +202,11 @@ export function executeKyselyMigration(args: readonly string[]) {
     }
 
     // Write files
-    writeFileSync(resolveCwdRelativePath(outputFile), migrationContent)
+    writeTextFile(resolveCwdRelativeFilePath(outputFilePath), migrationContent)
     console.log('Migration written')
 
-    if (typesOutput && typesContent) {
-      writeFileSync(resolveCwdRelativePath(typesOutput), typesContent)
+    if (typesOutputFilePath && typesContent) {
+      writeTextFile(resolveCwdRelativeFilePath(typesOutputFilePath), typesContent)
       console.log('Type definitions written')
     }
 

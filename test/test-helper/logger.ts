@@ -28,7 +28,7 @@ export function runAndCapture(targetFn: () => void): CaptureResult {
   }
 }
 
-export async function runAndCaptureAsync(targetFn: () => Promise<void>): Promise<CaptureResult> {
+async function runAndCaptureAsync(targetFn: () => Promise<void>): Promise<CaptureResult> {
   const stdoutResult: string[] = []
   const stderrResult: string[] = []
 
@@ -41,6 +41,34 @@ export async function runAndCaptureAsync(targetFn: () => Promise<void>): Promise
   return {
     stdout: stdoutResult,
     stderr: stderrResult
+  }
+}
+
+export function runCommandAndCapture(targetFn: () => number) {
+  let exitCode = 0
+
+  const result = runAndCapture(() => {
+    exitCode = targetFn()
+  })
+
+  return {
+    exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr
+  }
+}
+
+export async function runCommandAndCaptureAsync(targetFn: () => number | Promise<number>) {
+  let exitCode = 0
+
+  const result = await runAndCaptureAsync(async () => {
+    exitCode = await targetFn()
+  })
+
+  return {
+    exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr
   }
 }
 

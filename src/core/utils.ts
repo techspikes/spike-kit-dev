@@ -1,22 +1,38 @@
-import { readFileSync } from 'node:fs'
-import { dirname, isAbsolute, join } from 'node:path'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { basename, dirname, isAbsolute, resolve } from 'node:path'
 
-export function resolveCwdRelativePath(path: string) {
-  return isAbsolute(path) ? path : join(process.cwd(), path)
+export function getFileName(filePath: string) {
+  return basename(filePath)
 }
 
-export function resolveCwdRelativeDirectoryPath(path: string) {
-  return dirname(resolveCwdRelativePath(path))
+export function resolveCwdRelativeFilePath(filePath: string) {
+  return resolve(filePath)
 }
 
-export function readCwdRelativeTextFile(path: string) {
-  return readFileSync(resolveCwdRelativePath(path), 'utf-8')
+export function resolveCwdRelativeDirectoryPath(filePath: string) {
+  return resolveDirectoryPath(resolveCwdRelativeFilePath(filePath))
 }
 
-export function readBaseRelativeTextFile(basePath: string, path: string) {
-  if (isAbsolute(path)) {
-    return readFileSync(path, 'utf-8')
+export function resolveDirectoryPath(filePath: string) {
+  return dirname(filePath)
+}
+
+export function resolveBaseRelativeFilePath(baseDirectoryPath: string, filePath: string) {
+  if (isAbsolute(filePath)) {
+    return filePath
   }
 
-  return readFileSync(join(basePath, path), 'utf-8')
+  return resolve(baseDirectoryPath, filePath)
+}
+
+export function readTextFile(filePath: string) {
+  return readFileSync(filePath, 'utf-8')
+}
+
+export function readBaseRelativeTextFile(baseDirectoryPath: string, filePath: string) {
+  return readTextFile(resolveBaseRelativeFilePath(baseDirectoryPath, filePath))
+}
+
+export function writeTextFile(filePath: string, content: string) {
+  writeFileSync(filePath, content)
 }
