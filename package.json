@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "@techspikes/spike-kit-dev",
-  "version": "1.0.0-draft.2",
+  "version": "1.0.0-draft.3",
   "description": "Specification and tools for agile teams to quickly sketch disposable data stores for user stories.",
   "main": "./lib/index.mjs",
   "types": "./lib/index.d.ts",

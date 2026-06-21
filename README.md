@@ -1,7 +1,5 @@
 # Spike Kit Dev
 
-[![Node.js CI](https://github.com/techspikes/spike-kit-dev/actions/workflows/node.js.yml/badge.svg)](https://github.com/techspikes/spike-kit-dev/actions/workflows/node.js.yml)
-
 Specification and tools for agile teams to quickly sketch disposable data
 stores for user stories.
 
