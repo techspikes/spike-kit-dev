@@ -81,20 +81,6 @@ function validateRelationReferences(spec: Specification) {
     }
 
     for (const [relationPath, relationTarget] of Object.entries(claim.relations)) {
-      if (relationPath.endsWith('[]')) {
-        issues.push(
-          `claims.${claimId}.relations.${relationPath} must not use an array-of-scalars detail as a relation source`
-        )
-      }
-
-      if (relationTarget.endsWith('.id')) {
-        issues.push(
-          `claims.${claimId}.relations.${relationPath} target ${relationTarget} must be a claim ID; do not write .id`
-        )
-
-        continue
-      }
-
       const targetClaim = spec.claims[relationTarget]
 
       if (!targetClaim) {

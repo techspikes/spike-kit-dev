@@ -110,45 +110,6 @@ describe('core validator', () => {
     assert.equal(sketch.metadata.validated, true)
   })
 
-  it('validate rejects array-of-scalars relation source paths', () => {
-    assert.throws(
-      () =>
-        validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-array-scalar-relation-source.invalid.yaml'
-          }),
-          trace: false
-        }),
-      /claims\.order\.relations\.products\[\] must not use an array-of-scalars detail as a relation source/
-    )
-  })
-
-  it('validate rejects relation targets that are not claim IDs', () => {
-    assert.throws(
-      () =>
-        validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-relation-target-detail.invalid.yaml'
-          }),
-          trace: false
-        }),
-      /claims\.order\.relations\.items\[\]\.productSku target claim product\.sku does not exist/
-    )
-  })
-
-  it('validate rejects relation targets that include the target identity path', () => {
-    assert.throws(
-      () =>
-        validate({
-          sketch: parse({
-            path: 'test/core/validator/fixtures/online-shop-relation-target-identity.invalid.yaml'
-          }),
-          trace: false
-        }),
-      /claims\.order\.relations\.items\[\]\.product target product\.id must be a claim ID; do not write \.id/
-    )
-  })
-
   it('validate rejects missing OpenAPI files when trace is true', () => {
     assert.throws(
       () =>

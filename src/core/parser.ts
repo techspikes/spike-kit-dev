@@ -2,7 +2,7 @@ import { load, YAMLException } from 'js-yaml'
 import * as v from 'valibot'
 import { readCwdRelativeTextFile, resolveCwdRelativeDirectoryPath } from './utils.ts'
 
-// ! Parser validation stays local to document shape.
+// ! Parser validation covers Data Sketch rules that can be checked within one document.
 // ! Cross-claim references and external sources are checked by validator.ts.
 
 const nonEmptyString = v.pipe(v.string(), v.nonEmpty())
@@ -129,7 +129,7 @@ function validateClaims(spec: Specification): string[] {
     }
 
     if (claim.relations) {
-      issues.push(...validateRelationIds(claimId, relationIds))
+      issues.push(...validateRelationIds(claimId, claim.relations))
     }
 
     if (claim.details && claim.aliases) {
@@ -186,12 +186,30 @@ function validateDetailIds(
   return issues
 }
 
-function validateRelationIds(claimId: string, relationIds: string[]): string[] {
+function validateRelationIds(
+  claimId: string,
+  relations: NonNullable<Specification['claims'][string]['relations']>
+): string[] {
   const issues: string[] = []
+  const relationIds = Object.keys(relations)
 
-  for (const relationId of relationIds) {
+  for (const [relationId, relationTarget] of Object.entries(relations)) {
     if (relationId === 'id' || relationId === '_id') {
       issues.push(`claims.${claimId}.relations.${relationId} is a reserved identity detail path`)
+    }
+
+    if (relationId.endsWith('[]')) {
+      issues.push(
+        `claims.${claimId}.relations.${relationId} must not use an array-of-scalars detail as a relation source`
+      )
+    }
+
+    if (relationTarget.endsWith('.id')) {
+      issues.push(
+        `claims.${claimId}.relations.${relationId} target ${relationTarget} must be a claim ID; do not write .id`
+      )
+    } else if (/[.[\]]/u.test(relationTarget)) {
+      issues.push(`claims.${claimId}.relations.${relationId} target ${relationTarget} must be a claim ID`)
     }
   }
 

@@ -278,6 +278,16 @@ describe('core parser', () => {
     )
   })
 
+  it('parse rejects relation source paths that use array-of-scalars', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-array-scalar-relation-source.invalid.yaml'
+        }),
+      /claims\.order\.relations\.products\[\] must not use an array-of-scalars detail as a relation source/
+    )
+  })
+
   it('parse rejects effective detail paths where a relation source path is a strict prefix', () => {
     assert.throws(
       () =>
@@ -295,6 +305,26 @@ describe('core parser', () => {
           path: 'test/core/parser/fixtures/online-shop-relation-source-array-object-conflict.invalid.yaml'
         }),
       /claims\.order\.relations\.items\.product conflicts with items\[\]\.product because segment items uses both object and array form/
+    )
+  })
+
+  it('parse rejects relation targets that are not claim IDs', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-relation-target-detail.invalid.yaml'
+        }),
+      /claims\.order\.relations\.items\[\]\.productSku target product\.sku must be a claim ID/
+    )
+  })
+
+  it('parse rejects relation targets that include the target identity path', () => {
+    assert.throws(
+      () =>
+        parse({
+          path: 'test/core/parser/fixtures/online-shop-relation-target-identity.invalid.yaml'
+        }),
+      /claims\.order\.relations\.items\[\]\.product target product\.id must be a claim ID; do not write \.id/
     )
   })
 
