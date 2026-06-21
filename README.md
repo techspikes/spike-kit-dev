@@ -107,6 +107,7 @@ claims:
     details:
       - name
       - email
+      - phoneNumber
       - address.city
       - address.postalCode
 
@@ -121,14 +122,7 @@ claims:
     details:
       - name
       - price
-      - discontinued
-    aliases:
-      name:
-        - product name
-      price:
-        - selling price
-      discontinued:
-        - discontinued flag
+      - inventoryStatus
 
   order:
     name: orders
@@ -142,7 +136,11 @@ claims:
         - getOrderDetail
     details:
       - status
+      - orderedAt
+      - customer
       - items[].quantity
+      - items[].unitPrice
+      - items[].product
     relations:
       customer: customer
       items[].product: product
