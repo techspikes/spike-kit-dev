@@ -70,16 +70,24 @@ describe('core validator', () => {
 
   it('validate does not load OpenAPI from a sketch source path in pure sketch calls', () => {
     const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml' }),
-      validators: [openApiValidator]
+      sketch: parse({ specFilePath: 'test/core/validator/fixtures/online-shop.valid.yaml' })
     })
 
     assert.equal(sketch.metadata.validated, true)
     assert.equal(sketch.sources?.openapi, undefined)
   })
 
-  it('validate does not load OpenAPI from a path unless the OpenAPI validator is registered', () => {
-    const sketch = validate({ specFilePath: 'test/core/validator/fixtures/online-shop-missing-openapi.invalid.yaml' })
+  it('validate loads OpenAPI from a path even when the OpenAPI validator is not registered', () => {
+    const sketch = validate({ specFilePath: 'test/core/validator/fixtures/online-shop.valid.yaml' })
+
+    assert.equal(sketch.metadata.validated, true)
+    assert.notEqual(sketch.sources?.openapi, undefined)
+  })
+
+  it('validate accepts specs without OpenAPI sources when trace is true', () => {
+    const sketch = validate({
+      specFilePath: 'test/core/validator/fixtures/online-shop-relation-source-only.valid.yaml'
+    })
 
     assert.equal(sketch.metadata.validated, true)
     assert.equal(sketch.sources?.openapi, undefined)
@@ -129,6 +137,40 @@ describe('core validator', () => {
     })
 
     assert.equal(sketch.metadata.validated, true)
+  })
+
+  it('validate keeps explicit OpenAPI source string references unresolved', () => {
+    const sketch = validate({
+      sketch: parse({
+        specSourceText: readTextFile('test/core/validator/fixtures/online-shop-openapi-ref.valid.yaml')
+      }),
+      sources: {
+        openapi: readTextFile('test/core/validator/fixtures/openapi/openapi-with-refs.yaml')
+      }
+    })
+
+    const openApi = sketch.sources?.openapi as Record<string, unknown>
+    const paths = openApi.paths as Record<string, unknown>
+    const customerPath = paths['/customers'] as Record<string, unknown>
+
+    assert.equal(customerPath.$ref, '#/components/pathItems/CreateCustomerPath')
+  })
+
+  it('validate keeps explicit OpenAPI source object references unresolved', () => {
+    const sketch = validate({
+      sketch: parse({
+        specSourceText: readTextFile('test/core/validator/fixtures/online-shop-openapi-ref.valid.yaml')
+      }),
+      sources: {
+        openapi: readJsonFile('test/core/validator/fixtures/openapi/openapi-with-refs.json')
+      }
+    })
+
+    const openApi = sketch.sources?.openapi as Record<string, unknown>
+    const paths = openApi.paths as Record<string, unknown>
+    const customerPath = paths['/customers'] as Record<string, unknown>
+
+    assert.equal(customerPath.$ref, '#/components/pathItems/CreateCustomerPath')
   })
 
   it('validate accepts already loaded OpenAPI sources on the sketch', () => {

@@ -2,10 +2,7 @@ import assert from 'node:assert'
 import { describe, it } from 'node:test'
 import { parse, type ValidatedDataSketch } from '../../../src/core/parser.ts'
 import {
-  buildExtensionProjection,
   buildRelationalDbProjection,
-  type ExtensionProjection,
-  extensionProjector,
   type Projector,
   project,
   type RelationalDbProjection,
@@ -17,14 +14,10 @@ import { readJsonFile } from '../../test-helper/file-access.ts'
 describe('core projector', () => {
   it('buildRelationalDbProjection rejects a sketch that has not been validated', () => {
     assert.throws(
-      () => buildRelationalDbProjection(parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
-      /DataSketch must be validated/
-    )
-  })
-
-  it('buildExtensionProjection rejects a sketch that has not been validated', () => {
-    assert.throws(
-      () => buildExtensionProjection(parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
+      () =>
+        buildRelationalDbProjection(
+          parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' })
+        ),
       /DataSketch must be validated/
     )
   })
@@ -33,7 +26,9 @@ describe('core projector', () => {
     assert.throws(
       () =>
         project(
-          parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }) as ValidatedDataSketch,
+          parse({
+            specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml'
+          }) as ValidatedDataSketch,
           []
         ),
       /DataSketch must be validated/
@@ -42,7 +37,7 @@ describe('core projector', () => {
 
   it('validated sketches can build a relational DB projection through an explicit projector', () => {
     const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' }),
       trace: false
     })
 
@@ -53,34 +48,9 @@ describe('core projector', () => {
     assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
-  it('validated sketches can build an empty extension projection through an explicit projector', () => {
-    const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
-      trace: false
-    })
-
-    assert.deepEqual(buildExtensionProjectionWithProjector(sketch), {
-      'data-sketch/extension-projection': '1.0.0-draft.2',
-      extensions: []
-    })
-  })
-
-  it('validated sketches can build an extension projection through an explicit projector', () => {
-    const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-extensions.valid.yaml' }),
-      trace: false
-    })
-
-    const expected = readJsonFile<ExtensionProjection>(
-      'test/core/projector/fixtures/online-shop.extension-projection.json'
-    )
-
-    assert.deepEqual(buildExtensionProjectionWithProjector(sketch), expected)
-  })
-
   it('project builds a custom projection lazily and memoizes the result', () => {
     const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' }),
       trace: false
     })
 
@@ -105,7 +75,7 @@ describe('core projector', () => {
 
   it('project lets a projector depend on another projection', () => {
     const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' }),
       trace: false
     })
 
@@ -124,7 +94,7 @@ describe('core projector', () => {
 
   it('project rejects duplicate projector names', () => {
     const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' }),
       trace: false
     })
 
@@ -141,9 +111,23 @@ describe('core projector', () => {
     assert.throws(() => project(sketch, [firstProjector, secondProjector]), /Projector custom is duplicated/)
   })
 
+  it('project rejects projector names that are not kebab-case', () => {
+    const sketch = validate({
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' }),
+      trace: false
+    })
+
+    const customProjector: Projector<string> = {
+      name: 'customProjector',
+      build: () => 'custom projection'
+    }
+
+    assert.throws(() => project(sketch, [customProjector]), /Projector name customProjector must be kebab-case/)
+  })
+
   it('project rejects unregistered projection dependencies', () => {
     const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' }),
       trace: false
     })
 
@@ -157,7 +141,7 @@ describe('core projector', () => {
 
   it('project rejects circular projection dependencies', () => {
     const sketch = validate({
-      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop.valid.yaml' }),
+      sketch: parse({ specFilePath: 'test/core/projector/fixtures/online-shop-with-aliases.valid.yaml' }),
       trace: false
     })
 
@@ -750,9 +734,5 @@ describe('core projector', () => {
 })
 
 function buildRelationalDbProjectionWithProjector(sketch: ValidatedDataSketch) {
-  return project(sketch, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
-}
-
-function buildExtensionProjectionWithProjector(sketch: ValidatedDataSketch) {
-  return project(sketch, [extensionProjector]).get<ExtensionProjection>('extension')
+  return project(sketch, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
 }

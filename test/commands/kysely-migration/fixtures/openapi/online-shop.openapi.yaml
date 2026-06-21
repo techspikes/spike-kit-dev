@@ -1,0 +1,59 @@
+openapi: 3.1.0
+
+info:
+  title: Online Shop API
+  version: 1.0.0
+
+paths:
+  /customers:
+    post:
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                phone:
+                  type: string
+      responses:
+        '201':
+          description: Customer created
+
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+                - customer
+                - items
+              properties:
+                status:
+                  type: string
+                  maxLength: 20
+                customer:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - quantity
+                    properties:
+                      quantity:
+                        type: integer
+      responses:
+        '201':
+          description: Order created

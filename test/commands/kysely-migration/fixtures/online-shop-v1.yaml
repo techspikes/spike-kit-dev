@@ -3,7 +3,7 @@ info:
   name: online-shop
 
 sources:
-  openapi: ../../tables-doc/fixtures/openapi/online-shop.openapi.yaml
+  openapi: ./openapi/online-shop.openapi.yaml
 
 claims:
   customer:

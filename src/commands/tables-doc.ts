@@ -50,7 +50,7 @@ export function executeTableDoc(args: readonly string[]) {
       validators: [openApiValidator]
     })
 
-    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const markdown = renderTablesDoc(validated.spec, projection, getFileName(specFilePath))
 
     writeTextFile(resolveCwdRelativeFilePath(outputFilePath), markdown)

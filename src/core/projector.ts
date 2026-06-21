@@ -5,16 +5,6 @@ export type RelationalDbProjection = {
   readonly tables: Readonly<Record<string, RelationalDbProjectionTable>>
 }
 
-export type ExtensionProjection = {
-  readonly 'data-sketch/extension-projection': '1.0.0-draft.2'
-  readonly extensions: readonly ExtensionProjectionEntry[]
-}
-
-type ExtensionProjectionEntry = {
-  readonly path: string
-  readonly values: Readonly<Record<string, unknown>>
-}
-
 type RelationalDbProjectionTable = {
   readonly name: string
   readonly columns: readonly RelationalDbProjectionColumn[]
@@ -129,13 +119,8 @@ export type ProjectionResolver = {
 }
 
 export const relationalDbProjector: Projector<RelationalDbProjection> = {
-  name: 'relationalDb',
+  name: 'relational-db',
   build: ({ sketch }) => buildRelationalDbProjection(sketch)
-}
-
-export const extensionProjector: Projector<ExtensionProjection> = {
-  name: 'extension',
-  build: ({ sketch }) => buildExtensionProjection(sketch)
 }
 
 export function project(sketch: ValidatedDataSketch, projectors: readonly Projector[]): ProjectionResolver {
@@ -146,6 +131,10 @@ export function project(sketch: ValidatedDataSketch, projectors: readonly Projec
   const projectorsByName = new Map<string, Projector>()
 
   for (const projector of projectors) {
+    if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(projector.name)) {
+      throw new Error(`Projector name ${projector.name} must be kebab-case`)
+    }
+
     if (projectorsByName.has(projector.name)) {
       throw new Error(`Projector ${projector.name} is duplicated`)
     }
@@ -209,7 +198,7 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
 
     const detailInputs = getDetailProjectionInputs(
       details,
-      getOpenApiFieldProjectionInputs(sketch.sources?.openapi, claim.traces.operations),
+      collectOpenApiFieldProjectionInputs(sketch.sources?.openapi, claim.traces.operations),
       optionalOverrides
     )
 
@@ -264,46 +253,6 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
   return {
     'data-sketch/relational-db-projection': '1.0.0-draft.3',
     tables
-  }
-}
-
-export function buildExtensionProjection(sketch: DataSketch): ExtensionProjection {
-  if (sketch.metadata.validated !== true) {
-    throw new Error('DataSketch must be validated before building an extension projection')
-  }
-
-  const extensions: ExtensionProjectionEntry[] = []
-
-  addExtensionProjectionEntry(extensions, '', sketch.spec)
-  addExtensionProjectionEntry(extensions, 'info', sketch.spec.info)
-
-  if (sketch.spec.sources) {
-    addExtensionProjectionEntry(extensions, 'sources', sketch.spec.sources)
-  }
-
-  for (const [claimId, claim] of Object.entries(sketch.spec.claims)) {
-    addExtensionProjectionEntry(extensions, `claims.${claimId}`, claim)
-    addExtensionProjectionEntry(extensions, `claims.${claimId}.traces`, claim.traces)
-  }
-
-  return {
-    'data-sketch/extension-projection': '1.0.0-draft.2',
-    extensions
-  }
-}
-
-function addExtensionProjectionEntry(
-  entries: ExtensionProjectionEntry[],
-  extensionPath: string,
-  object: Record<string, unknown>
-) {
-  const values = Object.fromEntries(Object.entries(object).filter(([field]) => field.startsWith('x-')))
-
-  if (Object.keys(values).length > 0) {
-    entries.push({
-      path: extensionPath,
-      values
-    })
   }
 }
 
@@ -364,278 +313,17 @@ function getDetailProjectionInputs(
   openApiFields: readonly OpenApiFieldProjectionInput[],
   optionalOverrides: ReadonlyMap<string, boolean>
 ): DetailProjectionInput[] {
-  return details.map(detailPath => ({
-    path: detailPath,
-    ...getDetailProjection(detailPath, openApiFields, optionalOverrides)
-  }))
-}
+  return details.map(detailPath => {
+    const matches = openApiFields.filter(field => field.path === detailPath)
+    const type = matches.length === 0 ? 'VARCHAR(1024)' : getInferredColumnType(matches)
+    const inferredNullable = matches.some(match => !match.required)
 
-function getDetailProjection(
-  detailPath: string,
-  openApiFields: readonly OpenApiFieldProjectionInput[],
-  optionalOverrides: ReadonlyMap<string, boolean>
-): Omit<DetailProjectionInput, 'path'> {
-  const matches = openApiFields.filter(field => field.path === detailPath)
-  const type = matches.length === 0 ? 'VARCHAR(1024)' : getInferredColumnType(matches)
-  const inferredNullable = matches.some(match => !match.required)
-
-  return {
-    type,
-    nullable: optionalOverrides.get(detailPath) ?? inferredNullable
-  }
-}
-
-function getInferredColumnType(matches: readonly OpenApiFieldProjectionInput[]): RelationalDbProjectionColumnType {
-  const fieldTypes = new Set(matches.map(match => getOpenApiProjectionType(match.schemaType)))
-
-  if (fieldTypes.size !== 1) {
-    return 'VARCHAR(1024)'
-  }
-
-  const [fieldType] = fieldTypes
-
-  if (fieldType === 'number') {
-    return 'INTEGER'
-  }
-
-  if (fieldType === 'boolean') {
-    return 'BOOLEAN'
-  }
-
-  if (fieldType === 'string') {
-    const maxLengths = matches
-      .map(match => match.maxLength)
-      .filter((maxLength): maxLength is number => typeof maxLength === 'number')
-
-    if (maxLengths.length > 0) {
-      return `VARCHAR(${Math.max(...maxLengths)})`
+    return {
+      path: detailPath,
+      type,
+      nullable: optionalOverrides.get(detailPath) ?? inferredNullable
     }
-
-    const formatType = getInferredStringFormatType(matches)
-
-    if (formatType) {
-      return formatType
-    }
-  }
-
-  return 'VARCHAR(1024)'
-}
-
-function getInferredStringFormatType(
-  matches: readonly OpenApiFieldProjectionInput[]
-): RelationalDbProjectionColumnType | undefined {
-  const formats = new Set(matches.map(match => match.format))
-
-  if (formats.size !== 1) {
-    return undefined
-  }
-
-  const [format] = formats
-
-  if (format === 'date-time') {
-    return 'CHAR(25)'
-  }
-
-  if (format === 'date') {
-    return 'CHAR(10)'
-  }
-
-  if (format === 'time') {
-    return 'CHAR(14)'
-  }
-
-  return undefined
-}
-
-function getOpenApiProjectionType(schemaType: string) {
-  if (schemaType === 'integer' || schemaType === 'number') {
-    return 'number'
-  }
-
-  if (schemaType === 'string' || schemaType === 'boolean') {
-    return schemaType
-  }
-
-  return 'unknown'
-}
-
-function getOpenApiFieldProjectionInputs(
-  openApi: unknown,
-  operationIds: readonly string[]
-): OpenApiFieldProjectionInput[] {
-  const operationIdSet = new Set(operationIds)
-  const openApiRecord = isRecord(openApi) ? openApi : {}
-  const paths = isRecord(openApiRecord.paths) ? openApiRecord.paths : {}
-
-  return Object.values(paths)
-    .filter(isRecord)
-    .flatMap(pathItem =>
-      Object.entries(pathItem)
-        .filter((entry): entry is [string, Record<string, unknown>] => {
-          const [method, operation] = entry
-
-          return httpMethods.has(method) && isRecord(operation)
-        })
-        .filter(([, operation]) => operationIdSet.has(getOperationId(operation)))
-        .flatMap(([, operation]) => getOperationFieldProjectionInputs(operation))
-    )
-}
-
-function getOperationId(operation: Record<string, unknown>) {
-  return typeof operation.operationId === 'string' ? operation.operationId : ''
-}
-
-function getOperationFieldProjectionInputs(operation: Record<string, unknown>): OpenApiFieldProjectionInput[] {
-  return [
-    ...getRequestBodyFieldProjectionInputs(operation.requestBody),
-    ...getResponseFieldProjectionInputs(operation.responses)
-  ]
-}
-
-function getRequestBodyFieldProjectionInputs(input: unknown): OpenApiFieldProjectionInput[] {
-  const requestBody = isRecord(input) ? input : undefined
-
-  if (!requestBody) {
-    return []
-  }
-
-  const jsonContent = getJsonContent(requestBody.content)
-
-  if (!jsonContent) {
-    return []
-  }
-
-  return getSchemaFieldProjectionInputs(jsonContent.schema, '', requestBody.required === true)
-}
-
-function getResponseFieldProjectionInputs(input: unknown): OpenApiFieldProjectionInput[] {
-  const responses = isRecord(input) ? input : {}
-
-  return Object.values(responses).flatMap(response => {
-    const responseRecord = isRecord(response) ? response : undefined
-    const jsonContent = responseRecord ? getJsonContent(responseRecord.content) : undefined
-
-    if (!jsonContent) {
-      return []
-    }
-
-    return getSchemaFieldProjectionInputs(jsonContent.schema, '', true)
   })
-}
-
-function getJsonContent(input: unknown) {
-  const content = isRecord(input) ? input : undefined
-
-  if (!content) {
-    return undefined
-  }
-
-  const jsonContentEntry = Object.entries(content).find(([contentType]) => isJsonContentType(contentType))
-
-  if (!jsonContentEntry) {
-    return undefined
-  }
-
-  const [, mediaType] = jsonContentEntry
-  const mediaTypeRecord = isRecord(mediaType) ? mediaType : {}
-
-  return {
-    schema: mediaTypeRecord.schema
-  }
-}
-
-function isJsonContentType(contentType: string) {
-  return contentType === 'application/json' || contentType.endsWith('+json')
-}
-
-function getSchemaFieldProjectionInputs(
-  input: unknown,
-  pathPrefix: string,
-  ancestorsRequired: boolean
-): OpenApiFieldProjectionInput[] {
-  const schema = isRecord(input) ? input : {}
-  const schemaType = getSchemaType(schema)
-
-  if (schemaType === 'array') {
-    return getArraySchemaFieldProjectionInputs(schema, pathPrefix, ancestorsRequired)
-  }
-
-  if (schemaType === 'object' || isRecord(schema.properties)) {
-    return getObjectSchemaFieldProjectionInputs(schema, pathPrefix, ancestorsRequired)
-  }
-
-  if (pathPrefix) {
-    return [
-      {
-        path: pathPrefix,
-        schemaType,
-        ...(getMaxLength(schema) !== undefined ? { maxLength: getMaxLength(schema) } : {}),
-        ...(getFormat(schema) !== undefined ? { format: getFormat(schema) } : {}),
-        required: ancestorsRequired
-      }
-    ]
-  }
-
-  return []
-}
-
-function getObjectSchemaFieldProjectionInputs(
-  schema: Record<string, unknown>,
-  pathPrefix: string,
-  ancestorsRequired: boolean
-) {
-  const properties = isRecord(schema.properties) ? schema.properties : {}
-
-  const requiredProperties = Array.isArray(schema.required)
-    ? new Set(schema.required.filter((field): field is string => typeof field === 'string'))
-    : new Set<string>()
-
-  return Object.entries(properties).flatMap(([propertyName, propertySchema]) => {
-    const propertyPath = pathPrefix ? `${pathPrefix}.${propertyName}` : propertyName
-    const propertyRequired = ancestorsRequired && requiredProperties.has(propertyName)
-
-    return getSchemaFieldProjectionInputs(propertySchema, propertyPath, propertyRequired)
-  })
-}
-
-function getArraySchemaFieldProjectionInputs(
-  schema: Record<string, unknown>,
-  pathPrefix: string,
-  ancestorsRequired: boolean
-) {
-  const arrayPath = `${pathPrefix}[]`
-  const items = isRecord(schema.items) ? schema.items : {}
-  const itemType = getSchemaType(items)
-
-  if (itemType === 'object' || isRecord(items.properties)) {
-    return getSchemaFieldProjectionInputs(items, arrayPath, ancestorsRequired)
-  }
-
-  return [
-    {
-      path: arrayPath,
-      schemaType: itemType,
-      ...(getMaxLength(items) !== undefined ? { maxLength: getMaxLength(items) } : {}),
-      ...(getFormat(items) !== undefined ? { format: getFormat(items) } : {}),
-      required: ancestorsRequired
-    }
-  ]
-}
-
-function getSchemaType(schema: Record<string, unknown>) {
-  if (Array.isArray(schema.type)) {
-    return schema.type.find((type): type is string => typeof type === 'string') ?? 'unknown'
-  }
-
-  return typeof schema.type === 'string' ? schema.type : 'unknown'
-}
-
-function getMaxLength(schema: Record<string, unknown>) {
-  return Number.isInteger(schema.maxLength) && Number(schema.maxLength) > 0 ? Number(schema.maxLength) : undefined
-}
-
-function getFormat(schema: Record<string, unknown>) {
-  return typeof schema.format === 'string' ? schema.format : undefined
 }
 
 function addProjectionForeignKeys(
@@ -850,6 +538,259 @@ function toSnakeCase(value: string) {
     .toLowerCase()
 }
 
+function getInferredColumnType(matches: readonly OpenApiFieldProjectionInput[]): RelationalDbProjectionColumnType {
+  const fieldTypes = new Set(matches.map(match => getOpenApiTypeCategory(match.schemaType)))
+
+  if (fieldTypes.size !== 1) {
+    return 'VARCHAR(1024)'
+  }
+
+  const [fieldType] = fieldTypes
+
+  if (fieldType === 'number') {
+    return 'INTEGER'
+  }
+
+  if (fieldType === 'boolean') {
+    return 'BOOLEAN'
+  }
+
+  if (fieldType === 'string') {
+    const maxLengths = matches
+      .map(match => match.maxLength)
+      .filter((maxLength): maxLength is number => typeof maxLength === 'number')
+
+    if (maxLengths.length > 0) {
+      return `VARCHAR(${Math.max(...maxLengths)})`
+    }
+
+    const formatType = getInferredStringFormatType(matches)
+
+    if (formatType) {
+      return formatType
+    }
+  }
+
+  return 'VARCHAR(1024)'
+}
+
+function getInferredStringFormatType(
+  matches: readonly OpenApiFieldProjectionInput[]
+): RelationalDbProjectionColumnType | undefined {
+  const formats = new Set(matches.map(match => match.format))
+
+  if (formats.size !== 1) {
+    return undefined
+  }
+
+  const [format] = formats
+
+  if (format === 'date-time') {
+    return 'CHAR(25)'
+  }
+
+  if (format === 'date') {
+    return 'CHAR(10)'
+  }
+
+  if (format === 'time') {
+    return 'CHAR(14)'
+  }
+
+  return undefined
+}
+
+function getOpenApiTypeCategory(schemaType: string) {
+  if (schemaType === 'integer' || schemaType === 'number') {
+    return 'number'
+  }
+
+  if (schemaType === 'string' || schemaType === 'boolean') {
+    return schemaType
+  }
+
+  return 'unknown'
+}
+
+function collectOpenApiFieldProjectionInputs(
+  openApi: unknown,
+  operationIds: readonly string[]
+): OpenApiFieldProjectionInput[] {
+  const operationIdSet = new Set(operationIds)
+  const openApiRecord = isRecord(openApi) ? openApi : {}
+  const paths = isRecord(openApiRecord.paths) ? openApiRecord.paths : {}
+
+  return Object.values(paths)
+    .filter(isRecord)
+    .flatMap(pathItem =>
+      Object.entries(pathItem)
+        .filter((entry): entry is [string, Record<string, unknown>] => {
+          const [method, operation] = entry
+
+          return httpMethods.has(method) && isRecord(operation)
+        })
+        .filter(([, operation]) => operationIdSet.has(getOperationId(operation)))
+        .flatMap(([, operation]) => collectOperationFieldProjectionInputs(operation))
+    )
+}
+
+function getOperationId(operation: Record<string, unknown>) {
+  return typeof operation.operationId === 'string' ? operation.operationId : ''
+}
+
+function collectOperationFieldProjectionInputs(operation: Record<string, unknown>): OpenApiFieldProjectionInput[] {
+  return [
+    ...collectRequestBodyFieldProjectionInputs(operation.requestBody),
+    ...collectResponseFieldProjectionInputs(operation.responses)
+  ]
+}
+
+function collectRequestBodyFieldProjectionInputs(input: unknown): OpenApiFieldProjectionInput[] {
+  const requestBody = isRecord(input) ? input : undefined
+
+  if (!requestBody) {
+    return []
+  }
+
+  const jsonMediaType = getJsonMediaType(requestBody.content)
+
+  if (!jsonMediaType) {
+    return []
+  }
+
+  return collectSchemaFieldProjectionInputs(jsonMediaType.schema, '', requestBody.required === true)
+}
+
+function collectResponseFieldProjectionInputs(input: unknown): OpenApiFieldProjectionInput[] {
+  const responses = isRecord(input) ? input : {}
+
+  return Object.values(responses).flatMap(response => {
+    const responseRecord = isRecord(response) ? response : undefined
+    const jsonMediaType = responseRecord ? getJsonMediaType(responseRecord.content) : undefined
+
+    if (!jsonMediaType) {
+      return []
+    }
+
+    return collectSchemaFieldProjectionInputs(jsonMediaType.schema, '', true)
+  })
+}
+
+function getJsonMediaType(input: unknown) {
+  const content = isRecord(input) ? input : undefined
+
+  if (!content) {
+    return undefined
+  }
+
+  const jsonContentEntry = Object.entries(content).find(([contentType]) => isJsonContentType(contentType))
+
+  if (!jsonContentEntry) {
+    return undefined
+  }
+
+  const [, mediaType] = jsonContentEntry
+  const mediaTypeRecord = isRecord(mediaType) ? mediaType : {}
+
+  return {
+    schema: mediaTypeRecord.schema
+  }
+}
+
+function isJsonContentType(contentType: string) {
+  return contentType === 'application/json' || contentType.endsWith('+json')
+}
+
+function collectSchemaFieldProjectionInputs(
+  input: unknown,
+  pathPrefix: string,
+  ancestorsRequired: boolean
+): OpenApiFieldProjectionInput[] {
+  const schema = isRecord(input) ? input : {}
+  const schemaType = getSchemaType(schema)
+
+  if (schemaType === 'array') {
+    return collectArraySchemaFieldProjectionInputs(schema, pathPrefix, ancestorsRequired)
+  }
+
+  if (schemaType === 'object' || isRecord(schema.properties)) {
+    return collectObjectSchemaFieldProjectionInputs(schema, pathPrefix, ancestorsRequired)
+  }
+
+  if (pathPrefix) {
+    return [
+      {
+        path: pathPrefix,
+        schemaType,
+        ...(getMaxLength(schema) !== undefined ? { maxLength: getMaxLength(schema) } : {}),
+        ...(getFormat(schema) !== undefined ? { format: getFormat(schema) } : {}),
+        required: ancestorsRequired
+      }
+    ]
+  }
+
+  return []
+}
+
+function collectObjectSchemaFieldProjectionInputs(
+  schema: Record<string, unknown>,
+  pathPrefix: string,
+  ancestorsRequired: boolean
+) {
+  const properties = isRecord(schema.properties) ? schema.properties : {}
+
+  const requiredProperties = Array.isArray(schema.required)
+    ? new Set(schema.required.filter((field): field is string => typeof field === 'string'))
+    : new Set<string>()
+
+  return Object.entries(properties).flatMap(([propertyName, propertySchema]) => {
+    const propertyPath = pathPrefix ? `${pathPrefix}.${propertyName}` : propertyName
+    const propertyRequired = ancestorsRequired && requiredProperties.has(propertyName)
+
+    return collectSchemaFieldProjectionInputs(propertySchema, propertyPath, propertyRequired)
+  })
+}
+
+function collectArraySchemaFieldProjectionInputs(
+  schema: Record<string, unknown>,
+  pathPrefix: string,
+  ancestorsRequired: boolean
+) {
+  const arrayPath = `${pathPrefix}[]`
+  const items = isRecord(schema.items) ? schema.items : {}
+  const itemType = getSchemaType(items)
+
+  if (itemType === 'object' || isRecord(items.properties)) {
+    return collectSchemaFieldProjectionInputs(items, arrayPath, ancestorsRequired)
+  }
+
+  return [
+    {
+      path: arrayPath,
+      schemaType: itemType,
+      ...(getMaxLength(items) !== undefined ? { maxLength: getMaxLength(items) } : {}),
+      ...(getFormat(items) !== undefined ? { format: getFormat(items) } : {}),
+      required: ancestorsRequired
+    }
+  ]
+}
+
+function getSchemaType(schema: Record<string, unknown>) {
+  if (Array.isArray(schema.type)) {
+    return schema.type.find((type): type is string => typeof type === 'string') ?? 'unknown'
+  }
+
+  return typeof schema.type === 'string' ? schema.type : 'unknown'
+}
+
+function getMaxLength(schema: Record<string, unknown>) {
+  return Number.isInteger(schema.maxLength) && Number(schema.maxLength) > 0 ? Number(schema.maxLength) : undefined
+}
+
+function getFormat(schema: Record<string, unknown>) {
+  return typeof schema.format === 'string' ? schema.format : undefined
+}
+
 function applyRelationalDbSchemaExtension(
   tables: Record<string, MutableRelationalDbProjectionTable>,
   claimId: string,
@@ -1030,7 +971,7 @@ function applyForeignKeyOverrides(
       return
     }
 
-    const columns = getSingleColumnReference(entry.columns, `${fieldPrefix}.columns`, issues)
+    const columns = resolveSingleColumnReference(entry.columns, `${fieldPrefix}.columns`, issues)
     const references = isRecord(entry.references) ? entry.references : undefined
 
     if (!references || typeof references.table !== 'string') {
@@ -1039,7 +980,11 @@ function applyForeignKeyOverrides(
       return
     }
 
-    const referenceColumns = getSingleColumnReference(references.columns, `${fieldPrefix}.references.columns`, issues)
+    const referenceColumns = resolveSingleColumnReference(
+      references.columns,
+      `${fieldPrefix}.references.columns`,
+      issues
+    )
 
     if (!columns || !referenceColumns) {
       return
@@ -1105,7 +1050,7 @@ function applyForeignKeyOverrides(
   })
 }
 
-function getSingleColumnReference(value: unknown, fieldPrefix: string, issues: string[]) {
+function resolveSingleColumnReference(value: unknown, fieldPrefix: string, issues: string[]) {
   if (!Array.isArray(value) || value.length !== 1 || typeof value[0] !== 'string') {
     issues.push(`${fieldPrefix} must be an array with exactly one column id`)
 
@@ -1196,7 +1141,7 @@ function applyIndexOverrides(
 
   indexes.forEach((entry, index) => {
     const fieldPrefix = `${prefix}.indexes[${index}]`
-    const resolved = resolveNamedColumnList(table, entry, fieldPrefix, issues)
+    const resolved = resolveIndexOverride(table, entry, fieldPrefix, issues)
 
     if (resolved) {
       table.indexes ??= []
@@ -1254,7 +1199,7 @@ function resolveColumnNames(
   return columnNames
 }
 
-function resolveNamedColumnList(
+function resolveIndexOverride(
   table: MutableRelationalDbProjectionTable,
   entry: unknown,
   fieldPrefix: string,

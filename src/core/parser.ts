@@ -1,6 +1,11 @@
 import { load, YAMLException } from 'js-yaml'
 import * as v from 'valibot'
-import { readTextFile, resolveCwdRelativeDirectoryPath, resolveCwdRelativeFilePath } from './utils.ts'
+import {
+  getCurrentDirectoryPath,
+  readTextFile,
+  resolveCwdRelativeDirectoryPath,
+  resolveCwdRelativeFilePath
+} from './utils.ts'
 
 // ! Parser validation covers Data Sketch rules that can be checked within one document.
 // ! Cross-claim references and external sources are checked by validator.ts.
@@ -71,7 +76,7 @@ export function parse(options: { readonly specFilePath: string } | { readonly sp
     baseDirectoryPath = resolveCwdRelativeDirectoryPath(options.specFilePath)
   } else {
     specSourceText = options.specSourceText
-    baseDirectoryPath = process.cwd()
+    baseDirectoryPath = getCurrentDirectoryPath()
   }
 
   try {

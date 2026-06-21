@@ -106,7 +106,7 @@ export function executeKyselyMigration(args: readonly string[]) {
 
     // Build projection
     console.log('Building Relational DB Projection')
-    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
 
     // Determine included table IDs (filter tentative unless --include-tentative)
     const allTableIds = Object.keys(projection.tables)

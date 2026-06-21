@@ -9,7 +9,7 @@ const usageLine = 'Usage: shot openapi-summary [OPTION]... OPENAPI_FILE'
 describe('openapi-summary command', () => {
   it('Given an OpenAPI file with local references, When the command executes, Then it prints an AI-oriented JSON summary', async () => {
     const result = await runCommandAndCaptureAsync(() =>
-      executeOpenApiSummary(['test/commands/openapi-summary/fixtures/online-shop.openapi.yaml'])
+      executeOpenApiSummary(['test/commands/openapi-summary/fixtures/online-shop-summary.openapi.yaml'])
     )
 
     const expected = readJsonFile('test/commands/openapi-summary/fixtures/online-shop.openapi-summary.json')

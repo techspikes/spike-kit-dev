@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, isAbsolute, resolve } from 'node:path'
 
-export function getFileName(filePath: string) {
-  return basename(filePath)
+export function getCurrentDirectoryPath() {
+  return process.cwd()
 }
 
 export function resolveCwdRelativeFilePath(filePath: string) {
@@ -23,6 +23,10 @@ export function resolveBaseRelativeFilePath(baseDirectoryPath: string, filePath:
   }
 
   return resolve(baseDirectoryPath, filePath)
+}
+
+export function getFileName(filePath: string) {
+  return basename(filePath)
 }
 
 export function readTextFile(filePath: string) {

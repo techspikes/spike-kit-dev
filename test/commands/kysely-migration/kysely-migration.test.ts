@@ -20,7 +20,8 @@ import {
 import { runCommandAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot kysely-migration [OPTION]... SPEC_FILE'
-const onlineShopSpec = 'test/commands/tables-doc/fixtures/online-shop-with-openapi-source.yaml'
+const onlineShopWithTentativeOrderSpecFilePath =
+  'test/commands/kysely-migration/fixtures/online-shop-with-tentative-order.yaml'
 const simpleSpec = 'test/commands/kysely-migration/fixtures/simple.yaml'
 const simpleV2Spec = 'test/commands/kysely-migration/fixtures/simple-v2.yaml'
 const typedSpec = 'test/commands/kysely-migration/fixtures/typed.yaml'
@@ -74,7 +75,9 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given no --output is provided, When the command executes, Then it prints usage to stderr and returns exit code 1', () => {
-    const { exitCode, stdout, stderr } = runCommandAndCapture(() => executeKyselyMigration([onlineShopSpec]))
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([onlineShopWithTentativeOrderSpecFilePath])
+    )
 
     assert.equal(exitCode, 1)
     assert.deepEqual(stdout, [])
@@ -85,7 +88,13 @@ describe('kysely-migration CLI', () => {
   it('Given --types-output without .d.ts extension, When the command executes, Then it prints an error and returns exit code 1', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'migration.ts')
     const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
-      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--types-output', 'types.ts'])
+      executeKyselyMigration([
+        onlineShopWithTentativeOrderSpecFilePath,
+        '--output',
+        outputFilePath,
+        '--types-output',
+        'types.ts'
+      ])
     )
 
     assert.equal(exitCode, 1)
@@ -96,7 +105,12 @@ describe('kysely-migration CLI', () => {
   it('Given the online shop spec with --include-tentative, When the command executes, Then it writes a complete initial migration', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'initial.ts')
     const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
-      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--include-tentative'])
+      executeKyselyMigration([
+        onlineShopWithTentativeOrderSpecFilePath,
+        '--output',
+        outputFilePath,
+        '--include-tentative'
+      ])
     )
 
     assert.equal(exitCode, 0)
@@ -158,7 +172,12 @@ describe('kysely-migration CLI', () => {
   it('Given the online shop spec with --include-tentative and a check constraint, When the command executes, Then stderr has check constraint warning', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'check-warn.ts')
     const { stderr } = runCommandAndCapture(() =>
-      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--include-tentative'])
+      executeKyselyMigration([
+        onlineShopWithTentativeOrderSpecFilePath,
+        '--output',
+        outputFilePath,
+        '--include-tentative'
+      ])
     )
 
     assert.ok(
@@ -204,7 +223,7 @@ describe('kysely-migration CLI', () => {
     // The online shop spec has 'order' claim with tentative: true
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'tentative-excluded.ts')
     const { exitCode, stderr } = runCommandAndCapture(() =>
-      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath])
+      executeKyselyMigration([onlineShopWithTentativeOrderSpecFilePath, '--output', outputFilePath])
     )
 
     assert.equal(exitCode, 0)
@@ -228,7 +247,12 @@ describe('kysely-migration CLI', () => {
   it('Given a spec with a tentative claim, When the command executes with --include-tentative, Then the tentative table is included', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'tentative-included.ts')
     const { exitCode } = runCommandAndCapture(() =>
-      executeKyselyMigration([onlineShopSpec, '--output', outputFilePath, '--include-tentative'])
+      executeKyselyMigration([
+        onlineShopWithTentativeOrderSpecFilePath,
+        '--output',
+        outputFilePath,
+        '--include-tentative'
+      ])
     )
 
     assert.equal(exitCode, 0)
@@ -463,7 +487,7 @@ describe('kysely-migration CLI', () => {
     // Generate initial migration from online-shop (without tentative = just customers)
     const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'ck-diff-initial.ts')
     const { exitCode: exitCode1 } = runCommandAndCapture(() =>
-      executeKyselyMigration([onlineShopSpec, '--output', initialMigrationFilePath])
+      executeKyselyMigration([onlineShopWithTentativeOrderSpecFilePath, '--output', initialMigrationFilePath])
     )
 
     assert.equal(exitCode1, 0)
@@ -472,7 +496,7 @@ describe('kysely-migration CLI', () => {
     const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'ck-diff.ts')
     const { exitCode: exitCode2, stderr } = runCommandAndCapture(() =>
       executeKyselyMigration([
-        onlineShopSpec,
+        onlineShopWithTentativeOrderSpecFilePath,
         '--output',
         diffMigrationFilePath,
         '--previous-migration',

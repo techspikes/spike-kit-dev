@@ -21,7 +21,6 @@ export type ValidationSources = {
 export type ValidateOptions =
   | {
       readonly specFilePath: string
-      readonly sources?: ValidationSources
       readonly trace?: boolean
       readonly validators?: readonly Validator[]
     }
@@ -44,15 +43,19 @@ export const openApiValidator: Validator = {
       return []
     }
 
-    return validateOperationIds(sketch.sources.openapi, sketch.spec)
+    return validateOpenApiTraceOperations(sketch.sources.openapi, sketch.spec)
   }
 }
 
 export function validate(options: ValidateOptions): ValidatedDataSketch {
   const trace = options.trace ?? true
-  const sketch = loadValidationSources(readValidationSketch(options), options, trace)
 
-  const issues = getValidators(options.validators).flatMap(validator =>
+  const sketch =
+    'specFilePath' in options
+      ? readValidationSketchFromFile(options.specFilePath, trace)
+      : attachInMemoryValidationSources(options.sketch, options.sources, trace)
+
+  const issues = resolveValidators(options.validators).flatMap(validator =>
     validator.validate({
       sketch,
       trace
@@ -72,91 +75,71 @@ export function validate(options: ValidateOptions): ValidatedDataSketch {
   }
 }
 
-function readValidationSketch(options: ValidateOptions): DataSketch {
-  if ('specFilePath' in options) {
-    return parse({ specFilePath: options.specFilePath })
-  }
+function readValidationSketchFromFile(specFilePath: string, trace: boolean): DataSketch {
+  const sketch = parse({ specFilePath })
 
-  return options.sketch
-}
-
-function loadValidationSources(sketch: DataSketch, options: ValidateOptions, trace: boolean): DataSketch {
-  if (!trace) {
+  if (!trace || !sketch.spec.sources?.openapi) {
     return sketch
   }
 
-  if (options.sources?.openapi !== undefined) {
-    return {
-      ...sketch,
-      sources: {
-        ...sketch.sources,
-        openapi: loadOpenApi(options.sources.openapi)
+  const loadOpenApiFile = (baseDirectoryPath: string, openApiFilePath: string): unknown => {
+    let openApi: unknown
+
+    try {
+      openApi = load(readBaseRelativeTextFile(baseDirectoryPath, openApiFilePath))
+    } catch (error) {
+      if (error instanceof YAMLException) {
+        throw new Error(`Failed to parse OpenAPI: ${error.message}`)
       }
+
+      throw new Error(`Failed to read OpenAPI: ${String(error)}`)
     }
+
+    return dereferenceRefDeep(openApi, openApi as OASDocument)
   }
 
-  if (sketch.sources?.openapi !== undefined) {
+  return {
+    ...sketch,
+    sources: {
+      ...sketch.sources,
+      openapi: loadOpenApiFile(sketch.metadata.baseDirectoryPath, sketch.spec.sources.openapi)
+    }
+  }
+}
+
+function attachInMemoryValidationSources(
+  sketch: DataSketch,
+  sources: ValidationSources | undefined,
+  trace: boolean
+): DataSketch {
+  if (!trace || sources?.openapi === undefined) {
     return sketch
   }
 
-  if ('specFilePath' in options && usesOpenApiValidator(options.validators) && sketch.spec.sources?.openapi) {
-    return {
-      ...sketch,
-      sources: {
-        ...sketch.sources,
-        openapi: loadOpenApiFromFile(sketch.metadata.baseDirectoryPath, sketch.spec.sources.openapi)
-      }
+  let openApi: unknown = sources.openapi
+
+  if (typeof openApi === 'string') {
+    try {
+      openApi = load(openApi)
+    } catch (error) {
+      throw new Error(`Failed to parse OpenAPI: ${String(error)}`)
     }
   }
 
-  return sketch
+  return {
+    ...sketch,
+    sources: {
+      ...sketch.sources,
+      openapi: openApi
+    }
+  }
 }
 
-function usesOpenApiValidator(validators: readonly Validator[] | undefined): boolean {
-  return validators?.some(validator => validator.name === openApiValidator.name) === true
-}
-
-function getValidators(validators: readonly Validator[] | undefined): readonly Validator[] {
+function resolveValidators(validators: readonly Validator[] | undefined): readonly Validator[] {
   return [coreValidator, ...(validators ?? []).filter(validator => validator.name !== coreValidator.name)]
 }
 
-function loadOpenApi(openApi: unknown): unknown {
-  if (typeof openApi === 'string') {
-    return loadOpenApiSourceText(openApi)
-  }
-
-  return dereferenceRefDeep(openApi, openApi as OASDocument)
-}
-
-function loadOpenApiFromFile(baseDirectoryPath: string, openApiFilePath: string): unknown {
-  let openApi: unknown
-
-  try {
-    openApi = load(readBaseRelativeTextFile(baseDirectoryPath, openApiFilePath))
-  } catch (error) {
-    if (error instanceof YAMLException) {
-      throw new Error(`Failed to parse OpenAPI: ${error.message}`)
-    }
-
-    throw new Error(`Failed to read OpenAPI: ${String(error)}`)
-  }
-
-  return dereferenceRefDeep(openApi, openApi as OASDocument)
-}
-
-function loadOpenApiSourceText(openApiSourceText: string): unknown {
-  let openApi: unknown
-
-  try {
-    openApi = load(openApiSourceText)
-  } catch (error) {
-    throw new Error(`Failed to parse OpenAPI: ${String(error)}`)
-  }
-
-  return dereferenceRefDeep(openApi, openApi as OASDocument)
-}
-
-function validateOperationIds(openApi: unknown, spec: Specification): string[] {
+function validateOpenApiTraceOperations(openApi: unknown, spec: Specification): string[] {
   function isRecord(input: unknown): input is Record<string, unknown> {
     return typeof input === 'object' && input !== null && !Array.isArray(input)
   }

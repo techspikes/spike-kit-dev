@@ -1,0 +1,21 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Online Shop API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/customers": {
+      "$ref": "#/components/pathItems/CreateCustomerPath"
+    }
+  },
+  "components": {
+    "pathItems": {
+      "CreateCustomerPath": {
+        "post": {
+          "operationId": "createCustomer"
+        }
+      }
+    }
+  }
+}

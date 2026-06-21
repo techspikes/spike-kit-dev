@@ -242,7 +242,7 @@ describe('renderTablesDoc library contract', () => {
   it('Given an optional OpenAPI field, When renderTablesDoc is called, Then the column shows Nullable: yes', () => {
     const validated = validate({ specFilePath: onlineShopWithOpenApiSpecFilePath, validators: [openApiValidator] })
 
-    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, 'custom/source label')
 
     assert.match(content, /\nsource: custom\/source label\n/)
@@ -254,7 +254,7 @@ describe('renderTablesDoc library contract', () => {
 
     const validated = validate({ specFilePath: optionalsSpec, validators: [openApiValidator] })
 
-    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, optionalsSpec)
 
     // requiredField is required in OpenAPI but optionals overrides it to nullable
@@ -267,7 +267,7 @@ describe('renderTablesDoc library contract', () => {
   it('Given aliases with pipe and backslash, When renderTablesDoc is called, Then cell text is escaped', () => {
     const validated = validate({ specFilePath: specialCharacterEscapingSpecFilePath, validators: [openApiValidator] })
 
-    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, specialCharacterEscapingSpecFilePath)
 
     assert.ok(content.includes('pipe\\|alias'), 'pipe in alias should be escaped')
@@ -277,7 +277,7 @@ describe('renderTablesDoc library contract', () => {
   it('Given an enum value with a single quote, When renderTablesDoc is called, Then the DDL uses SQL-escaped literals', () => {
     const validated = validate({ specFilePath: specialCharacterEscapingSpecFilePath, validators: [openApiValidator] })
 
-    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relationalDb')
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, specialCharacterEscapingSpecFilePath)
 
     assert.ok(content.includes("'O''Brien'"), 'single quote should be doubled in DDL')
