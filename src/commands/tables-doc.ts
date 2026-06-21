@@ -88,7 +88,7 @@ export function renderTablesDoc(spec: Specification, projection: RelationalDbPro
 
     for (const column of table.columns) {
       const description =
-        column.id === 'id' ? 'Auto-assigned surrogate key' : (claim.aliases?.[column.id]?.join(', ') ?? '')
+        column.id === 'id' ? 'Auto-assigned surrogate key' : (claim.aliases?.[column.id]?.join(', ') ?? '-')
 
       lines.push(
         `| ${esc(column.name)} | ${esc(column.type)} | ${column.nullable ? 'yes' : 'no'} | ${esc(description)} |`

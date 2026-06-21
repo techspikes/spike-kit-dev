@@ -66,7 +66,7 @@ describe('cli', () => {
       const result = await runCommandAndCaptureAsync(() =>
         runCli([
           'tables-doc',
-          'test/commands/tables-doc/fixtures/online-shop-with-openapi-source.yaml',
+          'test/commands/tables-doc/fixtures/online-shop-with-tentative-order.valid.yaml',
           '--output',
           outputFilePath
         ])
@@ -86,7 +86,12 @@ describe('cli', () => {
 
     try {
       const result = await runCommandAndCaptureAsync(() =>
-        runCli(['kysely-migration', 'test/commands/kysely-migration/fixtures/simple.yaml', '--output', outputFilePath])
+        runCli([
+          'kysely-migration',
+          'test/commands/kysely-migration/fixtures/simple.valid.yaml',
+          '--output',
+          outputFilePath
+        ])
       )
 
       assert.equal(result.exitCode, 0)

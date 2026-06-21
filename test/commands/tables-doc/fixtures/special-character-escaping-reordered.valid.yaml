@@ -1,16 +1,7 @@
-x-custom: ~
 data-sketch: 1.0.0-draft.2
 
 claims:
   item:
-    x-relational-db-schema:
-      constraints:
-        check:
-          - name: ck_items_status
-            column: status
-            enum:
-              - "O'Brien"
-              - "pipe|enum"
     aliases:
       note:
         - 'back\slash'
@@ -24,6 +15,16 @@ claims:
         - createItem
     reason: Escape testing for special characters.
     name: items
+    x-relational-db-schema:
+      constraints:
+        check:
+          - name: ck_items_status
+            column: status
+            enum:
+              - "O'Brien"
+              - "pipe|enum"
 
 info:
   name: escape-test
+
+x-custom: ~

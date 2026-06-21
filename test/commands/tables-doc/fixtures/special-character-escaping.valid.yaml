@@ -1,5 +1,4 @@
 data-sketch: 1.0.0-draft.2
-x-custom: ~
 
 info:
   name: escape-test
@@ -27,3 +26,5 @@ claims:
             enum:
               - "O'Brien"
               - "pipe|enum"
+
+x-custom: ~

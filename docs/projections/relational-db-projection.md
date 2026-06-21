@@ -42,7 +42,7 @@ Rules:
   projection.
 - Claim-level `aliases` are not included as projection fields.
 - Every projected table receives an implicit surrogate key column named `id`.
-- The surrogate key column is the table primary key.
+- The surrogate key column is the table's only primary key.
 - The surrogate key value format is `ULID`.
 - Every child table created from an array-of-objects path receives an
   automatically added structural foreign key to its immediate parent table.
@@ -100,6 +100,8 @@ Rules:
 - `keys.primary.name` is generated as `pk_<projected table name>`.
   For example, `orders` becomes `pk_orders`, and `order_items` becomes
   `pk_order_items`.
+- Natural key candidates should be represented with `constraints.unique`, not
+  by replacing the primary key.
 - `keys.foreign` contains structural parent-child foreign keys, foreign keys
   created from Data Sketch `relations`, and claim ID exact-match foreign keys.
 - Foreign key names are generated as `fk_<source table name>_<column name>`.
@@ -118,9 +120,7 @@ Rules:
 - A projected table name conflict is a projection error.
 - The projector must not split a claim into additional parent entities unless
   the split is required by array projection rules.
-- Composite primary keys and composite foreign keys are outside this
-  projection and outside `x-relational-db-schema` overrides (see
-  x-relational-db-schema Extension).
+- Primary keys and foreign keys are never composite in this projection.
 - `constraints.unique`, `constraints.check`, and `indexes` are populated only
   when the claim's `x-relational-db-schema` adds them (see
   x-relational-db-schema Extension); otherwise they are empty and omitted from
@@ -458,12 +458,10 @@ claims:
       keys:
         foreign:
           - name: fk_orders_customer
-            columns:
-              - customer
+            column: customer
             references:
-              table: customers
-              columns:
-                - id
+              table: customer
+              column: id
       constraints:
         unique:
           - name: uq_orders_order_number
@@ -483,23 +481,24 @@ Rules:
 - `types` overrides projected column data types using the type vocabulary
   in Type Overrides.
 - `keys.foreign` (the override's foreign key entries) overrides or adds foreign
-  keys with exactly one column on each side.
+  keys. Each foreign key uses one source column and references one target
+  column.
 - `constraints.unique` defines unique constraints, which may be composite
   (multiple columns).
 - `constraints.check` defines check constraints.
 - `indexes` defines non-unique indexes, which may be composite (multiple
   columns).
-- `keys.foreign.columns`, `keys.foreign.references.columns`,
+- `keys.foreign.column`, `keys.foreign.references.column`,
   `constraints.unique.columns`, `constraints.check.column`, and
   `indexes.columns` reference columns, and `keys.foreign.references.table`
   references a table, by projected identifier (see Column References).
-- Composite primary keys and composite foreign keys (more than one column on
-  either side) are outside this version's scope. The override extension has no
-  `keys.primary` member; the projection's surrogate `id` primary key
-  (`tables[].keys.primary`) cannot be replaced or overridden.
-- Extension-provided names are used as-is. `constraints.unique` and
-  `constraints.check` entries may omit `name`, in which case the projector
-  generates one (see Constraint Overrides).
+- The override extension has no `keys.primary` member; the projection's
+  surrogate `id` primary key (`tables[].keys.primary`) cannot be replaced or
+  overridden.
+- Extension-provided names are used as-is. `keys.foreign`,
+  `constraints.unique`, and `constraints.check` entries may omit `name`, in
+  which case the projector keeps or generates one (see Foreign Key Overrides
+  and Constraint Overrides).
 - `keys.foreign`, `constraints`, and `indexes` apply only to the claim's own
   projected table, not to any child tables generated from array-of-objects
   paths. `names.tables` and `names.columns` may reference any of the claim's
@@ -555,7 +554,7 @@ Rules:
 
 ### Column References
 
-`keys.foreign.columns`, `keys.foreign.references.columns`,
+`keys.foreign.column`, `keys.foreign.references.column`,
 `constraints.unique.columns`, `constraints.check.column`, and
 `indexes.columns` reference columns by **projected column `id`** — the same
 identifier space as `names.columns` (a source detail path, a relation source
@@ -617,34 +616,38 @@ x-relational-db-schema:
   keys:
     foreign:
       - name: fk_orders_customer
-        columns:
-          - customer
+        column: customer
         references:
-          table: customers
-          columns:
-            - id
+          table: customer
+          column: id
 ```
 
 Rules:
 
-- The override's `keys.foreign` entries have `name`, `columns` (exactly one
+- The override's `keys.foreign` entries have an optional `name`, `column` (a
   projected column `id` on this table), `references.table` (a projected table
-  ID), and `references.columns` (exactly one projected column `id` on the
-  referenced table). `columns` or `references.columns` with more than one
-  element is a validation error.
-- An override `keys.foreign` entry whose `columns` matches the column of an
+  ID), and `references.column` (a projected column `id` on the referenced
+  table).
+- An override `keys.foreign` entry whose `column` matches the column of an
   existing item in the `keys.foreign` list produced by Relation And Foreign Key
   Rules (regardless of that foreign key's `kind`) **replaces** that item's
-  `name`, `references`, and `columns`.
+  `name`, `references`, and `column`.
 - An override `keys.foreign` entry that matches no existing foreign key is an
   **additional** foreign key, with `kind: extension` (see Relation And Foreign
   Key Rules).
+- When `name` is omitted on an entry that replaces an existing foreign key, the
+  existing foreign key name is kept.
+- When `name` is omitted on an additional foreign key, the name is generated as
+  `fk_<table name>_<column name>`.
+- A foreign key override name, whether explicit or generated, must not conflict
+  with another foreign key name in the same projected table.
 - Two override `keys.foreign` entries matching the same existing foreign key is
   a validation error.
-- Composite primary keys and composite foreign keys (more than one column) are
-  outside this version's scope. The override extension has no `keys.primary`
-  member; the projection's surrogate `id` primary key (`tables[].keys.primary`),
-  named `pk_<table name>`, is always the table's only primary key.
+- `references.column` must be `id`, because each projected table's primary key
+  is its surrogate `id`.
+- The override extension has no `keys.primary` member; the projection's
+  surrogate `id` primary key (`tables[].keys.primary`), named
+  `pk_<table name>`, is always the table's only primary key.
 
 ### Constraint Overrides
 
@@ -757,10 +760,10 @@ claim renames the referenced table or column).
 ### Validation
 
 Resolving `x-relational-db-schema` column and table references, rejecting
-unsupported types or composite keys, and detecting conflicting override
-entries (and so on) happens while applying the steps above, and is a
-projection error like the other projection errors in this specification (for
-example, a projected table name conflict). It is not part of core Data Sketch
+unsupported types, and detecting conflicting override entries (and so on)
+happens while applying the steps above, and is a projection error like the
+other projection errors in this specification (for example, a projected table
+name conflict). It is not part of core Data Sketch
 document validation.
 
 ---

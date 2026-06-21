@@ -1,23 +1,25 @@
 import assert from 'node:assert'
 import { after, before, describe, it } from 'node:test'
-import { executeTableDoc } from '../../../src/commands/tables-doc.ts'
-import {
-  openApiValidator,
-  project,
-  type RelationalDbProjection,
-  relationalDbProjector,
-  renderTablesDoc,
-  validate
-} from '../../../src/index.ts'
+import { executeTableDoc, renderTablesDoc } from '../../../src/commands/tables-doc.ts'
+import { project, type RelationalDbProjection, relationalDbProjector } from '../../../src/core/projector.ts'
+import { openApiValidator, validate } from '../../../src/core/validator.ts'
 import { createTemporaryDirectory, joinFilePath, readTextFile, removeDirectory } from '../../test-helper/file-access.ts'
 import { runCommandAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot tables-doc [OPTION]... SPEC_FILE'
-const onlineShopWithOpenApiSpecFilePath = 'test/commands/tables-doc/fixtures/online-shop-with-openapi-source.yaml'
-const onlineShopWithoutOpenApiSpecFilePath = 'test/commands/tables-doc/fixtures/online-shop-without-openapi-source.yaml'
-const specialCharacterEscapingSpecFilePath = 'test/commands/tables-doc/fixtures/special-character-escaping.yaml'
+
+const onlineShopWithOpenApiSpecFilePath =
+  'test/commands/tables-doc/fixtures/online-shop-with-tentative-order.valid.yaml'
+
+const onlineShopWithoutOpenApiSpecFilePath =
+  'test/commands/tables-doc/fixtures/online-shop-without-openapi-source.valid.yaml'
+
+const specialCharacterEscapingSpecFilePath = 'test/commands/tables-doc/fixtures/special-character-escaping.valid.yaml'
+
 const specialCharacterEscapingReorderedSpecFilePath =
-  'test/commands/tables-doc/fixtures/special-character-escaping-reordered.yaml'
+  'test/commands/tables-doc/fixtures/special-character-escaping-reordered.valid.yaml'
+
+const expectedTablesDocFixtureDirectoryPath = 'test/commands/tables-doc/fixtures/expected'
 
 // ─── CLI behaviour ─────────────────────────────────────────────────────────────
 
@@ -78,50 +80,7 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    // frontmatter
-    assert.match(content, /^---\n/)
-    assert.match(content, /\nsource: online-shop-with-openapi-source\.yaml\n/)
-    assert.match(content, /\nsha256: [0-9a-f]{64}\n/)
-    assert.match(content, /\ngenerated_at: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
-    assert.match(content, /---\n\n# online-shop\n/)
-
-    // table sections present
-    assert.match(content, /\n## customers\n/)
-    assert.match(content, /\n## orders\n/)
-    assert.match(content, /\n## order_items\n/)
-
-    // tentative caution only on orders
-    assert.match(content, /> \[!CAUTION\]\n> This table is tentative and needs review\./)
-
-    // surrogate key fixed description
-    assert.match(content, /\| id \| CHAR\(26\) \| no \| Auto-assigned surrogate key \|/)
-
-    // nullable column (phone is optional in OpenAPI)
-    assert.match(content, /\| phone \| VARCHAR\(1024\) \| yes \|/)
-
-    // aliases rendered in description
-    assert.match(content, /order status/)
-    assert.match(content, /item quantity/)
-
-    // constraint sections on orders
-    assert.match(content, /### Primary Key/)
-    assert.match(content, /### Foreign Keys/)
-    assert.match(content, /### Unique Constraints/)
-    assert.match(content, /### Check Constraints/)
-
-    // customers table has no FK / unique / check sections
-    const customersSection = content.slice(content.indexOf('\n## customers\n'), content.indexOf('\n## orders\n'))
-
-    assert.ok(!customersSection.includes('### Foreign Keys'))
-    assert.ok(!customersSection.includes('### Unique Constraints'))
-    assert.ok(!customersSection.includes('### Check Constraints'))
-
-    // DDL
-    assert.match(content, /\n## DDL\n\n```sql\n/)
-    assert.match(content, /CREATE TABLE orders \(/)
-    assert.match(content, /CONSTRAINT ck_orders_status CHECK \(status IN \('pending', 'shipped', 'delivered'\)\)/)
-    assert.match(content, /CREATE INDEX idx_orders_status ON orders \(status\);/)
-    assert.match(content, /\n```\n$/)
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-with-tentative-order.md'))
   })
 
   it('Given a valid spec file, When the command executes with -o, Then it writes to the output file', () => {
@@ -135,7 +94,7 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.match(content, /^---\n/)
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-with-tentative-order.md'))
   })
 
   it('Given an existing output file, When the command executes, Then it overwrites the file', () => {
@@ -146,7 +105,7 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.match(content, /^---\n/)
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-with-tentative-order.md'))
   })
 
   it('Given the same spec file run twice, When the command executes, Then it produces the same sha256', () => {
@@ -156,10 +115,10 @@ describe('tables-doc CLI', () => {
     runCommandAndCapture(() => executeTableDoc([onlineShopWithOpenApiSpecFilePath, '-o', firstOutputFilePath]))
     runCommandAndCapture(() => executeTableDoc([onlineShopWithOpenApiSpecFilePath, '-o', secondOutputFilePath]))
 
-    const sha1 = extractSha256(readTextFile(firstOutputFilePath))
-    const sha2 = extractSha256(readTextFile(secondOutputFilePath))
+    const sha1 = getFrontmatterValue(readTextFile(firstOutputFilePath), 'sha256')
+    const sha2 = getFrontmatterValue(readTextFile(secondOutputFilePath), 'sha256')
 
-    assert.ok(sha1, 'sha256 should be present in first output')
+    assert.notEqual(sha1, undefined)
     assert.equal(sha1, sha2)
   })
 
@@ -172,10 +131,10 @@ describe('tables-doc CLI', () => {
       executeTableDoc([specialCharacterEscapingReorderedSpecFilePath, '-o', secondOutputFilePath])
     )
 
-    const sha1 = extractSha256(readTextFile(firstOutputFilePath))
-    const sha2 = extractSha256(readTextFile(secondOutputFilePath))
+    const sha1 = getFrontmatterValue(readTextFile(firstOutputFilePath), 'sha256')
+    const sha2 = getFrontmatterValue(readTextFile(secondOutputFilePath), 'sha256')
 
-    assert.ok(sha1, 'sha256 should be present')
+    assert.notEqual(sha1, undefined)
     assert.equal(sha1, sha2)
   })
 
@@ -190,8 +149,7 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.match(content, /\| name \| VARCHAR\(1024\) \| no \|/)
-    assert.match(content, /\| email \| VARCHAR\(1024\) \| no \|/)
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-without-openapi-source.md'))
   })
 
   it('Given a spec with special characters in aliases and enum values, When the command executes, Then cell text and DDL are correctly escaped', () => {
@@ -205,23 +163,7 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    // pipe in alias → \| in Markdown cell
-    assert.ok(content.includes('pipe\\|alias'), 'pipe in alias should be escaped in cell')
-
-    // backslash in alias → \\ in Markdown cell
-    assert.ok(content.includes('back\\\\slash'), 'backslash in alias should be escaped in cell')
-
-    // constraint name underscores → \_ in Markdown cell
-    assert.ok(content.includes('ck\\_items\\_status'), 'underscores in constraint name should be escaped')
-
-    // pipe in enum → \| in Allowed Values cell
-    assert.ok(content.includes('pipe\\|enum'), 'pipe in enum should be escaped in Markdown cell')
-
-    // single quote in enum → '' in DDL (SQL string literal escape)
-    assert.ok(content.includes("'O''Brien'"), 'single quote in enum should be doubled in DDL')
-
-    // pipe in enum value is NOT escaped in DDL (only SQL rules apply)
-    assert.ok(content.includes("'pipe|enum'"), 'pipe in enum should be unescaped in DDL')
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('special-character-escaping.md'))
   })
 
   it('Given a non-existent spec file, When the command executes, Then it prints an error to stderr and returns a non-zero exit code', () => {
@@ -245,8 +187,7 @@ describe('renderTablesDoc library contract', () => {
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, 'custom/source label')
 
-    assert.match(content, /\nsource: custom\/source label\n/)
-    assert.match(content, /\| phone \| VARCHAR\(1024\) \| yes \|/)
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('custom-source-label.md'))
   })
 
   it('Given optionals overrides, When renderTablesDoc is called, Then Nullable reflects the override', () => {
@@ -257,33 +198,39 @@ describe('renderTablesDoc library contract', () => {
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, optionalsSpec)
 
-    // requiredField is required in OpenAPI but optionals overrides it to nullable
-    assert.match(content, /\| required\\_field \| VARCHAR\(40\) \| yes \|/)
-
-    // optionalField is optional in OpenAPI but optionals overrides it to required
-    assert.match(content, /\| optional\\_field \| VARCHAR\(40\) \| no \|/)
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-optionals-override.md'))
   })
 
   it('Given aliases with pipe and backslash, When renderTablesDoc is called, Then cell text is escaped', () => {
     const validated = validate({ specFilePath: specialCharacterEscapingSpecFilePath, validators: [openApiValidator] })
 
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
-    const content = renderTablesDoc(validated.spec, projection, specialCharacterEscapingSpecFilePath)
+    const content = renderTablesDoc(validated.spec, projection, 'special-character-escaping.valid.yaml')
 
-    assert.ok(content.includes('pipe\\|alias'), 'pipe in alias should be escaped')
-    assert.ok(content.includes('back\\\\slash'), 'backslash in alias should be escaped')
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('special-character-escaping.md'))
   })
 
   it('Given an enum value with a single quote, When renderTablesDoc is called, Then the DDL uses SQL-escaped literals', () => {
     const validated = validate({ specFilePath: specialCharacterEscapingSpecFilePath, validators: [openApiValidator] })
 
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
-    const content = renderTablesDoc(validated.spec, projection, specialCharacterEscapingSpecFilePath)
+    const content = renderTablesDoc(validated.spec, projection, 'special-character-escaping.valid.yaml')
 
-    assert.ok(content.includes("'O''Brien'"), 'single quote should be doubled in DDL')
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('special-character-escaping.md'))
   })
 })
 
-function extractSha256(content: string): string | undefined {
-  return /sha256: ([0-9a-f]{64})/.exec(content)?.[1]
+function readExpectedTablesDoc(fileName: string) {
+  return readTextFile(joinFilePath(expectedTablesDocFixtureDirectoryPath, fileName))
+}
+
+function normalizeGeneratedAt(content: string) {
+  return content.replace(/^generated_at: .+$/m, 'generated_at: <generated_at>') // generated_at is rendered at runtime.
+}
+
+function getFrontmatterValue(content: string, fieldName: string): string | undefined {
+  const prefix = `${fieldName}: `
+  const line = content.split('\n').find(contentLine => contentLine.startsWith(prefix))
+
+  return line?.slice(prefix.length)
 }

@@ -88,64 +88,57 @@ claims:
       keys:
         unknownKeyMember: true
         foreign:
-          - name: fk_empty_columns
-            columns: []
+          - name: fk_missing_column
             references:
               table: customer
-              columns:
-                - id
-          - name: fk_too_many_columns
-            columns:
-              - status
-              - customer
+              column: id
+          - name: fk_empty_column
+            column: ""
             references:
               table: customer
-              columns:
-                - id
+              column: id
           - name: fk_bad_references_shape
-            columns:
-              - status
+            column: status
             references:
               notATable: true
-          - name: fk_unknown_ref_column
-            columns:
-              - status
+          - name: fk_non_id_ref_column
+            column: status
             references:
               table: customer
-              columns:
-                - doesNotExist
+              column: name
           - name: fk_unknown_source_column
-            columns:
-              - doesNotExist
+            column: doesNotExist
             references:
               table: customer
-              columns:
-                - id
+              column: id
           - name: fk_unknown_ref_table
-            columns:
-              - status
+            column: status
             references:
               table: doesNotExist
-              columns:
-                - id
+              column: id
           - not-an-object
           - name: fk_dup1
-            columns:
-              - customer
+            column: customer
             references:
               table: customer
-              columns:
-                - id
+              column: id
           - name: fk_dup2
-            columns:
-              - customer
+            column: customer
             references:
               table: customer
-              columns:
-                - id
+              column: id
           - name: fk_missing_references
-            columns:
-              - status
+            column: status
+          - name: ""
+            column: status
+            references:
+              table: customer
+              column: id
+          - name: fk_empty_ref_column
+            column: status
+            references:
+              table: customer
+              column: ""
 
   product:
     name: products

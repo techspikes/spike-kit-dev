@@ -131,7 +131,7 @@ describe('openapi-summary command', () => {
 
   it('Given an OpenAPI file whose root is not an object, When the command executes, Then it prints a root shape error and returns a non-zero exit code', async () => {
     const result = await runCommandAndCaptureAsync(() =>
-      executeOpenApiSummary(['test/commands/openapi-summary/fixtures/root-null.openapi.yaml'])
+      executeOpenApiSummary(['test/commands/openapi-summary/fixtures/root-null.invalid.yaml'])
     )
 
     assert.equal(result.exitCode, 1)

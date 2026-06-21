@@ -1,5 +1,4 @@
 data-sketch: 1.0.0-draft.2
-x-note: used by an external tool
 
 info:
   name: online-shop
@@ -12,7 +11,6 @@ sources:
 claims:
   customer:
     name: customers
-    x-relational-db-schema: customer overrides
     reason: |-
       Customer profile information is needed when customers are created and
       later looked up for ordering and support context.
@@ -23,3 +21,6 @@ claims:
     details:
       - name
       - email
+    x-relational-db-schema: customer overrides
+
+x-note: used by an external tool

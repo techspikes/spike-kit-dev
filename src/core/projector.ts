@@ -965,13 +965,24 @@ function applyForeignKeyOverrides(
   keys.foreign.forEach((entry, index) => {
     const fieldPrefix = `${prefix}.keys.foreign[${index}]`
 
-    if (!isRecord(entry) || typeof entry.name !== 'string' || entry.name === '') {
-      issues.push(`${fieldPrefix}.name must be a non-empty string`)
+    if (!isRecord(entry)) {
+      issues.push(`${fieldPrefix} must be an object`)
 
       return
     }
 
-    const columns = resolveSingleColumnReference(entry.columns, `${fieldPrefix}.columns`, issues)
+    if (entry.name !== undefined && (typeof entry.name !== 'string' || entry.name === '')) {
+      issues.push(`${fieldPrefix}.name must be a non-empty string when present`)
+
+      return
+    }
+
+    if (typeof entry.column !== 'string' || entry.column === '') {
+      issues.push(`${fieldPrefix}.column must be a non-empty string`)
+
+      return
+    }
+
     const references = isRecord(entry.references) ? entry.references : undefined
 
     if (!references || typeof references.table !== 'string') {
@@ -980,20 +991,22 @@ function applyForeignKeyOverrides(
       return
     }
 
-    const referenceColumns = resolveSingleColumnReference(
-      references.columns,
-      `${fieldPrefix}.references.columns`,
-      issues
-    )
+    if (typeof references.column !== 'string' || references.column === '') {
+      issues.push(`${fieldPrefix}.references.column must be a non-empty string`)
 
-    if (!columns || !referenceColumns) {
       return
     }
 
-    const sourceColumn = table.columns.find(column => column.id === columns)
+    if (references.column !== 'id') {
+      issues.push(`${fieldPrefix}.references.column must reference the target surrogate id`)
+
+      return
+    }
+
+    const sourceColumn = table.columns.find(column => column.id === entry.column)
 
     if (!sourceColumn) {
-      issues.push(`${fieldPrefix}.columns references unknown column ${columns}`)
+      issues.push(`${fieldPrefix}.column references unknown column ${entry.column}`)
 
       return
     }
@@ -1002,16 +1015,6 @@ function applyForeignKeyOverrides(
 
     if (!targetTable) {
       issues.push(`${fieldPrefix}.references.table references unknown table ${references.table}`)
-
-      return
-    }
-
-    const targetColumn = targetTable.columns.find(column => column.id === referenceColumns)
-
-    if (!targetColumn) {
-      issues.push(
-        `${fieldPrefix}.references.columns references unknown column ${referenceColumns} in table ${references.table}`
-      )
 
       return
     }
@@ -1027,37 +1030,48 @@ function applyForeignKeyOverrides(
 
       matchedExistingIndexes.add(existingIndex)
 
+      const foreignKeyName = entry.name ?? table.keys.foreign[existingIndex].name
+
+      const conflictingForeignKey = table.keys.foreign.find(
+        (foreignKey, foreignKeyIndex) => foreignKeyIndex !== existingIndex && foreignKey.name === foreignKeyName
+      )
+
+      if (conflictingForeignKey) {
+        issues.push(`${fieldPrefix}.name ${foreignKeyName} conflicts with another foreign key in table ${table.name}`)
+
+        return
+      }
+
       table.keys.foreign[existingIndex] = {
-        name: entry.name,
+        name: foreignKeyName,
         column: sourceColumn.name,
         target: {
           table: targetTable.name,
-          column: targetColumn.name
+          column: targetTable.keys.primary.columns[0]
         },
         kind: table.keys.foreign[existingIndex].kind
       }
     } else {
+      const foreignKeyName = entry.name ?? `fk_${table.name}_${sourceColumn.name}`
+      const conflictingForeignKey = table.keys.foreign.find(foreignKey => foreignKey.name === foreignKeyName)
+
+      if (conflictingForeignKey) {
+        issues.push(`${fieldPrefix}.name ${foreignKeyName} conflicts with another foreign key in table ${table.name}`)
+
+        return
+      }
+
       table.keys.foreign.push({
-        name: entry.name,
+        name: foreignKeyName,
         column: sourceColumn.name,
         target: {
           table: targetTable.name,
-          column: targetColumn.name
+          column: targetTable.keys.primary.columns[0]
         },
         kind: 'extension'
       })
     }
   })
-}
-
-function resolveSingleColumnReference(value: unknown, fieldPrefix: string, issues: string[]) {
-  if (!Array.isArray(value) || value.length !== 1 || typeof value[0] !== 'string') {
-    issues.push(`${fieldPrefix} must be an array with exactly one column id`)
-
-    return undefined
-  }
-
-  return value[0]
 }
 
 function applyConstraintOverrides(

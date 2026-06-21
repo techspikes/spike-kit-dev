@@ -336,7 +336,7 @@ describe('core validator', () => {
         validate({
           sketch: parse({ specSourceText: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml') }),
           sources: {
-            openapi: readTextFile('test/core/validator/fixtures/openapi/root-null.yaml')
+            openapi: readTextFile('test/core/validator/fixtures/openapi/root-null.invalid.yaml')
           },
           validators: [openApiValidator]
         }),

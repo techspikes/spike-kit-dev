@@ -21,20 +21,20 @@ import { runCommandAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot kysely-migration [OPTION]... SPEC_FILE'
 const onlineShopWithTentativeOrderSpecFilePath =
-  'test/commands/kysely-migration/fixtures/online-shop-with-tentative-order.yaml'
-const simpleSpec = 'test/commands/kysely-migration/fixtures/simple.yaml'
-const simpleV2Spec = 'test/commands/kysely-migration/fixtures/simple-v2.yaml'
-const typedSpec = 'test/commands/kysely-migration/fixtures/typed.yaml'
-const typedV2Spec = 'test/commands/kysely-migration/fixtures/typed-v2.yaml'
-const simpleV3Spec = 'test/commands/kysely-migration/fixtures/simple-v3.yaml'
-const onlineShopNoPhoneSpec = 'test/commands/kysely-migration/fixtures/online-shop-no-phone.yaml'
-const onlineShopV1Spec = 'test/commands/kysely-migration/fixtures/online-shop-v1.yaml'
-const onlineShopV2Spec = 'test/commands/kysely-migration/fixtures/online-shop-v2.yaml'
-const typedV3Spec = 'test/commands/kysely-migration/fixtures/typed-v3.yaml'
-const typedV4Spec = 'test/commands/kysely-migration/fixtures/typed-v4.yaml'
-const simpleRenamedSpec = 'test/commands/kysely-migration/fixtures/simple-renamed.yaml'
-const simpleWithCheckSpec = 'test/commands/kysely-migration/fixtures/simple-with-check.yaml'
-const simpleWithoutCheckSpec = 'test/commands/kysely-migration/fixtures/simple-without-check.yaml'
+  'test/commands/kysely-migration/fixtures/online-shop-with-tentative-order.valid.yaml'
+const simpleSpec = 'test/commands/kysely-migration/fixtures/simple.valid.yaml'
+const simpleV2Spec = 'test/commands/kysely-migration/fixtures/simple-v2.valid.yaml'
+const typedSpec = 'test/commands/kysely-migration/fixtures/typed.valid.yaml'
+const typedV2Spec = 'test/commands/kysely-migration/fixtures/typed-v2.valid.yaml'
+const simpleV3Spec = 'test/commands/kysely-migration/fixtures/simple-v3.valid.yaml'
+const onlineShopNoPhoneSpec = 'test/commands/kysely-migration/fixtures/online-shop-no-phone.valid.yaml'
+const onlineShopV1Spec = 'test/commands/kysely-migration/fixtures/online-shop-v1.valid.yaml'
+const onlineShopV2Spec = 'test/commands/kysely-migration/fixtures/online-shop-v2.valid.yaml'
+const typedV3Spec = 'test/commands/kysely-migration/fixtures/typed-v3.valid.yaml'
+const typedV4Spec = 'test/commands/kysely-migration/fixtures/typed-v4.valid.yaml'
+const simpleRenamedSpec = 'test/commands/kysely-migration/fixtures/simple-renamed.valid.yaml'
+const simpleWithCheckSpec = 'test/commands/kysely-migration/fixtures/simple-with-check.valid.yaml'
+const simpleWithoutCheckSpec = 'test/commands/kysely-migration/fixtures/simple-without-check.valid.yaml'
 
 // ─── CLI behaviour ─────────────────────────────────────────────────────────────
 
@@ -301,8 +301,8 @@ describe('kysely-migration CLI', () => {
     assert.ok(!content.includes('.dropTable('), 'no dropTable for empty diff')
   })
 
-  it('Given --previous-migration with simple.yaml, When the command runs against simple-v2.yaml, Then diff migration adds the new tag table', () => {
-    // First run: initial migration for simple.yaml
+  it('Given --previous-migration with simple.valid.yaml, When the command runs against simple-v2.valid.yaml, Then diff migration adds the new tag table', () => {
+    // First run: initial migration for simple.valid.yaml
     const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-v1.ts')
     const { exitCode: exitCode1 } = runCommandAndCapture(() =>
       executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
@@ -310,7 +310,7 @@ describe('kysely-migration CLI', () => {
 
     assert.equal(exitCode1, 0)
 
-    // Second run: diff migration to simple-v2.yaml (adds 'tag' claim)
+    // Second run: diff migration to simple-v2.valid.yaml (adds 'tag' claim)
     const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-v2.ts')
     const { exitCode: exitCode2 } = runCommandAndCapture(() =>
       executeKyselyMigration([
@@ -419,7 +419,7 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given a diff that renames tables, When the command executes, Then it generates renameTable and drops/recreates PKs', () => {
-    // Generate initial migration from simple.yaml
+    // Generate initial migration from simple.valid.yaml
     const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'table-rename-initial.ts')
     const { exitCode: exitCode1 } = runCommandAndCapture(() =>
       executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
@@ -427,7 +427,7 @@ describe('kysely-migration CLI', () => {
 
     assert.equal(exitCode1, 0)
 
-    // Diff to simple-renamed.yaml (authors→writers, posts→articles)
+    // Diff to simple-renamed.valid.yaml (authors→writers, posts→articles)
     const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'table-rename-diff.ts')
     const { exitCode: exitCode2 } = runCommandAndCapture(() =>
       executeKyselyMigration([
@@ -453,7 +453,7 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given a diff that changes a column type, When the command executes, Then it generates alterColumn with setDataType', () => {
-    // Generate initial migration from typed.yaml
+    // Generate initial migration from typed.valid.yaml
     const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'col-type-initial.ts')
     const { exitCode: exitCode1 } = runCommandAndCapture(() =>
       executeKyselyMigration([typedSpec, '--output', initialMigrationFilePath])
@@ -461,7 +461,7 @@ describe('kysely-migration CLI', () => {
 
     assert.equal(exitCode1, 0)
 
-    // Diff to typed-v3.yaml (price changes from DECIMAL(10,2) to DECIMAL(10,4))
+    // Diff to typed-v3.valid.yaml (price changes from DECIMAL(10,2) to DECIMAL(10,4))
     const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'col-type-diff.ts')
     const { exitCode: exitCode2 } = runCommandAndCapture(() =>
       executeKyselyMigration([
@@ -545,7 +545,7 @@ describe('kysely-migration CLI', () => {
   })
 
   it('Given a diff that removes an index entirely, When the command executes, Then it drops the index', () => {
-    // Generate initial migration from typed.yaml (has idx_products_sku)
+    // Generate initial migration from typed.valid.yaml (has idx_products_sku)
     const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'drop-ix-initial.ts')
     const { exitCode: exitCode1 } = runCommandAndCapture(() =>
       executeKyselyMigration([typedSpec, '--output', initialMigrationFilePath])
@@ -553,7 +553,7 @@ describe('kysely-migration CLI', () => {
 
     assert.equal(exitCode1, 0)
 
-    // Diff to typed-v4.yaml (index removed)
+    // Diff to typed-v4.valid.yaml (index removed)
     const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'drop-ix-diff.ts')
     const { exitCode: exitCode2 } = runCommandAndCapture(() =>
       executeKyselyMigration([
@@ -601,7 +601,7 @@ describe('kysely-migration CLI', () => {
     assert.ok(stderr.length > 0)
   })
 
-  it('Given typed.yaml with DECIMAL and BOOLEAN columns, When the command executes, Then it maps types correctly in the migration', () => {
+  it('Given typed.valid.yaml with DECIMAL and BOOLEAN columns, When the command executes, Then it maps types correctly in the migration', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'typed-initial.ts')
     const { exitCode } = runCommandAndCapture(() => executeKyselyMigration([typedSpec, '--output', outputFilePath]))
 
@@ -622,8 +622,8 @@ describe('kysely-migration CLI', () => {
     assert.match(content, /\.createIndex\('idx_products_sku'\)/)
   })
 
-  it('Given simple.yaml to simple-v3.yaml diff, When the command executes, Then it adds a column to an existing table and a new table with a UQ', () => {
-    // Generate initial migration from simple.yaml
+  it('Given simple.valid.yaml to simple-v3.valid.yaml diff, When the command executes, Then it adds a column to an existing table and a new table with a UQ', () => {
+    // Generate initial migration from simple.valid.yaml
     const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'v3-diff-initial.ts')
     const { exitCode: exitCode1 } = runCommandAndCapture(() =>
       executeKyselyMigration([simpleSpec, '--output', initialMigrationFilePath])
@@ -631,7 +631,7 @@ describe('kysely-migration CLI', () => {
 
     assert.equal(exitCode1, 0)
 
-    // Generate diff migration to simple-v3.yaml
+    // Generate diff migration to simple-v3.valid.yaml
     const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'v3-diff.ts')
     const { exitCode: exitCode2 } = runCommandAndCapture(() =>
       executeKyselyMigration([
@@ -660,8 +660,8 @@ describe('kysely-migration CLI', () => {
     assert.match(content, /dropTable\('tags'\)/)
   })
 
-  it('Given typed.yaml to typed-v2.yaml diff with changed UQ and index, When the command executes, Then it generates correct diff operations', () => {
-    // Generate initial migration from typed.yaml
+  it('Given typed.valid.yaml to typed-v2.valid.yaml diff with changed UQ and index, When the command executes, Then it generates correct diff operations', () => {
+    // Generate initial migration from typed.valid.yaml
     const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'typed-diff-initial.ts')
     const { exitCode: exitCode1 } = runCommandAndCapture(() =>
       executeKyselyMigration([typedSpec, '--output', initialMigrationFilePath])
@@ -669,7 +669,7 @@ describe('kysely-migration CLI', () => {
 
     assert.equal(exitCode1, 0)
 
-    // Generate diff migration to typed-v2.yaml (UQ and index columns changed)
+    // Generate diff migration to typed-v2.valid.yaml (UQ and index columns changed)
     const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'typed-diff.ts')
     const { exitCode: exitCode2 } = runCommandAndCapture(() =>
       executeKyselyMigration([
@@ -859,7 +859,7 @@ describe('generated migrations in PGlite', () => {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const simpleWithIndexSpec = 'test/commands/kysely-migration/fixtures/simple-with-index.yaml'
+const simpleWithIndexSpec = 'test/commands/kysely-migration/fixtures/simple-with-index.valid.yaml'
 
 async function readTableNames(db: Kysely<unknown>): Promise<string[]> {
   const result = await sql<{ table_name: string }>`

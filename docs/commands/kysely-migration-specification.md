@@ -596,7 +596,7 @@ Scenario: a new `note` claim (`notes` table) is added to the spec, and
 Command:
 
 ```sh
-shot kysely-migration online-shop-v2.yaml --previous-migration 0001_initial.ts --output 0002_add_notes.ts
+shot kysely-migration online-shop-v2.valid.yaml --previous-migration 0001_initial.ts --output 0002_add_notes.ts
 ```
 
 Output excerpt:

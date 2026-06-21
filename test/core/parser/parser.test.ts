@@ -313,7 +313,7 @@ describe('core parser', () => {
 
   it('parse rejects root values that are not objects', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-root-null.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/root-null.invalid.yaml' }),
       /Invalid type: Expected Object but received null/
     )
   })

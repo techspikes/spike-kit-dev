@@ -98,12 +98,10 @@ claims:
       keys:
         foreign:
           - name: fk_orders_status_product
-            columns:
-              - status
+            column: status
             references:
               table: product
-              columns:
-                - id
+              column: id
       constraints:
         unique:
           - name: uq_orders_status_ordered_at

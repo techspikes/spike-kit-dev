@@ -586,7 +586,7 @@ describe('core projector', () => {
   it('buildRelationalDbProjection rejects projected table name conflicts', () => {
     const sketch = validate({
       sketch: parse({
-        specFilePath: 'test/core/projector/fixtures/online-shop-projected-table-name-conflict.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-projected-table-name-conflict.error.yaml'
       }),
       trace: false
     })
@@ -600,7 +600,7 @@ describe('core projector', () => {
   it('buildRelationalDbProjection rejects projected column name conflicts', () => {
     const sketch = validate({
       sketch: parse({
-        specFilePath: 'test/core/projector/fixtures/online-shop-projected-column-name-conflict.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-projected-column-name-conflict.error.yaml'
       }),
       trace: false
     })
@@ -614,7 +614,7 @@ describe('core projector', () => {
   it('buildRelationalDbProjection rejects invalid x-relational-db-schema overrides', () => {
     const sketch = validate({
       sketch: parse({
-        specFilePath: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension-invalid.valid.yaml'
+        specFilePath: 'test/core/projector/fixtures/online-shop-relational-db-schema-extension.error.yaml'
       }),
       trace: false
     })
@@ -647,15 +647,17 @@ describe('core projector', () => {
           'claims.order.x-relational-db-schema.names.columns.order.status must be a non-empty string',
           'Projected column name id for column customer in table order conflicts with column id',
           'claims.order.x-relational-db-schema.keys.unknownKeyMember is not a supported x-relational-db-schema member',
-          'claims.order.x-relational-db-schema.keys.foreign[0].columns must be an array with exactly one column id',
-          'claims.order.x-relational-db-schema.keys.foreign[1].columns must be an array with exactly one column id',
+          'claims.order.x-relational-db-schema.keys.foreign[0].column must be a non-empty string',
+          'claims.order.x-relational-db-schema.keys.foreign[1].column must be a non-empty string',
           'claims.order.x-relational-db-schema.keys.foreign[2].references.table must be a string',
-          'claims.order.x-relational-db-schema.keys.foreign[3].references.columns references unknown column doesNotExist in table customer',
-          'claims.order.x-relational-db-schema.keys.foreign[4].columns references unknown column doesNotExist',
+          'claims.order.x-relational-db-schema.keys.foreign[3].references.column must reference the target surrogate id',
+          'claims.order.x-relational-db-schema.keys.foreign[4].column references unknown column doesNotExist',
           'claims.order.x-relational-db-schema.keys.foreign[5].references.table references unknown table doesNotExist',
-          'claims.order.x-relational-db-schema.keys.foreign[6].name must be a non-empty string',
+          'claims.order.x-relational-db-schema.keys.foreign[6] must be an object',
           'claims.order.x-relational-db-schema.keys.foreign[8] matches the same existing foreign key as another override entry',
           'claims.order.x-relational-db-schema.keys.foreign[9].references.table must be a string',
+          'claims.order.x-relational-db-schema.keys.foreign[10].name must be a non-empty string when present',
+          'claims.order.x-relational-db-schema.keys.foreign[11].references.column must be a non-empty string',
           'claims.product.x-relational-db-schema.keys.foreign must be an array',
           'claims.widget.x-relational-db-schema must be an object',
           'claims.gadget.x-relational-db-schema.unsupportedTopMember is not a supported x-relational-db-schema member',
@@ -696,6 +698,65 @@ describe('core projector', () => {
     )
 
     assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
+  })
+
+  it('buildRelationalDbProjection auto-generates omitted foreign key override names', () => {
+    const sketch = validate({
+      sketch: parse({
+        specFilePath: 'test/core/projector/fixtures/online-shop-foreign-key-name-generation.valid.yaml'
+      }),
+      trace: false
+    })
+
+    const projection = buildRelationalDbProjectionWithProjector(sketch)
+
+    assert.deepEqual(projection.tables.order?.keys.foreign, [
+      {
+        name: 'fk_orders_customer',
+        column: 'customer',
+        target: {
+          table: 'customers',
+          column: 'id'
+        },
+        kind: 'explicit'
+      },
+      {
+        name: 'fk_orders_product',
+        column: 'product',
+        target: {
+          table: 'products',
+          column: 'id'
+        },
+        kind: 'extension'
+      }
+    ])
+  })
+
+  it('buildRelationalDbProjection rejects foreign key override name conflicts', () => {
+    const sketch = validate({
+      sketch: parse({
+        specFilePath: 'test/core/projector/fixtures/online-shop-foreign-key-name-conflict.error.yaml'
+      }),
+      trace: false
+    })
+
+    assert.throws(
+      () => buildRelationalDbProjectionWithProjector(sketch),
+      error => {
+        const message = (error as Error).message
+
+        const expectedIssues = [
+          'claims.order.x-relational-db-schema.keys.foreign[0].name fk_orders_customer conflicts with another foreign key in table orders',
+          'claims.order.x-relational-db-schema.keys.foreign[2].name fk_orders_product conflicts with another foreign key in table orders'
+        ]
+
+        for (const expectedIssue of expectedIssues) {
+          assert.ok(message.includes(expectedIssue), `expected message to include: ${expectedIssue}`)
+        }
+
+        return true
+      }
+    )
   })
 
   it('buildRelationalDbProjection auto-generates uq_/ck_ constraint names when omitted', () => {
