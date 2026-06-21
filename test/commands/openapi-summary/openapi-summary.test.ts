@@ -8,13 +8,9 @@ const usageLine = 'Usage: shot openapi-summary [OPTION]... OPENAPI_FILE'
 
 describe('openapi-summary command', () => {
   it('Given an OpenAPI file with local references, When the command executes, Then it prints an AI-oriented JSON summary', async () => {
-    const result = await runOpenApiSummary([
-      'test/commands/openapi-summary/fixtures/online-shop.openapi.yaml'
-    ])
+    const result = await runOpenApiSummary(['test/commands/openapi-summary/fixtures/online-shop.openapi.yaml'])
 
-    const expected = readJsonFile(
-      'test/commands/openapi-summary/fixtures/online-shop.openapi-summary.json'
-    )
+    const expected = readJsonFile('test/commands/openapi-summary/fixtures/online-shop.openapi-summary.json')
 
     assert.equal(result.exitCode, 0)
     assert.deepEqual(JSON.parse(result.stdout.join('')), expected)
@@ -60,13 +56,9 @@ describe('openapi-summary command', () => {
   })
 
   it('Given an OpenAPI file with incomplete shapes, When the command executes, Then it preserves operations and summarizes unknown fields defensively', async () => {
-    const result = await runOpenApiSummary([
-      'test/commands/openapi-summary/fixtures/defensive-shapes.openapi.yaml'
-    ])
+    const result = await runOpenApiSummary(['test/commands/openapi-summary/fixtures/defensive-shapes.openapi.yaml'])
 
-    const expected = readJsonFile(
-      'test/commands/openapi-summary/fixtures/defensive-shapes.openapi-summary.json'
-    )
+    const expected = readJsonFile('test/commands/openapi-summary/fixtures/defensive-shapes.openapi-summary.json')
 
     assert.equal(result.exitCode, 0)
     assert.deepEqual(JSON.parse(result.stdout.join('')), expected)
@@ -74,15 +66,11 @@ describe('openapi-summary command', () => {
   })
 
   it('Given an OpenAPI file with a remote reference, When the command executes, Then it rejects the remote reference', async () => {
-    const result = await runOpenApiSummary([
-      'test/commands/openapi-summary/fixtures/remote-reference.openapi.yaml'
-    ])
+    const result = await runOpenApiSummary(['test/commands/openapi-summary/fixtures/remote-reference.openapi.yaml'])
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
-    assert.deepEqual(result.stderr, [
-      'Remote OpenAPI $ref is not supported: https://example.com/schema.yaml\n'
-    ])
+    assert.deepEqual(result.stderr, ['Remote OpenAPI $ref is not supported: https://example.com/schema.yaml\n'])
   })
 
   it('Given an OpenAPI file with a protocol-relative reference, When the command executes, Then it rejects the remote reference', async () => {
@@ -92,9 +80,7 @@ describe('openapi-summary command', () => {
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
-    assert.deepEqual(result.stderr, [
-      'Remote OpenAPI $ref is not supported: //example.com/schema.yaml\n'
-    ])
+    assert.deepEqual(result.stderr, ['Remote OpenAPI $ref is not supported: //example.com/schema.yaml\n'])
   })
 
   it('Given an OpenAPI file with a missing local reference, When the command executes, Then it prints a read error and returns a non-zero exit code', async () => {
@@ -108,27 +94,19 @@ describe('openapi-summary command', () => {
   })
 
   it('Given an OpenAPI file with a missing JSON pointer target, When the command executes, Then it prints a reference error and returns a non-zero exit code', async () => {
-    const result = await runOpenApiSummary([
-      'test/commands/openapi-summary/fixtures/missing-pointer.openapi.yaml'
-    ])
+    const result = await runOpenApiSummary(['test/commands/openapi-summary/fixtures/missing-pointer.openapi.yaml'])
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
-    assert.deepEqual(result.stderr, [
-      'OpenAPI $ref target does not exist: #/components/schemas/customer\n'
-    ])
+    assert.deepEqual(result.stderr, ['OpenAPI $ref target does not exist: #/components/schemas/customer\n'])
   })
 
   it('Given an OpenAPI file with a circular reference, When the command executes, Then it prints a circular reference error and returns a non-zero exit code', async () => {
-    const result = await runOpenApiSummary([
-      'test/commands/openapi-summary/fixtures/circular-reference.openapi.yaml'
-    ])
+    const result = await runOpenApiSummary(['test/commands/openapi-summary/fixtures/circular-reference.openapi.yaml'])
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
-    assert.deepEqual(result.stderr, [
-      'Circular OpenAPI $ref is not supported: #/components/schemas/customer\n'
-    ])
+    assert.deepEqual(result.stderr, ['Circular OpenAPI $ref is not supported: #/components/schemas/customer\n'])
   })
 
   it('Given an OpenAPI file with a malformed JSON pointer reference, When the command executes, Then it prints a reference error and returns a non-zero exit code', async () => {
@@ -138,15 +116,11 @@ describe('openapi-summary command', () => {
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
-    assert.deepEqual(result.stderr, [
-      'OpenAPI $ref must use a JSON pointer fragment: #components/schemas/customer\n'
-    ])
+    assert.deepEqual(result.stderr, ['OpenAPI $ref must use a JSON pointer fragment: #components/schemas/customer\n'])
   })
 
   it('Given an OpenAPI file whose root is not an object, When the command executes, Then it prints a root shape error and returns a non-zero exit code', async () => {
-    const result = await runOpenApiSummary([
-      'test/commands/openapi-summary/fixtures/root-null.openapi.yaml'
-    ])
+    const result = await runOpenApiSummary(['test/commands/openapi-summary/fixtures/root-null.openapi.yaml'])
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
@@ -154,9 +128,7 @@ describe('openapi-summary command', () => {
   })
 
   it('Given invalid OpenAPI YAML, When the command executes, Then it prints a parse error and returns a non-zero exit code', async () => {
-    const result = await runOpenApiSummary([
-      'test/commands/openapi-summary/fixtures/invalid.openapi.yaml'
-    ])
+    const result = await runOpenApiSummary(['test/commands/openapi-summary/fixtures/invalid.openapi.yaml'])
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])

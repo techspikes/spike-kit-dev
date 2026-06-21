@@ -27,7 +27,11 @@ type SnapshotTable = {
 
 type SnapshotColumn = { id: string; name: string; type: string; nullable: boolean }
 type SnapshotNamedColumns = { name: string; columns: string[] }
-type SnapshotForeignKey = { name: string; column: string; target: { table: string; column: string } }
+type SnapshotForeignKey = {
+  name: string
+  column: string
+  target: { table: string; column: string }
+}
 type SnapshotIndex = { name: string; columns: string[] }
 type SnapshotCheckConstraint = { name: string; column: string; enum: string[] }
 
@@ -93,6 +97,7 @@ export function executeKyselyMigration(args: readonly string[]) {
 
     // Parse
     const sketch = parse({ path: specFile })
+
     console.log('Data Sketch read')
 
     // Validate
@@ -112,9 +117,7 @@ export function executeKyselyMigration(args: readonly string[]) {
       const claim = validated.spec.claims[claimId]
 
       if (claim?.tentative === true && !includeTentative) {
-        process.stderr.write(
-          `Warning: Tentative claim excluded from migration: ${projection.tables[tableId].name}\n`
-        )
+        process.stderr.write(`Warning: Tentative claim excluded from migration: ${projection.tables[tableId].name}\n`)
       } else {
         includedTableIds.push(tableId)
       }
@@ -128,6 +131,7 @@ export function executeKyselyMigration(args: readonly string[]) {
 
     if (previousMigration) {
       const prevContent = readFileSync(resolveCwdRelativePath(previousMigration), 'utf-8')
+
       console.log('Previous migration read')
       beforeSnapshot = parseEmbeddedSnapshot(prevContent)
       console.log('Previous DB projection snapshot parsed')
@@ -151,17 +155,13 @@ export function executeKyselyMigration(args: readonly string[]) {
 
         for (const ck of table.checkConstraints) {
           if (!beforeCheckNames.has(ck.name)) {
-            checkWarnings.push(
-              `Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`
-            )
+            checkWarnings.push(`Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`)
           }
         }
 
         for (const ck of beforeChecks) {
           if (!afterCheckNames.has(ck.name)) {
-            checkWarnings.push(
-              `Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`
-            )
+            checkWarnings.push(`Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`)
           }
         }
       }
@@ -169,9 +169,7 @@ export function executeKyselyMigration(args: readonly string[]) {
       // Initial mode: warn about all check constraints in the after snapshot
       for (const table of afterSnapshot.tables) {
         for (const ck of table.checkConstraints) {
-          checkWarnings.push(
-            `Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`
-          )
+          checkWarnings.push(`Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`)
         }
       }
     }
@@ -224,10 +222,7 @@ export function executeKyselyMigration(args: readonly string[]) {
 
 // ─── Snapshot building ────────────────────────────────────────────────────────
 
-export function buildSnapshot(
-  projection: RelationalDbProjection,
-  includedTableIds: string[]
-): DbProjectionSnapshot {
+export function buildSnapshot(projection: RelationalDbProjection, includedTableIds: string[]): DbProjectionSnapshot {
   const tables = projection.tables
 
   // Build name→id map for topological sort
@@ -243,6 +238,7 @@ export function buildSnapshot(
 
   function visit(tableId: string) {
     if (visited.has(tableId)) return
+
     visited.add(tableId)
 
     const table = tables[tableId]
@@ -352,8 +348,7 @@ export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot
             parsed !== null &&
             typeof parsed === 'object' &&
             !Array.isArray(parsed) &&
-            (parsed as Record<string, unknown>)['data-sketch/embedded-db-projection-snapshot'] ===
-              '1.0.0-draft.0' &&
+            (parsed as Record<string, unknown>)['data-sketch/embedded-db-projection-snapshot'] === '1.0.0-draft.0' &&
             typeof (parsed as Record<string, unknown>).payload === 'string'
           ) {
             const payload = (parsed as Record<string, unknown>).payload as string
@@ -366,13 +361,12 @@ export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot
               snapshot !== null &&
               typeof snapshot === 'object' &&
               !Array.isArray(snapshot) &&
-              (snapshot as Record<string, unknown>)['data-sketch/db-projection-snapshot'] ===
-                '1.0.0-draft.0'
+              (snapshot as Record<string, unknown>)['data-sketch/db-projection-snapshot'] === '1.0.0-draft.0'
             ) {
               return snapshot as DbProjectionSnapshot
             }
           }
-        /* c8 ignore next 7 */
+          /* c8 ignore next 7 */
         } catch {
           // Not a valid block, continue scanning
         }
@@ -403,10 +397,7 @@ export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
-export function renderInitialMigrationFile(
-  snapshot: DbProjectionSnapshot,
-  _warnings: string[]
-): string {
+export function renderInitialMigrationFile(snapshot: DbProjectionSnapshot, _warnings: string[]): string {
   const generatedAt = new Date().toISOString()
   const embeddedBlock = encodeSnapshot(snapshot, generatedAt)
 
@@ -478,9 +469,7 @@ function renderUpBody(snapshot: DbProjectionSnapshot): string[] {
     }
 
     for (const uq of table.uniqueConstraints) {
-      lines.push(
-        `    .addUniqueConstraint('${uq.name}', [${uq.columns.map(c => `'${c}'`).join(', ')}])`
-      )
+      lines.push(`    .addUniqueConstraint('${uq.name}', [${uq.columns.map(c => `'${c}'`).join(', ')}])`)
     }
 
     lines.push('    .execute()')
@@ -607,19 +596,12 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
 
     for (const fk of bTable.foreignKeys) {
       if (!afterFkNames.has(fk.name)) {
-        lines.push(
-          `  await db.schema.alterTable('${tableName}').dropConstraint('${fk.name}').execute()`
-        )
+        lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${fk.name}').execute()`)
       } else {
         const aFk = aTable?.foreignKeys.find(f => f.name === fk.name)
 
-        if (
-          aFk &&
-          (aFk.column !== fk.column || JSON.stringify(aFk.target) !== JSON.stringify(fk.target))
-        ) {
-          lines.push(
-            `  await db.schema.alterTable('${tableName}').dropConstraint('${fk.name}').execute()`
-          )
+        if (aFk && (aFk.column !== fk.column || JSON.stringify(aFk.target) !== JSON.stringify(fk.target))) {
+          lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${fk.name}').execute()`)
         }
       }
     }
@@ -629,16 +611,12 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
 
     for (const uq of bTable.uniqueConstraints) {
       if (!afterUqNames.has(uq.name)) {
-        lines.push(
-          `  await db.schema.alterTable('${tableName}').dropConstraint('${uq.name}').execute()`
-        )
+        lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${uq.name}').execute()`)
       } else {
         const aUq = aTable?.uniqueConstraints.find(u => u.name === uq.name)
 
         if (aUq && JSON.stringify(aUq.columns) !== JSON.stringify(uq.columns)) {
-          lines.push(
-            `  await db.schema.alterTable('${tableName}').dropConstraint('${uq.name}').execute()`
-          )
+          lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${uq.name}').execute()`)
         }
       }
     }
@@ -649,9 +627,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
       const aPk = aTable.primaryKey
 
       if (bPk.name !== aPk.name || JSON.stringify(bPk.columns) !== JSON.stringify(aPk.columns)) {
-        lines.push(
-          `  await db.schema.alterTable('${tableName}').dropConstraint('${bPk.name}').execute()`
-        )
+        lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${bPk.name}').execute()`)
       }
     }
   }
@@ -694,9 +670,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
 
     for (const bCol of bTable.columns) {
       if (!aColIds.has(bCol.id)) {
-        lines.push(
-          `  await db.schema.alterTable('${tableName}').dropColumn('${bCol.name}').execute()`
-        )
+        lines.push(`  await db.schema.alterTable('${tableName}').dropColumn('${bCol.name}').execute()`)
       }
     }
   }
@@ -723,8 +697,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
       if (!bCol) continue
 
       const colName = aCol.name
-      const typeChanged =
-        (bCol.type as string).toLowerCase() !== (aCol.type as string).toLowerCase()
+      const typeChanged = (bCol.type as string).toLowerCase() !== (aCol.type as string).toLowerCase()
       const nullableChanged = bCol.nullable !== aCol.nullable
 
       if (typeChanged || nullableChanged) {
@@ -733,9 +706,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
         if (!aCol.nullable) {
           lines.push(`  await db.schema`)
           lines.push(`    .alterTable('${tableName}')`)
-          lines.push(
-            `    .alterColumn('${colName}', col => col.setDataType('${newType}').setNotNull())`
-          )
+          lines.push(`    .alterColumn('${colName}', col => col.setDataType('${newType}').setNotNull())`)
           lines.push('    .execute()')
           /* c8 ignore next 6 */
         } else {
@@ -778,9 +749,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
       }
 
       for (const uq of table.uniqueConstraints) {
-        lines.push(
-          `    .addUniqueConstraint('${uq.name}', [${uq.columns.map(c => `'${c}'`).join(', ')}])`
-        )
+        lines.push(`    .addUniqueConstraint('${uq.name}', [${uq.columns.map(c => `'${c}'`).join(', ')}])`)
       }
 
       lines.push('    .execute()')
@@ -800,9 +769,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
         const typeStr = (aCol.type as string).toLowerCase()
 
         if (aCol.nullable) {
-          lines.push(
-            `  await db.schema.alterTable('${tableName}').addColumn('${aCol.name}', '${typeStr}').execute()`
-          )
+          lines.push(`  await db.schema.alterTable('${tableName}').addColumn('${aCol.name}', '${typeStr}').execute()`)
         } else {
           lines.push(
             `  await db.schema.alterTable('${tableName}').addColumn('${aCol.name}', '${typeStr}', col => col.notNull()).execute()`
@@ -836,8 +803,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
       const bFk = bTable.foreignKeys.find(f => f.name === aFk.name)
       const isNew = !bFkNames.has(aFk.name)
       const isChanged =
-        bFk !== undefined &&
-        (bFk.column !== aFk.column || JSON.stringify(bFk.target) !== JSON.stringify(aFk.target))
+        bFk !== undefined && (bFk.column !== aFk.column || JSON.stringify(bFk.target) !== JSON.stringify(aFk.target))
 
       if (isNew || isChanged) {
         lines.push(
@@ -852,8 +818,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
     for (const aUq of aTable.uniqueConstraints) {
       const bUq = bTable.uniqueConstraints.find(u => u.name === aUq.name)
       const isNew = !bUqNames.has(aUq.name)
-      const isChanged =
-        bUq !== undefined && JSON.stringify(bUq.columns) !== JSON.stringify(aUq.columns)
+      const isChanged = bUq !== undefined && JSON.stringify(bUq.columns) !== JSON.stringify(aUq.columns)
 
       if (isNew || isChanged) {
         lines.push(
@@ -871,8 +836,7 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
     for (const aIx of aTable.indexes) {
       const bIx = bTable?.indexes.find(x => x.name === aIx.name)
       const isNew = !bIxNames.has(aIx.name)
-      const isChanged =
-        bIx !== undefined && JSON.stringify(bIx.columns) !== JSON.stringify(aIx.columns)
+      const isChanged = bIx !== undefined && JSON.stringify(bIx.columns) !== JSON.stringify(aIx.columns)
 
       if (isNew || isChanged) {
         lines.push(`  await db.schema`)
@@ -968,9 +932,7 @@ function canonicalizeJson(value: unknown): string {
 
   const pairs = Object.keys(value as Record<string, unknown>)
     .sort()
-    .map(
-      key => `${JSON.stringify(key)}:${canonicalizeJson((value as Record<string, unknown>)[key])}`
-    )
+    .map(key => `${JSON.stringify(key)}:${canonicalizeJson((value as Record<string, unknown>)[key])}`)
 
   return `{${pairs.join(',')}}`
 }

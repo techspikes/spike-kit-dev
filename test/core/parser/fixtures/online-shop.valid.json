@@ -30,14 +30,7 @@
       "traces": {
         "operations": ["createOrder", "getOrderDetail"]
       },
-      "details": [
-        "status",
-        "orderedAt",
-        "customer",
-        "items[].quantity",
-        "items[].unitPrice",
-        "items[].product"
-      ],
+      "details": ["status", "orderedAt", "customer", "items[].quantity", "items[].unitPrice", "items[].product"],
       "relations": {
         "customer": "customer",
         "items[].product": "product"

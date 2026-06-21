@@ -49,15 +49,9 @@ describe('core utils', () => {
   })
 
   it('readBaseRelativeTextFile reads a fixture path relative to a base directory', () => {
-    const content = readCoreBaseRelativeTextFile(
-      'test/core/utils/fixtures',
-      'online-shop.valid.yaml'
-    )
+    const content = readCoreBaseRelativeTextFile('test/core/utils/fixtures', 'online-shop.valid.yaml')
 
-    assert.equal(
-      content,
-      readCwdRelativeTextFile('test/core/utils/fixtures/online-shop.valid.yaml')
-    )
+    assert.equal(content, readCwdRelativeTextFile('test/core/utils/fixtures/online-shop.valid.yaml'))
     assert.equal(
       resolveCoreCwdRelativeDirectoryPath('test/core/utils/fixtures/online-shop.valid.yaml'),
       resolveCwdRelativeDirectoryPath('test/core/utils/fixtures/online-shop.valid.yaml')

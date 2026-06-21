@@ -63,9 +63,7 @@ export function validate<P extends Record<string, (() => unknown) | undefined>>(
 function validateOperationIds(operationIds: Set<string>, spec: Specification) {
   const issues = Object.values(spec.claims).flatMap(claim =>
     claim.traces.operations.flatMap(operationName =>
-      operationIds.has(operationName)
-        ? []
-        : [`trace operation ${operationName} does not exist in OpenAPI operationId`]
+      operationIds.has(operationName) ? [] : [`trace operation ${operationName} does not exist in OpenAPI operationId`]
     )
   )
 
@@ -100,9 +98,7 @@ function validateRelationReferences(spec: Specification) {
       const targetClaim = spec.claims[relationTarget]
 
       if (!targetClaim) {
-        issues.push(
-          `claims.${claimId}.relations.${relationPath} target claim ${relationTarget} does not exist`
-        )
+        issues.push(`claims.${claimId}.relations.${relationPath} target claim ${relationTarget} does not exist`)
       }
     }
   }

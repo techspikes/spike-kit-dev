@@ -43,9 +43,7 @@ describe('spec-check command', () => {
   })
 
   it('Given an invalid Data Sketch specification, When the command executes, Then it prints a parse error and returns a non-zero exit code', () => {
-    const result = runSpecCheck([
-      'test/commands/spec-check/fixtures/online-shop-unsupported-version.invalid.yaml'
-    ])
+    const result = runSpecCheck(['test/commands/spec-check/fixtures/online-shop-unsupported-version.invalid.yaml'])
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
@@ -56,16 +54,12 @@ describe('spec-check command', () => {
   })
 
   it('Given a Data Sketch specification with a missing traced operation, When the command executes, Then it prints a trace validation error and returns a non-zero exit code', () => {
-    const result = runSpecCheck([
-      'test/commands/spec-check/fixtures/online-shop-missing-operation.invalid.yaml'
-    ])
+    const result = runSpecCheck(['test/commands/spec-check/fixtures/online-shop-missing-operation.invalid.yaml'])
 
     assert.equal(result.exitCode, 1)
     assert.deepEqual(result.stdout, [])
 
-    assert.deepEqual(result.stderr, [
-      'trace operation missingOperation does not exist in OpenAPI operationId\n'
-    ])
+    assert.deepEqual(result.stderr, ['trace operation missingOperation does not exist in OpenAPI operationId\n'])
   })
 })
 

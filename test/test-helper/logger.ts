@@ -62,11 +62,7 @@ function createCapturedWrite(
       return true
     }
 
-    return originalWrite.apply(context, [
-      chunk,
-      typeof encoding === 'function' ? undefined : encoding,
-      callback
-    ])
+    return originalWrite.apply(context, [chunk, typeof encoding === 'function' ? undefined : encoding, callback])
   }
 }
 

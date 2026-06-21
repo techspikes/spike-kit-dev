@@ -47,8 +47,7 @@ describe('core parser', () => {
 
   it('parse rejects unsupported Data Sketch versions', () => {
     assert.throws(
-      () =>
-        parse({ path: 'test/core/parser/fixtures/online-shop-unsupported-version.invalid.yaml' }),
+      () => parse({ path: 'test/core/parser/fixtures/online-shop-unsupported-version.invalid.yaml' }),
       /data-sketch/
     )
   })
@@ -62,16 +61,14 @@ describe('core parser', () => {
 
   it('parse rejects duplicate claim logical IDs', () => {
     assert.throws(
-      () =>
-        parse({ path: 'test/core/parser/fixtures/online-shop-duplicate-claim-id.invalid.yaml' }),
+      () => parse({ path: 'test/core/parser/fixtures/online-shop-duplicate-claim-id.invalid.yaml' }),
       /Failed to parse: duplicated mapping key/
     )
   })
 
   it('parse rejects duplicate claim implementation names', () => {
     assert.throws(
-      () =>
-        parse({ path: 'test/core/parser/fixtures/online-shop-duplicate-claim-name.invalid.yaml' }),
+      () => parse({ path: 'test/core/parser/fixtures/online-shop-duplicate-claim-name.invalid.yaml' }),
       /claims\.shopper\.name customers is duplicated/
     )
   })
@@ -142,10 +139,7 @@ describe('core parser', () => {
       (sketch.spec.claims.customer as Record<string, unknown>)['x-relational-db-schema'],
       'customer overrides'
     )
-    assert.equal(
-      (sketch.spec.claims.customer.traces as Record<string, unknown>)['x-trace-source'],
-      'shopping journey'
-    )
+    assert.equal((sketch.spec.claims.customer.traces as Record<string, unknown>)['x-trace-source'], 'shopping journey')
   })
 
   it('parse rejects unsupported root fields that are not x-* extensions', () => {

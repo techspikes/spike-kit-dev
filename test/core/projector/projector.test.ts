@@ -14,20 +14,14 @@ import { readJsonFile } from '../../test-helper/file-access.ts'
 describe('core projector', () => {
   it('buildRelationalDbProjection rejects a sketch that has not been validated', () => {
     assert.throws(
-      () =>
-        buildRelationalDbProjection(
-          parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' })
-        ),
+      () => buildRelationalDbProjection(parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
       /DataSketch must be validated/
     )
   })
 
   it('buildExtensionProjection rejects a sketch that has not been validated', () => {
     assert.throws(
-      () =>
-        buildExtensionProjection(
-          parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' })
-        ),
+      () => buildExtensionProjection(parse({ path: 'test/core/projector/fixtures/online-shop.valid.yaml' })),
       /DataSketch must be validated/
     )
   })
@@ -673,10 +667,7 @@ describe('core projector', () => {
         ]
 
         for (const expectedIssue of expectedIssues) {
-          assert.ok(
-            message.includes(expectedIssue),
-            `expected message to include: ${expectedIssue}`
-          )
+          assert.ok(message.includes(expectedIssue), `expected message to include: ${expectedIssue}`)
         }
 
         return true

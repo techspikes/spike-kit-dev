@@ -61,11 +61,7 @@ export function executeTableDoc(args: readonly string[]) {
   }
 }
 
-export function renderTablesDoc(
-  spec: Specification,
-  projection: RelationalDbProjection,
-  specFile: string
-): string {
+export function renderTablesDoc(spec: Specification, projection: RelationalDbProjection, specFile: string): string {
   const lines: string[] = [
     '---',
     `source: ${basename(specFile)}`,
@@ -90,9 +86,7 @@ export function renderTablesDoc(
 
     for (const column of table.columns) {
       const description =
-        column.id === 'id'
-          ? 'Auto-assigned surrogate key'
-          : (claim.aliases?.[column.id]?.join(', ') ?? '')
+        column.id === 'id' ? 'Auto-assigned surrogate key' : (claim.aliases?.[column.id]?.join(', ') ?? '')
 
       lines.push(
         `| ${esc(column.name)} | ${esc(column.type)} | ${column.nullable ? 'yes' : 'no'} | ${esc(description)} |`
@@ -148,9 +142,7 @@ export function renderTablesDoc(
   }
 
   const indexStatements = Object.values(projection.tables).flatMap(table =>
-    (table.indexes ?? []).map(
-      index => `CREATE INDEX ${index.name} ON ${table.name} (${index.columns.join(', ')});`
-    )
+    (table.indexes ?? []).map(index => `CREATE INDEX ${index.name} ON ${table.name} (${index.columns.join(', ')});`)
   )
 
   lines.push('', '## DDL', '', '```sql')
@@ -175,13 +167,9 @@ export function renderTablesDoc(
 }
 
 function renderCreateTable(table: RelationalDbProjection['tables'][string]): string[] {
-  const definitions: string[] = table.columns.map(
-    col => `  ${col.name} ${col.type}${col.nullable ? '' : ' NOT NULL'}`
-  )
+  const definitions: string[] = table.columns.map(col => `  ${col.name} ${col.type}${col.nullable ? '' : ' NOT NULL'}`)
 
-  definitions.push(
-    `  CONSTRAINT ${table.keys.primary.name} PRIMARY KEY (${table.keys.primary.columns.join(', ')})`
-  )
+  definitions.push(`  CONSTRAINT ${table.keys.primary.name} PRIMARY KEY (${table.keys.primary.columns.join(', ')})`)
 
   for (const fk of table.keys.foreign) {
     definitions.push(
@@ -197,9 +185,7 @@ function renderCreateTable(table: RelationalDbProjection['tables'][string]): str
 
   if (table.constraints?.check) {
     for (const ck of table.constraints.check) {
-      definitions.push(
-        `  CONSTRAINT ${ck.name} CHECK (${ck.column} IN (${ck.enum.map(sqlStr).join(', ')}))`
-      )
+      definitions.push(`  CONSTRAINT ${ck.name} CHECK (${ck.column} IN (${ck.enum.map(sqlStr).join(', ')}))`)
     }
   }
 
@@ -221,9 +207,7 @@ function canonicalizeJson(value: unknown): string {
 
   const pairs = Object.keys(value as Record<string, unknown>)
     .sort()
-    .map(
-      key => `${JSON.stringify(key)}:${canonicalizeJson((value as Record<string, unknown>)[key])}`
-    )
+    .map(key => `${JSON.stringify(key)}:${canonicalizeJson((value as Record<string, unknown>)[key])}`)
 
   return `{${pairs.join(',')}}`
 }

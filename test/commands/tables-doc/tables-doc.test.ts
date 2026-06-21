@@ -98,10 +98,7 @@ describe('tables-doc CLI', () => {
     assert.match(content, /### Check Constraints/)
 
     // customers table has no FK / unique / check sections
-    const customersSection = content.slice(
-      content.indexOf('\n## customers\n'),
-      content.indexOf('\n## orders\n')
-    )
+    const customersSection = content.slice(content.indexOf('\n## customers\n'), content.indexOf('\n## orders\n'))
 
     assert.ok(!customersSection.includes('### Foreign Keys'))
     assert.ok(!customersSection.includes('### Unique Constraints'))
@@ -110,10 +107,7 @@ describe('tables-doc CLI', () => {
     // DDL
     assert.match(content, /\n## DDL\n\n```sql\n/)
     assert.match(content, /CREATE TABLE orders \(/)
-    assert.match(
-      content,
-      /CONSTRAINT ck_orders_status CHECK \(status IN \('pending', 'shipped', 'delivered'\)\)/
-    )
+    assert.match(content, /CONSTRAINT ck_orders_status CHECK \(status IN \('pending', 'shipped', 'delivered'\)\)/)
     assert.match(content, /CREATE INDEX idx_orders_status ON orders \(status\);/)
     assert.match(content, /\n```\n$/)
   })
@@ -171,11 +165,7 @@ describe('tables-doc CLI', () => {
 
   it('Given a spec without an OpenAPI source, When the command executes, Then detail columns use the VARCHAR(1024) fallback type', () => {
     const outputPath = join(tempDir, 'no-openapi.md')
-    const { exitCode, stderr } = run([
-      'test/commands/tables-doc/fixtures/no-openapi.yaml',
-      '--output',
-      outputPath
-    ])
+    const { exitCode, stderr } = run(['test/commands/tables-doc/fixtures/no-openapi.yaml', '--output', outputPath])
 
     assert.equal(exitCode, 0)
     assert.deepEqual(stderr, [])
@@ -202,10 +192,7 @@ describe('tables-doc CLI', () => {
     assert.ok(content.includes('back\\\\slash'), 'backslash in alias should be escaped in cell')
 
     // constraint name underscores → \_ in Markdown cell
-    assert.ok(
-      content.includes('ck\\_items\\_status'),
-      'underscores in constraint name should be escaped'
-    )
+    assert.ok(content.includes('ck\\_items\\_status'), 'underscores in constraint name should be escaped')
 
     // pipe in enum → \| in Allowed Values cell
     assert.ok(content.includes('pipe\\|enum'), 'pipe in enum should be escaped in Markdown cell')

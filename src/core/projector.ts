@@ -185,14 +185,7 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
       continue
     }
 
-    applyRelationalDbSchemaExtension(
-      tables,
-      claimId,
-      extension,
-      issues,
-      tableNameRenames,
-      columnNameRenames
-    )
+    applyRelationalDbSchemaExtension(tables, claimId, extension, issues, tableNameRenames, columnNameRenames)
   }
 
   if (issues.length > 0) {
@@ -237,9 +230,7 @@ function addExtensionProjectionEntry(
   path: string,
   object: Record<string, unknown>
 ) {
-  const values = Object.fromEntries(
-    Object.entries(object).filter(([field]) => field.startsWith('x-'))
-  )
+  const values = Object.fromEntries(Object.entries(object).filter(([field]) => field.startsWith('x-')))
 
   if (Object.keys(values).length > 0) {
     entries.push({
@@ -259,9 +250,7 @@ function ensureProjectionTable(
   )
 
   if (matchingTable) {
-    throw new Error(
-      `Projected table name ${tableName} for table ${tableId} conflicts with table ${matchingTable[0]}`
-    )
+    throw new Error(`Projected table name ${tableName} for table ${tableId} conflicts with table ${matchingTable[0]}`)
   }
 
   if (!tables[tableId]) {
@@ -329,9 +318,7 @@ function getDetailProjection(
   }
 }
 
-function getInferredColumnType(
-  matches: readonly OpenApiFieldProjectionInput[]
-): RelationalDbProjectionColumnType {
+function getInferredColumnType(matches: readonly OpenApiFieldProjectionInput[]): RelationalDbProjectionColumnType {
   const fieldTypes = new Set(matches.map(match => getOpenApiProjectionType(match.schemaType)))
 
   if (fieldTypes.size !== 1) {
@@ -431,9 +418,7 @@ function getOperationId(operation: Record<string, unknown>) {
   return typeof operation.operationId === 'string' ? operation.operationId : ''
 }
 
-function getOperationFieldProjectionInputs(
-  operation: Record<string, unknown>
-): OpenApiFieldProjectionInput[] {
+function getOperationFieldProjectionInputs(operation: Record<string, unknown>): OpenApiFieldProjectionInput[] {
   return [
     ...getRequestBodyFieldProjectionInputs(operation.requestBody),
     ...getResponseFieldProjectionInputs(operation.responses)
@@ -478,9 +463,7 @@ function getJsonContent(input: unknown) {
     return undefined
   }
 
-  const jsonContentEntry = Object.entries(content).find(([contentType]) =>
-    isJsonContentType(contentType)
-  )
+  const jsonContentEntry = Object.entries(content).find(([contentType]) => isJsonContentType(contentType))
 
   if (!jsonContentEntry) {
     return undefined
@@ -581,9 +564,7 @@ function getSchemaType(schema: Record<string, unknown>) {
 }
 
 function getMaxLength(schema: Record<string, unknown>) {
-  return Number.isInteger(schema.maxLength) && Number(schema.maxLength) > 0
-    ? Number(schema.maxLength)
-    : undefined
+  return Number.isInteger(schema.maxLength) && Number(schema.maxLength) > 0 ? Number(schema.maxLength) : undefined
 }
 
 function getFormat(schema: Record<string, unknown>) {
@@ -620,15 +601,7 @@ function addProjectionClaimIdMatchForeignKeys(
       continue
     }
 
-    addProjectionForeignKey(
-      tables,
-      spec,
-      claimId,
-      claimName,
-      detail.path,
-      targetClaimId,
-      'inferred'
-    )
+    addProjectionForeignKey(tables, spec, claimId, claimName, detail.path, targetClaimId, 'inferred')
   }
 }
 
@@ -832,13 +805,9 @@ function applyRelationalDbSchemaExtension(
     }
   }
 
-  const claimTableIds = Object.keys(tables).filter(
-    tableId => tableId === claimId || tableId.startsWith(`${claimId}.`)
-  )
+  const claimTableIds = Object.keys(tables).filter(tableId => tableId === claimId || tableId.startsWith(`${claimId}.`))
 
-  const originalTableNames = new Map(
-    claimTableIds.map(tableId => [tableId, tables[tableId].name] as const)
-  )
+  const originalTableNames = new Map(claimTableIds.map(tableId => [tableId, tables[tableId].name] as const))
 
   applyTypeOverrides(tables, claimTableIds, prefix, extension.types, issues)
   applyForeignKeyOverrides(tables, claimId, prefix, extension.keys, issues)
@@ -933,12 +902,7 @@ function resolveColumnTypeOverride(
   if (type === 'DECIMAL') {
     const { precision, scale } = override
 
-    if (
-      !Number.isInteger(precision) ||
-      Number(precision) <= 0 ||
-      !Number.isInteger(scale) ||
-      Number(scale) < 0
-    ) {
+    if (!Number.isInteger(precision) || Number(precision) <= 0 || !Number.isInteger(scale) || Number(scale) < 0) {
       issues.push(
         `${fieldPrefix} must specify a positive integer precision and a non-negative integer scale for type DECIMAL`
       )
@@ -1008,11 +972,7 @@ function applyForeignKeyOverrides(
       return
     }
 
-    const referenceColumns = getSingleColumnReference(
-      references.columns,
-      `${fieldPrefix}.references.columns`,
-      issues
-    )
+    const referenceColumns = getSingleColumnReference(references.columns, `${fieldPrefix}.references.columns`, issues)
 
     if (!columns || !referenceColumns) {
       return
@@ -1044,15 +1004,11 @@ function applyForeignKeyOverrides(
       return
     }
 
-    const existingIndex = table.keys.foreign.findIndex(
-      foreignKey => foreignKey.column === sourceColumn.name
-    )
+    const existingIndex = table.keys.foreign.findIndex(foreignKey => foreignKey.column === sourceColumn.name)
 
     if (existingIndex !== -1) {
       if (matchedExistingIndexes.has(existingIndex)) {
-        issues.push(
-          `${fieldPrefix} matches the same existing foreign key as another override entry`
-        )
+        issues.push(`${fieldPrefix} matches the same existing foreign key as another override entry`)
 
         return
       }
@@ -1111,9 +1067,7 @@ function applyConstraintOverrides(
 
   for (const member of Object.keys(constraints)) {
     if (member !== 'unique' && member !== 'check') {
-      issues.push(
-        `${prefix}.constraints.${member} is not a supported x-relational-db-schema member`
-      )
+      issues.push(`${prefix}.constraints.${member} is not a supported x-relational-db-schema member`)
     }
   }
 
@@ -1196,9 +1150,7 @@ function resolveUniqueConstraint(
     !Array.isArray(entry.columns) ||
     entry.columns.length === 0
   ) {
-    issues.push(
-      `${fieldPrefix} must have a non-empty columns array and, when present, a non-empty name`
-    )
+    issues.push(`${fieldPrefix} must have a non-empty columns array and, when present, a non-empty name`)
 
     return undefined
   }
@@ -1291,7 +1243,11 @@ function resolveCheckConstraint(
     return undefined
   }
 
-  return { name: entry.name ?? `ck_${table.name}_${column.name}`, column: column.name, enum: entry.enum }
+  return {
+    name: entry.name ?? `ck_${table.name}_${column.name}`,
+    column: column.name,
+    enum: entry.enum
+  }
 }
 
 function applyNameOverrides(
@@ -1338,14 +1294,11 @@ function applyNameOverrides(
         }
 
         const conflict = Object.entries(tables).find(
-          ([existingTableId, existingTable]) =>
-            existingTableId !== tableId && existingTable.name === newName
+          ([existingTableId, existingTable]) => existingTableId !== tableId && existingTable.name === newName
         )
 
         if (conflict) {
-          issues.push(
-            `Projected table name ${newName} for table ${tableId} conflicts with table ${conflict[0]}`
-          )
+          issues.push(`Projected table name ${newName} for table ${tableId} conflicts with table ${conflict[0]}`)
           continue
         }
 
@@ -1390,9 +1343,7 @@ function applyNameOverrides(
             continue
           }
 
-          const conflict = table.columns.find(
-            (column, index) => index !== columnIndex && column.name === newName
-          )
+          const conflict = table.columns.find((column, index) => index !== columnIndex && column.name === newName)
 
           if (conflict) {
             issues.push(

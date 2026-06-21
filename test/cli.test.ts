@@ -38,10 +38,7 @@ describe('cli', () => {
   })
 
   it('dispatches the spec-check command', async () => {
-    const result = await runShot([
-      'spec-check',
-      'test/commands/spec-check/fixtures/online-shop.valid.yaml'
-    ])
+    const result = await runShot(['spec-check', 'test/commands/spec-check/fixtures/online-shop.valid.yaml'])
 
     assert.equal(result.exitCode, 0)
     assert.deepEqual(result.stdout, ['Specification is valid.\n'])

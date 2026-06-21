@@ -94,11 +94,7 @@ function buildOpenApiSummaryFromFile(openApiFile: string): OpenApiSummary {
   const openApiPath = resolve(openApiFile)
   const documents = new Map<string, unknown>()
 
-  const openApi = resolveReferences(
-    loadYamlOrJsonFile(openApiPath, documents),
-    openApiPath,
-    documents
-  )
+  const openApi = resolveReferences(loadYamlOrJsonFile(openApiPath, documents), openApiPath, documents)
 
   const openApiRecord = assertRecord(openApi, 'OpenAPI root must be an object')
   const paths = assertRecord(openApiRecord.paths, 'OpenAPI paths must be an object')
@@ -111,9 +107,7 @@ function buildOpenApiSummaryFromFile(openApiFile: string): OpenApiSummary {
     operations: Object.entries(operationsByPath).flatMap(([path, operations]) =>
       Object.entries(operations)
         .filter(([method]) => httpMethods.has(method))
-        .map(([method, operation]) =>
-          getOperationSummary(path, method, operation.schema, paths[path])
-        )
+        .map(([method, operation]) => getOperationSummary(path, method, operation.schema, paths[path]))
     )
   }
 }
@@ -189,12 +183,7 @@ function resolveReferencesWithStack(
   )
 }
 
-function resolveReference(
-  ref: string,
-  currentFile: string,
-  documents: Map<string, unknown>,
-  stack: Set<string>
-) {
+function resolveReference(ref: string, currentFile: string, documents: Map<string, unknown>, stack: Set<string>) {
   const [filePart, pointerPart = ''] = ref.split('#')
   const targetFile = getReferenceTargetFile(filePart, currentFile)
   const stackKey = `${targetFile}#${pointerPart}`
@@ -278,9 +267,7 @@ function getOperationSummary(
   /* c8 ignore next */
   const commonPathItem = isRecord(pathItem) ? pathItem : {}
   const operationId =
-    typeof operation.operationId === 'string' && operation.operationId
-      ? operation.operationId
-      : `${method} ${path}`
+    typeof operation.operationId === 'string' && operation.operationId ? operation.operationId : `${method} ${path}`
   const summary = getStringValue(operation.summary) ?? getStringValue(commonPathItem.summary)
   const requestBody = getRequestBodySummary(operation.requestBody)
 
@@ -289,9 +276,7 @@ function getOperationSummary(
     method,
     path,
     ...(summary ? { summary } : {}),
-    tags: Array.isArray(operation.tags)
-      ? operation.tags.filter((tag): tag is string => typeof tag === 'string')
-      : [],
+    tags: Array.isArray(operation.tags) ? operation.tags.filter((tag): tag is string => typeof tag === 'string') : [],
     ...(requestBody ? { requestBody } : {}),
     responses: getResponseSummaries(operation.responses)
   }
@@ -345,9 +330,7 @@ function getJsonContent(input: unknown) {
     return undefined
   }
 
-  const jsonContentEntry = Object.entries(content).find(([contentType]) =>
-    isJsonContentType(contentType)
-  )
+  const jsonContentEntry = Object.entries(content).find(([contentType]) => isJsonContentType(contentType))
 
   if (!jsonContentEntry) {
     return undefined
@@ -366,11 +349,7 @@ function isJsonContentType(contentType: string) {
   return contentType === 'application/json' || contentType.endsWith('+json')
 }
 
-function getSchemaFields(
-  input: unknown,
-  pathPrefix: string,
-  ancestorsRequired: boolean
-): OpenApiSummaryField[] {
+function getSchemaFields(input: unknown, pathPrefix: string, ancestorsRequired: boolean): OpenApiSummaryField[] {
   const schema = isRecord(input) ? input : {}
   const schemaType = getSchemaType(schema)
 
@@ -395,11 +374,7 @@ function getSchemaFields(
   return []
 }
 
-function getObjectSchemaFields(
-  schema: Record<string, unknown>,
-  pathPrefix: string,
-  ancestorsRequired: boolean
-) {
+function getObjectSchemaFields(schema: Record<string, unknown>, pathPrefix: string, ancestorsRequired: boolean) {
   const properties = isRecord(schema.properties) ? schema.properties : {}
   const requiredProperties = Array.isArray(schema.required)
     ? new Set(schema.required.filter((field): field is string => typeof field === 'string'))
@@ -413,11 +388,7 @@ function getObjectSchemaFields(
   })
 }
 
-function getArraySchemaFields(
-  schema: Record<string, unknown>,
-  pathPrefix: string,
-  ancestorsRequired: boolean
-) {
+function getArraySchemaFields(schema: Record<string, unknown>, pathPrefix: string, ancestorsRequired: boolean) {
   const arrayPath = `${pathPrefix}[]`
   const items = isRecord(schema.items) ? schema.items : {}
   const itemType = getSchemaType(items)

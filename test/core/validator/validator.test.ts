@@ -232,9 +232,7 @@ describe('core validator', () => {
       () =>
         validate({
           sketch: parse({
-            input: readTextFile(
-              'test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml'
-            )
+            input: readTextFile('test/core/validator/fixtures/online-shop-missing-operation.invalid.yaml')
           }),
           sources: {
             openapi: readTextFile('test/core/validator/fixtures/openapi/openapi.yaml')
@@ -253,9 +251,7 @@ describe('core validator', () => {
             input: readTextFile('test/core/validator/fixtures/online-shop.valid.yaml')
           }),
           sources: {
-            openapi: readTextFile(
-              'test/core/validator/fixtures/openapi/duplicate-operation-id.yaml'
-            )
+            openapi: readTextFile('test/core/validator/fixtures/openapi/duplicate-operation-id.yaml')
           },
           trace: true
         }),

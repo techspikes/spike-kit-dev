@@ -45,10 +45,7 @@ const specificationSchema = v.looseObject({
 export type Specification = v.InferOutput<typeof specificationSchema>
 
 export type DataSketch<
-  P extends Record<string, (() => unknown) | undefined> = Record<
-    string,
-    (() => unknown) | undefined
-  >
+  P extends Record<string, (() => unknown) | undefined> = Record<string, (() => unknown) | undefined>
 > = {
   readonly spec: Specification
   readonly sources?: {
@@ -211,9 +208,7 @@ function validateAliases(
   const detailIds = new Set(details)
 
   return Object.keys(aliases).flatMap(aliasPath =>
-    detailIds.has(aliasPath)
-      ? []
-      : [`claims.${claimId}.aliases.${aliasPath} must also be listed in details`]
+    detailIds.has(aliasPath) ? [] : [`claims.${claimId}.aliases.${aliasPath} must also be listed in details`]
   )
 }
 
@@ -225,17 +220,11 @@ function validateOptionals(
   const detailIds = new Set(details)
 
   return Object.keys(optionals).flatMap(optionalPath =>
-    detailIds.has(optionalPath)
-      ? []
-      : [`claims.${claimId}.optionals.${optionalPath} must also be listed in details`]
+    detailIds.has(optionalPath) ? [] : [`claims.${claimId}.optionals.${optionalPath} must also be listed in details`]
   )
 }
 
-function validateDetailPathSyntax(
-  claimId: string,
-  fieldName: 'details' | 'relations',
-  detailIds: string[]
-): string[] {
+function validateDetailPathSyntax(claimId: string, fieldName: 'details' | 'relations', detailIds: string[]): string[] {
   const issues: string[] = []
 
   const detailPaths = detailIds.map(detailId => ({
@@ -245,14 +234,10 @@ function validateDetailPathSyntax(
 
   for (const detailPath of detailPaths) {
     if (detailPath.segments.some(segment => segment === '')) {
-      issues.push(
-        `claims.${claimId}.${fieldName}.${detailPath.detailId} must not contain empty path segments`
-      )
+      issues.push(`claims.${claimId}.${fieldName}.${detailPath.detailId} must not contain empty path segments`)
     }
 
-    const invalidSegment = detailPath.segments.find(
-      segment => segment !== '' && !/^[^[\]]+(?:\[\])?$/u.test(segment)
-    )
+    const invalidSegment = detailPath.segments.find(segment => segment !== '' && !/^[^[\]]+(?:\[\])?$/u.test(segment))
 
     if (invalidSegment) {
       issues.push(
@@ -282,20 +267,14 @@ function validateDetailPathConflicts(
     return `claims.${claimId}.${detailField}.${detailId}`
   }
 
-  function isStrictDetailPathPrefix(
-    prefixSegments: readonly string[],
-    prefixedSegments: readonly string[]
-  ) {
+  function isStrictDetailPathPrefix(prefixSegments: readonly string[], prefixedSegments: readonly string[]) {
     return (
       prefixSegments.length < prefixedSegments.length &&
       prefixSegments.every((segment, index) => segment === prefixedSegments[index])
     )
   }
 
-  function getArrayObjectConflictSegment(
-    leftSegments: readonly string[],
-    rightSegments: readonly string[]
-  ) {
+  function getArrayObjectConflictSegment(leftSegments: readonly string[], rightSegments: readonly string[]) {
     const segmentCount = Math.min(leftSegments.length, rightSegments.length)
 
     for (let index = 0; index < segmentCount; index += 1) {
@@ -326,15 +305,11 @@ function validateDetailPathConflicts(
       const right = detailPaths[otherIndex]
 
       if (isStrictDetailPathPrefix(left.segments, right.segments)) {
-        issues.push(
-          `${getDetailPathIssuePath(left.detailId)} must not be a strict prefix of ${right.detailId}`
-        )
+        issues.push(`${getDetailPathIssuePath(left.detailId)} must not be a strict prefix of ${right.detailId}`)
       }
 
       if (isStrictDetailPathPrefix(right.segments, left.segments)) {
-        issues.push(
-          `${getDetailPathIssuePath(right.detailId)} must not be a strict prefix of ${left.detailId}`
-        )
+        issues.push(`${getDetailPathIssuePath(right.detailId)} must not be a strict prefix of ${left.detailId}`)
       }
 
       const conflictSegment = getArrayObjectConflictSegment(left.segments, right.segments)
@@ -353,15 +328,11 @@ function validateDetailPathConflicts(
 function validateExtensionFields(spec: Specification): string[] {
   const issues: string[] = []
 
-  issues.push(
-    ...validateExtensibleObjectFields('', spec, ['data-sketch', 'info', 'sources', 'claims'])
-  )
+  issues.push(...validateExtensibleObjectFields('', spec, ['data-sketch', 'info', 'sources', 'claims']))
   issues.push(...validateExtensibleObjectFields('info', spec.info, ['name']))
 
   if (spec.sources) {
-    issues.push(
-      ...validateExtensibleObjectFields('sources', spec.sources, ['openapi', 'arazzo', 'asyncapi'])
-    )
+    issues.push(...validateExtensibleObjectFields('sources', spec.sources, ['openapi', 'arazzo', 'asyncapi']))
   }
 
   for (const [claimId, claim] of Object.entries(spec.claims)) {
@@ -389,11 +360,7 @@ function validateExtensionFields(spec: Specification): string[] {
   return issues
 }
 
-function validateExtensibleObjectFields(
-  path: string,
-  object: Record<string, unknown>,
-  knownFields: readonly string[]
-) {
+function validateExtensibleObjectFields(path: string, object: Record<string, unknown>, knownFields: readonly string[]) {
   const issues: string[] = []
 
   for (const field of Object.keys(object)) {

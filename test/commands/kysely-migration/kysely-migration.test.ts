@@ -6,8 +6,8 @@ import { after, before, describe, it } from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { Kysely, PGliteDialect, sql } from 'kysely'
-import { Migrator, NO_MIGRATIONS } from 'kysely/migration'
 import type { MigrationProvider } from 'kysely/migration'
+import { Migrator, NO_MIGRATIONS } from 'kysely/migration'
 import {
   buildSnapshot,
   encodeSnapshot,
@@ -82,13 +82,7 @@ describe('kysely-migration CLI', () => {
 
   it('Given --types-output without .d.ts extension, When the command executes, Then it prints an error and returns exit code 1', () => {
     const outputPath = join(tempDir, 'migration.ts')
-    const { exitCode, stdout, stderr } = run([
-      onlineShopSpec,
-      '--output',
-      outputPath,
-      '--types-output',
-      'types.ts'
-    ])
+    const { exitCode, stdout, stderr } = run([onlineShopSpec, '--output', outputPath, '--types-output', 'types.ts'])
 
     assert.equal(exitCode, 1)
     assert.deepEqual(stdout, [])
@@ -97,12 +91,7 @@ describe('kysely-migration CLI', () => {
 
   it('Given online-shop.yaml with --include-tentative, When the command executes, Then it writes a complete initial migration', () => {
     const outputPath = join(tempDir, 'initial.ts')
-    const { exitCode, stdout, stderr } = run([
-      onlineShopSpec,
-      '--output',
-      outputPath,
-      '--include-tentative'
-    ])
+    const { exitCode, stdout, stderr } = run([onlineShopSpec, '--output', outputPath, '--include-tentative'])
 
     assert.equal(exitCode, 0)
     assert.ok(stdout.join('').includes('Migration generated'))
@@ -130,20 +119,11 @@ describe('kysely-migration CLI', () => {
     assert.match(content, /\.createTable\('order_items'\)/)
 
     // orders has FK and unique constraint
-    assert.match(
-      content,
-      /\.addForeignKeyConstraint\('fk_orders_customer', \['customer'\], 'customers', \['id'\]\)/
-    )
-    assert.match(
-      content,
-      /\.addUniqueConstraint\('uq_orders_status_customer', \['status', 'customer'\]\)/
-    )
+    assert.match(content, /\.addForeignKeyConstraint\('fk_orders_customer', \['customer'\], 'customers', \['id'\]\)/)
+    assert.match(content, /\.addUniqueConstraint\('uq_orders_status_customer', \['status', 'customer'\]\)/)
 
     // order_items has structural FK
-    assert.match(
-      content,
-      /\.addForeignKeyConstraint\('fk_order_items_order', \['order'\], 'orders', \['id'\]\)/
-    )
+    assert.match(content, /\.addForeignKeyConstraint\('fk_order_items_order', \['order'\], 'orders', \['id'\]\)/)
 
     // up and down functions
     assert.match(content, /export async function up\(db: Kysely<MigrationDatabase>\): Promise<void>/)
@@ -165,9 +145,7 @@ describe('kysely-migration CLI', () => {
     // Check constraint warning in stderr
     assert.ok(stderr.join('').includes('ck_orders_status'))
     assert.ok(
-      stderr
-        .join('')
-        .includes('Warning: Check constraint ignored by migration renderer: orders.ck_orders_status')
+      stderr.join('').includes('Warning: Check constraint ignored by migration renderer: orders.ck_orders_status')
     )
   })
 
@@ -176,9 +154,7 @@ describe('kysely-migration CLI', () => {
     const { stderr } = run([onlineShopSpec, '--output', outputPath, '--include-tentative'])
 
     assert.ok(
-      stderr
-        .join('')
-        .includes('Warning: Check constraint ignored by migration renderer: orders.ck_orders_status')
+      stderr.join('').includes('Warning: Check constraint ignored by migration renderer: orders.ck_orders_status')
     )
   })
 
@@ -198,20 +174,12 @@ describe('kysely-migration CLI', () => {
     assert.match(content, /\.addColumn\('required_field', 'varchar\(40\)'\)\n/)
 
     // optionalField is optional in OpenAPI but optionals overrides it to required
-    assert.match(
-      content,
-      /\.addColumn\('optional_field', 'varchar\(40\)', column => column\.notNull\(\)\)/
-    )
+    assert.match(content, /\.addColumn\('optional_field', 'varchar\(40\)', column => column\.notNull\(\)\)/)
   })
 
   it('Given --dry-run, When the command executes, Then no files are written and stdout contains "Dry run completed"', () => {
     const outputPath = join(tempDir, 'dry-run.ts')
-    const { exitCode, stdout } = run([
-      simpleSpec,
-      '--output',
-      outputPath,
-      '--dry-run'
-    ])
+    const { exitCode, stdout } = run([simpleSpec, '--output', outputPath, '--dry-run'])
 
     assert.equal(exitCode, 0)
     assert.ok(stdout.join('').includes('Dry run completed'))
@@ -263,13 +231,7 @@ describe('kysely-migration CLI', () => {
 
     // Second run: diff against the same initial (no changes expected)
     const diffPath = join(tempDir, 'diff-empty.ts')
-    const { exitCode: exitCode2, stdout } = run([
-      simpleSpec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2, stdout } = run([simpleSpec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
     assert.ok(stdout.join('').includes('Migration generated'))
@@ -298,13 +260,7 @@ describe('kysely-migration CLI', () => {
 
     // Second run: diff migration to simple-v2.yaml (adds 'tag' claim)
     const diffPath = join(tempDir, 'diff-v2.ts')
-    const { exitCode: exitCode2 } = run([
-      simpleV2Spec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([simpleV2Spec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -320,13 +276,7 @@ describe('kysely-migration CLI', () => {
   it('Given --types-output with .d.ts extension, When the command executes, Then the types file is written with Database interface', () => {
     const outputPath = join(tempDir, 'types-migration.ts')
     const typesPath = join(tempDir, 'types-db.d.ts')
-    const { exitCode, stdout } = run([
-      simpleSpec,
-      '--output',
-      outputPath,
-      '--types-output',
-      typesPath
-    ])
+    const { exitCode, stdout } = run([simpleSpec, '--output', outputPath, '--types-output', typesPath])
 
     assert.equal(exitCode, 0)
     assert.ok(stdout.join('').includes('Type definitions written'))
@@ -353,13 +303,7 @@ describe('kysely-migration CLI', () => {
 
     // Diff to spec with nullable phone added
     const diffPath = join(tempDir, 'add-phone-diff.ts')
-    const { exitCode: exitCode2 } = run([
-      onlineShopV1Spec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([onlineShopV1Spec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -380,13 +324,7 @@ describe('kysely-migration CLI', () => {
 
     // Diff to online-shop-v2 (phone renamed to contact_phone)
     const diffPath = join(tempDir, 'rename-diff.ts')
-    const { exitCode: exitCode2 } = run([
-      onlineShopV2Spec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([onlineShopV2Spec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -407,13 +345,7 @@ describe('kysely-migration CLI', () => {
 
     // Diff to simple-renamed.yaml (authors→writers, posts→articles)
     const diffPath = join(tempDir, 'table-rename-diff.ts')
-    const { exitCode: exitCode2 } = run([
-      simpleRenamedSpec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([simpleRenamedSpec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -437,13 +369,7 @@ describe('kysely-migration CLI', () => {
 
     // Diff to typed-v3.yaml (price changes from DECIMAL(10,2) to DECIMAL(10,4))
     const diffPath = join(tempDir, 'col-type-diff.ts')
-    const { exitCode: exitCode2 } = run([
-      typedV3Spec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([typedV3Spec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -477,11 +403,7 @@ describe('kysely-migration CLI', () => {
 
     // Should warn about added check constraint
     assert.ok(
-      stderr
-        .join('')
-        .includes(
-          'Warning: Check constraint ignored by migration renderer: orders.ck_orders_status'
-        ),
+      stderr.join('').includes('Warning: Check constraint ignored by migration renderer: orders.ck_orders_status'),
       'Should warn about added check constraint in diff mode'
     )
   })
@@ -507,11 +429,7 @@ describe('kysely-migration CLI', () => {
 
     // Should warn about removed check constraint
     assert.ok(
-      stderr
-        .join('')
-        .includes(
-          'Warning: Check constraint ignored by migration renderer: authors.ck_authors_status'
-        ),
+      stderr.join('').includes('Warning: Check constraint ignored by migration renderer: authors.ck_authors_status'),
       'Should warn about removed check constraint in diff mode'
     )
   })
@@ -525,13 +443,7 @@ describe('kysely-migration CLI', () => {
 
     // Diff to typed-v4.yaml (index removed)
     const diffPath = join(tempDir, 'drop-ix-diff.ts')
-    const { exitCode: exitCode2 } = run([
-      typedV4Spec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([typedV4Spec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -550,13 +462,7 @@ describe('kysely-migration CLI', () => {
     // Write a file that has no embedded snapshot block
     writeFileSync(noSnapshotPath, '// Just a regular TypeScript file\nexport const x = 1\n')
 
-    const { exitCode, stderr } = run([
-      simpleSpec,
-      '--output',
-      outputPath,
-      '--previous-migration',
-      noSnapshotPath
-    ])
+    const { exitCode, stderr } = run([simpleSpec, '--output', outputPath, '--previous-migration', noSnapshotPath])
 
     assert.equal(exitCode, 1)
     assert.ok(stderr.join('').includes('No embedded DB projection snapshot found'))
@@ -601,13 +507,7 @@ describe('kysely-migration CLI', () => {
 
     // Generate diff migration to simple-v3.yaml
     const diffPath = join(tempDir, 'v3-diff.ts')
-    const { exitCode: exitCode2 } = run([
-      simpleV3Spec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([simpleV3Spec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -635,13 +535,7 @@ describe('kysely-migration CLI', () => {
 
     // Generate diff migration to typed-v2.yaml (UQ and index columns changed)
     const diffPath = join(tempDir, 'typed-diff.ts')
-    const { exitCode: exitCode2 } = run([
-      typedV2Spec,
-      '--output',
-      diffPath,
-      '--previous-migration',
-      initialPath
-    ])
+    const { exitCode: exitCode2 } = run([typedV2Spec, '--output', diffPath, '--previous-migration', initialPath])
 
     assert.equal(exitCode2, 0)
 
@@ -678,6 +572,7 @@ describe('generated migrations in PGlite', () => {
   it('runs the generated up migration and creates tables, columns, constraints, and indexes', async () => {
     const migrationPath = join(tempDir, 'up_test.ts')
     const { exitCode } = run([simpleWithIndexSpec, '--output', migrationPath])
+
     assert.equal(exitCode, 0)
 
     const pglite = new PGlite()
@@ -702,6 +597,7 @@ describe('generated migrations in PGlite', () => {
   it('runs the generated down migration and removes all tables', async () => {
     const migrationPath = join(tempDir, 'down_test.ts')
     const { exitCode } = run([simpleWithIndexSpec, '--output', migrationPath])
+
     assert.equal(exitCode, 0)
 
     const pglite = new PGlite()
@@ -715,10 +611,12 @@ describe('generated migrations in PGlite', () => {
     const migrator = new Migrator({ db, provider })
 
     const upResult = await migrator.migrateToLatest()
+
     assert.equal(upResult.error, undefined)
     assert.deepEqual(await readTableNames(db), ['authors', 'posts'])
 
     const downResult = await migrator.migrateTo(NO_MIGRATIONS)
+
     assert.equal(downResult.error, undefined)
     assert.deepEqual(await readTableNames(db), [])
 
@@ -730,15 +628,11 @@ describe('generated migrations in PGlite', () => {
     const diffPath = join(tempDir, '002_add_tags.ts')
 
     const { exitCode: e1 } = run([simpleSpec, '--output', initialPath])
+
     assert.equal(e1, 0)
 
-    const { exitCode: e2 } = run([
-      simpleV2Spec,
-      '--previous-migration',
-      initialPath,
-      '--output',
-      diffPath
-    ])
+    const { exitCode: e2 } = run([simpleV2Spec, '--previous-migration', initialPath, '--output', diffPath])
+
     assert.equal(e2, 0)
 
     const pglite = new PGlite()
@@ -756,14 +650,17 @@ describe('generated migrations in PGlite', () => {
     const migrator = new Migrator({ db, provider })
 
     const upResult = await migrator.migrateToLatest()
+
     assert.equal(upResult.error, undefined)
     assert.deepEqual(await readTableNames(db), ['authors', 'posts', 'tags'])
 
     const downToInitialResult = await migrator.migrateTo('001_initial')
+
     assert.equal(downToInitialResult.error, undefined)
     assert.deepEqual(await readTableNames(db), ['authors', 'posts'])
 
     const downResult = await migrator.migrateTo(NO_MIGRATIONS)
+
     assert.equal(downResult.error, undefined)
     assert.deepEqual(await readTableNames(db), [])
 
@@ -772,6 +669,7 @@ describe('generated migrations in PGlite', () => {
 
   it('encodes and decodes embedded snapshot round-trip', () => {
     const { exitCode } = run([simpleSpec, '--output', join(tempDir, 'snap_test.ts')])
+
     assert.equal(exitCode, 0)
 
     const content = readFileSync(join(tempDir, 'snap_test.ts'), 'utf-8')
@@ -784,6 +682,7 @@ describe('generated migrations in PGlite', () => {
 
   it('renderInitialMigrationFile produces the same snapshot as buildSnapshot via encodeSnapshot', () => {
     const { exitCode } = run([simpleSpec, '--output', join(tempDir, 'render_test.ts')])
+
     assert.equal(exitCode, 0)
 
     const content = readFileSync(join(tempDir, 'render_test.ts'), 'utf-8')
@@ -820,6 +719,7 @@ async function readTableNames(db: Kysely<unknown>): Promise<string[]> {
       AND table_name NOT IN ('kysely_migration', 'kysely_migration_lock')
     ORDER BY table_name
   `.execute(db)
+
   return result.rows.map(r => r.table_name)
 }
 
@@ -832,6 +732,7 @@ async function readConstraintNames(db: Kysely<unknown>): Promise<string[]> {
       AND constraint_type IN ('PRIMARY KEY', 'UNIQUE', 'FOREIGN KEY')
     ORDER BY constraint_name
   `.execute(db)
+
   return result.rows.map(r => r.constraint_name)
 }
 
@@ -848,5 +749,6 @@ async function readIndexNames(db: Kysely<unknown>): Promise<string[]> {
       AND i.indisunique = false
     ORDER BY ic.relname
   `.execute(db)
+
   return result.rows.map(r => r.index_name)
 }
