@@ -1,4 +1,3 @@
-/* c8 ignore file */
 import { execSync } from 'node:child_process'
 
 export function exec(cmd: string): void {

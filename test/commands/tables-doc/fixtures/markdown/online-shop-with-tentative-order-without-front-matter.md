@@ -83,32 +83,32 @@ and return its detail.
 ## DDL
 
 ```sql
-CREATE TABLE customers (
-  id CHAR(26) NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  phone VARCHAR(1024),
-  CONSTRAINT pk_customers PRIMARY KEY (id)
+CREATE TABLE "customers" (
+  "id" CHAR(26) NOT NULL,
+  "name" VARCHAR(100) NOT NULL,
+  "phone" VARCHAR(1024),
+  CONSTRAINT "pk_customers" PRIMARY KEY ("id")
 );
 
-CREATE TABLE orders (
-  id CHAR(26) NOT NULL,
-  status VARCHAR(20) NOT NULL,
-  customer CHAR(26) NOT NULL,
-  CONSTRAINT pk_orders PRIMARY KEY (id),
-  CONSTRAINT fk_orders_customer FOREIGN KEY (customer) REFERENCES customers (id),
-  CONSTRAINT uq_orders_status_customer UNIQUE (status, customer),
-  CONSTRAINT ck_orders_status CHECK (status IN ('pending', 'shipped', 'delivered'))
+CREATE TABLE "orders" (
+  "id" CHAR(26) NOT NULL,
+  "status" VARCHAR(20) NOT NULL,
+  "customer" CHAR(26) NOT NULL,
+  CONSTRAINT "pk_orders" PRIMARY KEY ("id"),
+  CONSTRAINT "fk_orders_customer" FOREIGN KEY ("customer") REFERENCES "customers" ("id"),
+  CONSTRAINT "uq_orders_status_customer" UNIQUE ("status", "customer"),
+  CONSTRAINT "ck_orders_status" CHECK ("status" IN ('pending', 'shipped', 'delivered'))
 );
 
-CREATE TABLE order_items (
-  id CHAR(26) NOT NULL,
-  order CHAR(26) NOT NULL,
-  quantity INTEGER NOT NULL,
-  CONSTRAINT pk_order_items PRIMARY KEY (id),
-  CONSTRAINT fk_order_items_order FOREIGN KEY (order) REFERENCES orders (id)
+CREATE TABLE "order_items" (
+  "id" CHAR(26) NOT NULL,
+  "order" CHAR(26) NOT NULL,
+  "quantity" INTEGER NOT NULL,
+  CONSTRAINT "pk_order_items" PRIMARY KEY ("id"),
+  CONSTRAINT "fk_order_items_order" FOREIGN KEY ("order") REFERENCES "orders" ("id")
 );
 
-CREATE INDEX idx_orders_status ON orders (status);
+CREATE INDEX "idx_orders_status" ON "orders" ("status");
 ```
 
 ## ER Diagram

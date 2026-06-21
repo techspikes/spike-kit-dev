@@ -1,6 +1,6 @@
 ---
 source: online-shop-mermaid-identifier-sanitization.valid.yaml
-sha256: 23c423e11e41751aeffe2d8826ae0f099ffb6578391b157b94bd72f303f18cfc
+sha256: 15e7e34667efd757576f85e0109e7341f469e6bab14d9d312b1dbd44cb58b0ec
 generated_at: <generated_at>
 ---
 
@@ -21,7 +21,7 @@ Customer records are needed to review optional Mermaid relationships.
 | --- | --- |
 | pk\_customers | id |
 
-## 2026Orders
+## 2026"Orders
 
 Customer metadata is needed to review Mermaid identifier sanitization.
 
@@ -46,18 +46,18 @@ Customer metadata is needed to review Mermaid identifier sanitization.
 ## DDL
 
 ```sql
-CREATE TABLE customers (
-  id CHAR(26) NOT NULL,
-  name VARCHAR(1024) NOT NULL,
-  CONSTRAINT pk_customers PRIMARY KEY (id)
+CREATE TABLE "customers" (
+  "id" CHAR(26) NOT NULL,
+  "name" VARCHAR(1024) NOT NULL,
+  CONSTRAINT "pk_customers" PRIMARY KEY ("id")
 );
 
-CREATE TABLE 2026Orders (
-  id CHAR(26) NOT NULL,
-  123_code VARCHAR(1024) NOT NULL,
-  customer CHAR(26),
-  CONSTRAINT pk_2026Orders PRIMARY KEY (id),
-  CONSTRAINT fk_2026Orders_customer FOREIGN KEY (customer) REFERENCES customers (id)
+CREATE TABLE "2026""Orders" (
+  "id" CHAR(26) NOT NULL,
+  "123_code" VARCHAR(1024) NOT NULL,
+  "customer" CHAR(26),
+  CONSTRAINT "pk_2026Orders" PRIMARY KEY ("id"),
+  CONSTRAINT "fk_2026Orders_customer" FOREIGN KEY ("customer") REFERENCES "customers" ("id")
 );
 ```
 
@@ -69,10 +69,10 @@ erDiagram
     CHAR_26 id PK
     VARCHAR_1024 name
   }
-  _2026Orders {
+  _2026_Orders {
     CHAR_26 id PK
     VARCHAR_1024 _123_code
     CHAR_26 customer FK
   }
-  customers ||--o{ _2026Orders : fk_2026Orders_customer
+  customers ||--o{ _2026_Orders : fk_2026Orders_customer
 ```

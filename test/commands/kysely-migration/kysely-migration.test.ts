@@ -627,6 +627,108 @@ describe('kysely-migration CLI', () => {
     assert.equal(stderr.join(''), 'No embedded relational DB projection found in previous migration file\n')
   })
 
+  it('Given --previous-migration with an oversized embedded snapshot, When the command executes, Then it returns exit code 1', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'oversized-snapshot-output.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--previous-migration',
+        'test/commands/kysely-migration/fixtures/migrations/oversized-embedded-snapshot.ts'
+      ])
+    )
+
+    assert.equal(exitCode, 1)
+    assert.deepEqual(stdout, [])
+    assert.equal(stderr.join(''), 'Embedded relational DB projection payload is too large after decompression\n')
+  })
+
+  it('Given --previous-migration with a malformed embedded snapshot payload, When the command executes, Then it returns exit code 1', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'malformed-snapshot-output.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--previous-migration',
+        'test/commands/kysely-migration/fixtures/migrations/malformed-embedded-snapshot.ts'
+      ])
+    )
+
+    assert.equal(exitCode, 1)
+    assert.deepEqual(stdout, [])
+    assert.equal(stderr.join(''), 'No embedded relational DB projection found in previous migration file\n')
+  })
+
+  it('Given --previous-migration with malformed embedded snapshot metadata, When the command executes, Then it returns exit code 1', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'malformed-snapshot-metadata-output.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--previous-migration',
+        'test/commands/kysely-migration/fixtures/migrations/malformed-embedded-snapshot-metadata.ts'
+      ])
+    )
+
+    assert.equal(exitCode, 1)
+    assert.deepEqual(stdout, [])
+    assert.equal(stderr.join(''), 'No embedded relational DB projection found in previous migration file\n')
+  })
+
+  it('Given --previous-migration with a malformed embedded snapshot comment block, When the command executes, Then it returns exit code 1', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'malformed-snapshot-comment-block-output.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--previous-migration',
+        'test/commands/kysely-migration/fixtures/migrations/malformed-embedded-snapshot-comment-block.ts'
+      ])
+    )
+
+    assert.equal(exitCode, 1)
+    assert.deepEqual(stdout, [])
+    assert.equal(stderr.join(''), 'No embedded relational DB projection found in previous migration file\n')
+  })
+
+  it('Given --previous-migration with a malformed embedded snapshot JSON payload, When the command executes, Then it returns exit code 1', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'malformed-snapshot-json-output.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--previous-migration',
+        'test/commands/kysely-migration/fixtures/migrations/malformed-embedded-snapshot-json.ts'
+      ])
+    )
+
+    assert.equal(exitCode, 1)
+    assert.deepEqual(stdout, [])
+    assert.equal(stderr.join(''), 'No embedded relational DB projection found in previous migration file\n')
+  })
+
+  it('Given --previous-migration with an unsupported embedded snapshot payload, When the command executes, Then it returns exit code 1', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'unsupported-snapshot-output.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--previous-migration',
+        'test/commands/kysely-migration/fixtures/migrations/unsupported-embedded-snapshot.ts'
+      ])
+    )
+
+    assert.equal(exitCode, 1)
+    assert.deepEqual(stdout, [])
+    assert.equal(stderr.join(''), 'No embedded relational DB projection found in previous migration file\n')
+  })
+
   it('Given a non-existent spec file, When the command executes, Then it prints an error to stderr and returns exit code 1', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'error.ts')
     const { exitCode, stdout, stderr } = runCommandAndCapture(() =>

@@ -246,15 +246,60 @@ function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: string): st
 }
 
 function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
+  const maxEmbeddedSnapshotPayloadLength = 1024 * 1024
+  const maxEmbeddedSnapshotJsonBytes = 5 * 1024 * 1024
   const lines = fileContent.split('\n')
   let inBlock = false
   const blockLines: string[] = []
+
+  const parsePayload = (payload: string): DbProjectionSnapshot | undefined => {
+    const b64 = payload.replace(/\s+/g, '')
+
+    // Testing this compressed-size guard would require a multi-megabyte static fixture.
+    /* c8 ignore next 3 */
+    if (b64.length > maxEmbeddedSnapshotPayloadLength) {
+      throw new Error('Embedded relational DB projection payload is too large')
+    }
+
+    const compressed = Buffer.from(b64, 'base64')
+    let json: string
+
+    try {
+      json = gunzipSync(compressed, { maxOutputLength: maxEmbeddedSnapshotJsonBytes }).toString('utf-8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE') {
+        throw new Error('Embedded relational DB projection payload is too large after decompression')
+      }
+
+      return undefined
+    }
+
+    let snapshot: unknown
+
+    try {
+      snapshot = JSON.parse(json) as unknown
+    } catch {
+      return undefined
+    }
+
+    if (
+      snapshot !== null &&
+      typeof snapshot === 'object' &&
+      !Array.isArray(snapshot) &&
+      (snapshot as Record<string, unknown>)['data-sketch/relational-db-projection'] === '1.0.0-draft.3'
+    ) {
+      return snapshot as DbProjectionSnapshot
+    }
+
+    return undefined
+  }
 
   for (const line of lines) {
     if (line === '// ---') {
       if (inBlock) {
         // End of block — try to parse
         const yaml = blockLines.join('\n')
+        let payload: string | undefined
 
         try {
           const parsed = yamlLoad(yaml)
@@ -266,24 +311,18 @@ function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
             (parsed as Record<string, unknown>)['data-sketch/relational-db-projection/embedded'] === '1.0.0-draft.3' &&
             typeof (parsed as Record<string, unknown>).payload === 'string'
           ) {
-            const payload = (parsed as Record<string, unknown>).payload as string
-            const b64 = payload.replace(/\s+/g, '')
-            const compressed = Buffer.from(b64, 'base64')
-            const json = gunzipSync(compressed).toString('utf-8')
-            const snapshot = JSON.parse(json) as unknown
-
-            if (
-              snapshot !== null &&
-              typeof snapshot === 'object' &&
-              !Array.isArray(snapshot) &&
-              (snapshot as Record<string, unknown>)['data-sketch/relational-db-projection'] === '1.0.0-draft.3'
-            ) {
-              return snapshot as DbProjectionSnapshot
-            }
+            payload = (parsed as Record<string, unknown>).payload as string
           }
-          /* c8 ignore next 7 */
         } catch {
           // Not a valid block, continue scanning
+        }
+
+        if (payload !== undefined) {
+          const snapshot = parsePayload(payload)
+
+          if (snapshot !== undefined) {
+            return snapshot
+          }
         }
 
         inBlock = false
@@ -296,7 +335,6 @@ function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
       // Strip leading `// ` (3 chars)
       if (line.startsWith('// ')) {
         blockLines.push(line.slice(3))
-        /* c8 ignore next 7 */
       } else if (line === '//') {
         blockLines.push('')
       } else {
@@ -938,6 +976,7 @@ function sqlTypeToTs(sqlType: SnapshotTable['columns'][number]['type'], nullable
     tsType = 'boolean'
   } else if (/^DECIMAL\(\d+, \d+\)$/u.test(upper)) {
     tsType = 'string'
+    // Projection validation rejects unsupported SQL types before this renderer runs.
   } /* c8 ignore next 3 */ else {
     throw new Error(`Unsupported relational DB projection column type: ${sqlType}`)
   }

@@ -47,6 +47,7 @@ export function runCli(args: readonly string[]) {
   return 1
 }
 
+// Direct entrypoint execution is covered by build artifact smoke tests.
 /* c8 ignore next 3 */
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   process.exitCode = runCli(process.argv.slice(2))

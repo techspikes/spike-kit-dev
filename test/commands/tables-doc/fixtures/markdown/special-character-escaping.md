@@ -31,12 +31,12 @@ Escape testing for special characters.
 ## DDL
 
 ```sql
-CREATE TABLE items (
-  id CHAR(26) NOT NULL,
-  status VARCHAR(1024) NOT NULL,
-  note VARCHAR(1024) NOT NULL,
-  CONSTRAINT pk_items PRIMARY KEY (id),
-  CONSTRAINT ck_items_status CHECK (status IN ('O''Brien', 'pipe|enum'))
+CREATE TABLE "items" (
+  "id" CHAR(26) NOT NULL,
+  "status" VARCHAR(1024) NOT NULL,
+  "note" VARCHAR(1024) NOT NULL,
+  CONSTRAINT "pk_items" PRIMARY KEY ("id"),
+  CONSTRAINT "ck_items_status" CHECK ("status" IN ('O''Brien', 'pipe|enum'))
 );
 ```
 

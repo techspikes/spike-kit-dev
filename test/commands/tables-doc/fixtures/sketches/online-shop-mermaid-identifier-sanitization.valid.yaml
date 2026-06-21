@@ -26,3 +26,7 @@ claims:
       customer: true
     relations:
       customer: customer
+    x-relational-db-schema:
+      names:
+        tables:
+          order: '2026"Orders'

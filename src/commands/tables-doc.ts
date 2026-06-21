@@ -178,7 +178,10 @@ function renderDdlSection(projection: RelationalDbProjection): string[] {
   const lines: string[] = []
 
   const indexStatements = Object.values(projection.tables).flatMap(table =>
-    (table.indexes ?? []).map(index => `CREATE INDEX ${index.name} ON ${table.name} (${index.columns.join(', ')});`)
+    (table.indexes ?? []).map(
+      index =>
+        `CREATE INDEX ${sqlIdentifier(index.name)} ON ${sqlIdentifier(table.name)} (${index.columns.map(sqlIdentifier).join(', ')});`
+    )
   )
 
   lines.push('', '## DDL', '', '```sql')
@@ -238,30 +241,38 @@ function renderMermaidErDiagramSection(projection: RelationalDbProjection): stri
 }
 
 function renderCreateTable(table: RelationalDbProjection['tables'][string]): string[] {
-  const definitions: string[] = table.columns.map(col => `  ${col.name} ${col.type}${col.nullable ? '' : ' NOT NULL'}`)
+  const definitions: string[] = table.columns.map(
+    column => `  ${sqlIdentifier(column.name)} ${column.type}${column.nullable ? '' : ' NOT NULL'}`
+  )
 
-  definitions.push(`  CONSTRAINT ${table.keys.primary.name} PRIMARY KEY (${table.keys.primary.columns.join(', ')})`)
+  definitions.push(
+    `  CONSTRAINT ${sqlIdentifier(table.keys.primary.name)} PRIMARY KEY (${table.keys.primary.columns.map(sqlIdentifier).join(', ')})`
+  )
 
-  for (const fk of table.keys.foreign) {
+  for (const foreignKey of table.keys.foreign) {
     definitions.push(
-      `  CONSTRAINT ${fk.name} FOREIGN KEY (${fk.column}) REFERENCES ${fk.target.table} (${fk.target.column})`
+      `  CONSTRAINT ${sqlIdentifier(foreignKey.name)} FOREIGN KEY (${sqlIdentifier(foreignKey.column)}) REFERENCES ${sqlIdentifier(foreignKey.target.table)} (${sqlIdentifier(foreignKey.target.column)})`
     )
   }
 
   if (table.constraints?.unique) {
-    for (const uq of table.constraints.unique) {
-      definitions.push(`  CONSTRAINT ${uq.name} UNIQUE (${uq.columns.join(', ')})`)
+    for (const uniqueConstraint of table.constraints.unique) {
+      definitions.push(
+        `  CONSTRAINT ${sqlIdentifier(uniqueConstraint.name)} UNIQUE (${uniqueConstraint.columns.map(sqlIdentifier).join(', ')})`
+      )
     }
   }
 
   if (table.constraints?.check) {
-    for (const ck of table.constraints.check) {
-      definitions.push(`  CONSTRAINT ${ck.name} CHECK (${ck.column} IN (${ck.enum.map(sqlStr).join(', ')}))`)
+    for (const checkConstraint of table.constraints.check) {
+      definitions.push(
+        `  CONSTRAINT ${sqlIdentifier(checkConstraint.name)} CHECK (${sqlIdentifier(checkConstraint.column)} IN (${checkConstraint.enum.map(sqlStr).join(', ')}))`
+      )
     }
   }
 
   return [
-    `CREATE TABLE ${table.name} (`,
+    `CREATE TABLE ${sqlIdentifier(table.name)} (`,
     ...definitions.map((def, i) => (i < definitions.length - 1 ? `${def},` : def)),
     ');'
   ]
@@ -306,4 +317,8 @@ function getMermaidIdentifier(value: string): string {
 
 function sqlStr(value: string): string {
   return `'${value.replaceAll("'", "''")}'`
+}
+
+function sqlIdentifier(value: string): string {
+  return `"${value.replaceAll('"', '""')}"`
 }

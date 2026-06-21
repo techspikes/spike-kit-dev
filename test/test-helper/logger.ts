@@ -1,4 +1,3 @@
-/* c8 ignore file */
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 const logStdout = new AsyncLocalStorage<string[]>()

@@ -274,6 +274,7 @@ function getOperationSummary(
   operation: Record<string, unknown>,
   pathItem: unknown
 ): OpenApiSummaryOperation {
+  // OAS operations are discovered from path items, but keep the fallback for defensive shapes.
   /* c8 ignore next */
   const commonPathItem = isRecord(pathItem) ? pathItem : {}
   const operationId =

@@ -26,11 +26,11 @@ the shipment was registered.
 ## DDL
 
 ```sql
-CREATE TABLE shipments (
-  id CHAR(26) NOT NULL,
-  tracking_number VARCHAR(40),
-  delivery_instructions VARCHAR(40) NOT NULL,
-  CONSTRAINT pk_shipments PRIMARY KEY (id)
+CREATE TABLE "shipments" (
+  "id" CHAR(26) NOT NULL,
+  "tracking_number" VARCHAR(40),
+  "delivery_instructions" VARCHAR(40) NOT NULL,
+  CONSTRAINT "pk_shipments" PRIMARY KEY ("id")
 );
 ```
 

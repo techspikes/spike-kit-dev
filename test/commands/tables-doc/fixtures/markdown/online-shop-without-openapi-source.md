@@ -25,11 +25,11 @@ Customer data stored without an OpenAPI source.
 ## DDL
 
 ```sql
-CREATE TABLE customers (
-  id CHAR(26) NOT NULL,
-  name VARCHAR(1024) NOT NULL,
-  email VARCHAR(1024) NOT NULL,
-  CONSTRAINT pk_customers PRIMARY KEY (id)
+CREATE TABLE "customers" (
+  "id" CHAR(26) NOT NULL,
+  "name" VARCHAR(1024) NOT NULL,
+  "email" VARCHAR(1024) NOT NULL,
+  CONSTRAINT "pk_customers" PRIMARY KEY ("id")
 );
 ```
 
