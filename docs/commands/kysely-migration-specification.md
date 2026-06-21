@@ -27,8 +27,8 @@ shot kysely-migration [OPTION]... SPEC_FILE -p PREV_FILE --output MIGRATION_FILE
   Without this option, the command generates an initial migration.
 - `--types-output TYPES_FILE`: write a separate TypeScript declaration file containing
   `export interface Database`. The path must end with `.d.ts`.
-- `--dry-run`: perform read, parse, validation, projection, previous snapshot reading,
-  and render validation, but write no files. Exits with status `0` on success.
+- `--no-embedded-snapshot`: omit the embedded Relational DB Projection snapshot from
+  the generated migration file and `--types-output` declaration file.
 - `-h, --help`: print usage to stdout and exit with status `0`.
 
 ## Behavior
@@ -47,8 +47,10 @@ shot kysely-migration [OPTION]... SPEC_FILE -p PREV_FILE --output MIGRATION_FILE
 - When `--types-output` is provided, the command writes the `Database` interface
   declaration file after writing `MIGRATION_FILE`. In diff migration mode,
   `--types-output` renders the type file from the after (current) projection snapshot.
-- When `--dry-run` is provided, the command performs all steps except writing files.
-  On success it exits with status 0.
+- When `--no-embedded-snapshot` is provided, the command writes migration and
+  declaration files without the embedded snapshot metadata block. This option only
+  affects generated output; `--previous-migration` still reads an embedded snapshot
+  from `PREV_FILE`.
 - When parsing, validation, projection, previous snapshot reading, or rendering fails,
   the command prints the error message to stderr and returns a non-zero exit code. No
   partial file is written.
@@ -78,9 +80,10 @@ Warning: Tentative table included in migration and needs review: <table-name>
 
 ## Embedded Relational DB Projection
 
-The command embeds the normalized Relational DB Projection in every generated migration
-file and type file for use as the `--previous-migration` before projection in a future
-diff migration.
+By default, the command embeds the normalized Relational DB Projection in every
+generated migration file and type file for use as the `--previous-migration` before
+projection in a future diff migration. `--no-embedded-snapshot` omits this block from
+generated output.
 
 ```ts
 type EmbeddedRelationalDbProjection = {
@@ -223,7 +226,8 @@ after snapshot. `down` moves from the after snapshot back to the before snapshot
 Check constraint diffs are not rendered. The command emits a warning for each check
 constraint that is added or removed in the diff, matching initial migration behavior.
 
-The embedded snapshot in the generated diff migration file contains the after snapshot.
+When embedded snapshot output is enabled, the embedded snapshot in the generated diff
+migration file contains the after snapshot.
 
 ### Diff Operation Order
 
@@ -307,9 +311,10 @@ snapshot schema.
 
 ### Initial Migration
 
-The generated file begins with the embedded snapshot metadata block, followed by the
-Kysely import, a local `MigrationDatabase` interface, and the exported `up` and `down`
-functions.
+By default, the generated file begins with the embedded snapshot metadata block,
+followed by the Kysely import, a local `MigrationDatabase` interface, and the exported
+`up` and `down` functions. With `--no-embedded-snapshot`, the generated file begins
+with the Kysely import.
 
 ```ts
 // ---
@@ -437,8 +442,8 @@ When `--types-output` is specified, the command writes a `.d.ts` declaration fil
 containing an application-facing `Database` interface for use with
 `new Kysely<Database>()`.
 
-The declaration file begins with the same embedded snapshot metadata block as the
-migration file, followed by:
+By default, the declaration file begins with the same embedded snapshot metadata block
+as the migration file, followed by:
 
 ```ts
 export interface Database {
@@ -450,7 +455,8 @@ export interface Database {
 
 The `Database` interface uses the same type mapping, column order, and table order as
 `MigrationDatabase` for `up`. In diff migration mode, `--types-output` renders the type
-file from the after (current) projection snapshot.
+file from the after (current) projection snapshot. With `--no-embedded-snapshot`, the
+declaration file begins with `export interface Database`.
 
 ## SQL and Kysely Compatibility
 
@@ -473,9 +479,8 @@ Rejected in this version:
 
 ## Command Output
 
-Successful runs write `Migration generated` to stdout. Successful dry runs write
-`Dry run completed` to stdout. Warnings are written to stderr and do not change the
-exit code.
+Successful runs write `Migration generated` to stdout. Warnings are written to stderr
+and do not change the exit code.
 
 Argument errors write `Error: <reason>`, a blank line, and usage text to stderr.
 

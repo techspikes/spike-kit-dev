@@ -118,7 +118,20 @@ export type ProjectionResolver = {
 export declare const relationalDbProjector: Projector<RelationalDbProjection>;
 export declare function project(sketch: ValidatedDataSketch, projectors: readonly Projector[]): ProjectionResolver;
 export declare function validateRelationalDbProjection(projection: RelationalDbProjection): void;
-export declare function renderTablesDoc(spec: Specification, projection: RelationalDbProjection, sourceLabel: string): string;
+export type RenderKyselyMigrationOptions = {
+	readonly before?: RelationalDbProjection;
+	readonly after: RelationalDbProjection;
+	readonly includeEmbeddedSnapshot?: boolean;
+};
+export type RenderKyselyDatabaseTypesOptions = {
+	readonly includeEmbeddedSnapshot?: boolean;
+};
+export declare function renderKyselyMigration(migrationOptions: RenderKyselyMigrationOptions): string;
+export declare function renderKyselyDatabaseTypes(projection: RelationalDbProjection, renderOptions?: RenderKyselyDatabaseTypesOptions): string;
+export type RenderTablesDocOptions = {
+	readonly includeFrontMatter?: boolean;
+};
+export declare function renderTablesDoc(spec: Specification, projection: RelationalDbProjection, sourceLabel: string, renderOptions?: RenderTablesDocOptions): string;
 export type ValidatorContext = {
 	readonly sketch: DataSketch;
 	readonly trace: boolean;

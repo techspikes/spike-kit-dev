@@ -98,6 +98,28 @@ describe('tables-doc CLI', () => {
     )
   })
 
+  it('Given --no-front-matter, When the command executes, Then it writes the Markdown body without front matter', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'without-front-matter.md')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--no-front-matter'
+      ])
+    )
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(stdout, [])
+    assert.deepEqual(stderr, [])
+    assert.equal(
+      readTextFile(outputFilePath),
+      readTextFile(
+        'test/commands/tables-doc/fixtures/markdown/online-shop-with-tentative-order-without-front-matter.md'
+      )
+    )
+  })
+
   it('Given an existing output file, When the command executes, Then it overwrites the file', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'overwrite.md')
 
@@ -285,6 +307,25 @@ describe('renderTablesDoc library contract', () => {
     assert.equal(
       normalizeGeneratedAt(content),
       readTextFile('test/commands/tables-doc/fixtures/markdown/online-shop-optionals-override.md')
+    )
+  })
+
+  it('Given includeFrontMatter is false, When renderTablesDoc is called, Then it renders the Markdown body without front matter', () => {
+    const validated = validate({
+      specFilePath: 'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+      validators: [openApiValidator]
+    })
+
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
+    const content = renderTablesDoc(validated.spec, projection, 'online-shop-with-tentative-order.valid.yaml', {
+      includeFrontMatter: false
+    })
+
+    assert.equal(
+      content,
+      readTextFile(
+        'test/commands/tables-doc/fixtures/markdown/online-shop-with-tentative-order-without-front-matter.md'
+      )
     )
   })
 

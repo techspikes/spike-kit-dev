@@ -17,6 +17,16 @@ type SnapshotTable = DbProjectionSnapshot['tables'][string]
 type SnapshotCheckConstraint = NonNullable<NonNullable<SnapshotTable['constraints']>['check']>[number]
 type SnapshotTableEntry = { id: string; table: SnapshotTable }
 
+export type RenderKyselyMigrationOptions = {
+  readonly before?: RelationalDbProjection
+  readonly after: RelationalDbProjection
+  readonly includeEmbeddedSnapshot?: boolean
+}
+
+export type RenderKyselyDatabaseTypesOptions = {
+  readonly includeEmbeddedSnapshot?: boolean
+}
+
 // ─── Usage ────────────────────────────────────────────────────────────────────
 
 const usage = () =>
@@ -29,11 +39,33 @@ const usage = () =>
     '  -o, --output MIGRATION_FILE        Output TypeScript migration file path (required)',
     '  -p, --previous-migration PREV_FILE Read embedded snapshot from PREV_FILE for diff migration',
     '      --types-output TYPES_FILE      Write Database interface declaration file (must end in .d.ts)',
-    '      --dry-run                      Perform all steps without writing files',
+    '      --no-embedded-snapshot         Write migration and types files without embedded snapshots',
     '  -h, --help                         Show this help'
   ].join('\n')
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
+
+export function renderKyselyMigration(migrationOptions: RenderKyselyMigrationOptions): string {
+  const afterSnapshot = buildSnapshot(migrationOptions.after, Object.keys(migrationOptions.after.tables))
+  const includeEmbeddedSnapshot = migrationOptions.includeEmbeddedSnapshot !== false
+
+  if (migrationOptions.before) {
+    const beforeSnapshot = buildSnapshot(migrationOptions.before, Object.keys(migrationOptions.before.tables))
+
+    return renderDiffMigrationFile(beforeSnapshot, afterSnapshot, includeEmbeddedSnapshot)
+  }
+
+  return renderInitialMigrationFile(afterSnapshot, includeEmbeddedSnapshot)
+}
+
+export function renderKyselyDatabaseTypes(
+  projection: RelationalDbProjection,
+  renderOptions: RenderKyselyDatabaseTypesOptions = {}
+): string {
+  const snapshot = buildSnapshot(projection, Object.keys(projection.tables))
+
+  return renderTypesFile(snapshot, renderOptions.includeEmbeddedSnapshot !== false)
+}
 
 export function executeKyselyMigration(args: readonly string[]) {
   try {
@@ -45,7 +77,7 @@ export function executeKyselyMigration(args: readonly string[]) {
         output: { type: 'string', short: 'o' },
         'previous-migration': { type: 'string', short: 'p' },
         'types-output': { type: 'string' },
-        'dry-run': { type: 'boolean' },
+        'no-embedded-snapshot': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' }
       }
     })
@@ -60,7 +92,7 @@ export function executeKyselyMigration(args: readonly string[]) {
     const outputFilePath = options.values.output
     const previousMigrationFilePath = options.values['previous-migration']
     const typesOutputFilePath = options.values['types-output']
-    const dryRun = options.values['dry-run'] ?? false
+    const includeEmbeddedSnapshot = options.values['no-embedded-snapshot'] !== true
 
     if (!specFilePath || !outputFilePath) {
       process.stderr.write(`${usage()}\n`)
@@ -147,23 +179,17 @@ export function executeKyselyMigration(args: readonly string[]) {
     let typesContent: string | undefined
 
     if (beforeSnapshot) {
-      migrationContent = renderDiffMigrationFile(beforeSnapshot, afterSnapshot, checkWarnings)
+      migrationContent = renderDiffMigrationFile(beforeSnapshot, afterSnapshot, includeEmbeddedSnapshot)
     } else {
-      migrationContent = renderInitialMigrationFile(afterSnapshot, checkWarnings)
+      migrationContent = renderInitialMigrationFile(afterSnapshot, includeEmbeddedSnapshot)
     }
 
     if (typesOutputFilePath) {
-      typesContent = renderTypesFile(afterSnapshot)
+      typesContent = renderTypesFile(afterSnapshot, includeEmbeddedSnapshot)
     }
 
     for (const warning of [...tentativeWarnings, ...checkWarnings]) {
       process.stderr.write(`${warning}\n`)
-    }
-
-    if (dryRun) {
-      console.log('Dry run completed')
-
-      return 0
     }
 
     writeTextFile(resolveCwdRelativeFilePath(outputFilePath), migrationContent)
@@ -286,13 +312,14 @@ function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
-function renderInitialMigrationFile(snapshot: DbProjectionSnapshot, _warnings: string[]): string {
+function renderInitialMigrationFile(snapshot: DbProjectionSnapshot, includeEmbeddedSnapshot: boolean): string {
   validateRelationalDbProjection(snapshot)
 
-  const generatedAt = new Date().toISOString()
-  const embeddedBlock = encodeSnapshot(snapshot, generatedAt)
+  const lines: string[] = []
 
-  const lines: string[] = [embeddedBlock, '']
+  if (includeEmbeddedSnapshot) {
+    lines.push(encodeSnapshot(snapshot, new Date().toISOString()), '')
+  }
 
   lines.push("import type { Kysely } from 'kysely'")
   lines.push('')
@@ -423,15 +450,16 @@ function renderDownBody(snapshot: DbProjectionSnapshot): string[] {
 function renderDiffMigrationFile(
   before: DbProjectionSnapshot,
   after: DbProjectionSnapshot,
-  _warnings: string[]
+  includeEmbeddedSnapshot: boolean
 ): string {
   validateRelationalDbProjection(before)
   validateRelationalDbProjection(after)
 
-  const generatedAt = new Date().toISOString()
-  const embeddedBlock = encodeSnapshot(after, generatedAt)
+  const lines: string[] = []
 
-  const lines: string[] = [embeddedBlock, '']
+  if (includeEmbeddedSnapshot) {
+    lines.push(encodeSnapshot(after, new Date().toISOString()), '')
+  }
 
   lines.push("import type { Kysely } from 'kysely'")
   lines.push('')
@@ -805,13 +833,14 @@ function renderDiffDown(before: DbProjectionSnapshot, after: DbProjectionSnapsho
 
 // ─── Types file rendering ─────────────────────────────────────────────────────
 
-function renderTypesFile(snapshot: DbProjectionSnapshot): string {
+function renderTypesFile(snapshot: DbProjectionSnapshot, includeEmbeddedSnapshot: boolean): string {
   validateRelationalDbProjection(snapshot)
 
-  const generatedAt = new Date().toISOString()
-  const embeddedBlock = encodeSnapshot(snapshot, generatedAt)
+  const lines: string[] = []
 
-  const lines: string[] = [embeddedBlock, '']
+  if (includeEmbeddedSnapshot) {
+    lines.push(encodeSnapshot(snapshot, new Date().toISOString()), '')
+  }
 
   lines.push('export interface Database {')
 

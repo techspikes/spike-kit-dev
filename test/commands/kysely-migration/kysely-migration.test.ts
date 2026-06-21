@@ -2,7 +2,13 @@ import assert from 'node:assert'
 import { after, before, describe, it } from 'node:test'
 import type { MigrationProvider } from 'kysely/migration'
 import { Migrator, NO_MIGRATIONS } from 'kysely/migration'
-import { executeKyselyMigration } from '../../../src/commands/kysely-migration.ts'
+import {
+  executeKyselyMigration,
+  renderKyselyDatabaseTypes,
+  renderKyselyMigration
+} from '../../../src/commands/kysely-migration.ts'
+import { project, type RelationalDbProjection, relationalDbProjector } from '../../../src/core/projector.ts'
+import { openApiValidator, validate } from '../../../src/core/validator.ts'
 import {
   createPgliteKyselyDb,
   readColumnIsNullable,
@@ -23,7 +29,6 @@ import { runCommandAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot kysely-migration [OPTION]... SPEC_FILE'
 const migrationGeneratedStdout = ['Migration generated\n']
-const dryRunCompletedStdout = ['Dry run completed\n']
 
 const tentativeMigrationWarningsStderr = `Warning: Tentative table included in migration and needs review: orders
 Warning: Tentative table included in migration and needs review: order_items
@@ -152,8 +157,8 @@ describe('kysely-migration CLI', () => {
     )
   })
 
-  it('Given --dry-run, When the command executes, Then no files are written', () => {
-    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'dry-run.ts')
+  it('Given --dry-run is provided, When the command executes, Then it rejects the removed option', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'dry-run-removed-option.ts')
     const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
       executeKyselyMigration([
         'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
@@ -163,11 +168,59 @@ describe('kysely-migration CLI', () => {
       ])
     )
 
-    assert.equal(exitCode, 0)
-    assert.deepEqual(stdout, dryRunCompletedStdout)
-    assert.equal(stderr.join(''), '')
+    assert.equal(exitCode, 1)
+    assert.deepEqual(stdout, [])
+    assert.equal(
+      stderr.join(''),
+      "Unknown option '--dry-run'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--dry-run\"\n"
+    )
+  })
 
-    assert.throws(() => readTextFile(outputFilePath), 'File should not exist after dry-run')
+  it('Given --no-embedded-snapshot, When the command executes, Then the migration file does not include an embedded snapshot', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'initial-without-embedded-snapshot.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--no-embedded-snapshot'
+      ])
+    )
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(stdout, migrationGeneratedStdout)
+    assert.equal(stderr.join(''), '')
+    assert.equal(
+      readTextFile(outputFilePath),
+      readTextFile('test/commands/kysely-migration/fixtures/migrations/initial-without-embedded-snapshot.ts')
+    )
+  })
+
+  it('Given --no-embedded-snapshot with --types-output, When the command executes, Then both files omit embedded snapshots', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'types-without-embedded-snapshot.ts')
+    const typesOutputFilePath = joinFilePath(temporaryDirectoryPath, 'types-without-embedded-snapshot.d.ts')
+    const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        outputFilePath,
+        '--types-output',
+        typesOutputFilePath,
+        '--no-embedded-snapshot'
+      ])
+    )
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(stdout, migrationGeneratedStdout)
+    assert.equal(stderr.join(''), '')
+    assert.equal(
+      readTextFile(outputFilePath),
+      readTextFile('test/commands/kysely-migration/fixtures/migrations/initial-without-embedded-snapshot.ts')
+    )
+    assert.equal(
+      readTextFile(typesOutputFilePath),
+      readTextFile('test/commands/kysely-migration/fixtures/types/types-output-without-embedded-snapshot.d.ts')
+    )
   })
 
   it('Given a spec with a tentative claim, When the command executes, Then the tentative table is included and a warning is emitted', () => {
@@ -268,6 +321,44 @@ describe('kysely-migration CLI', () => {
     assert.equal(
       normalizeGeneratedAt(readTextFile(diffMigrationFilePath)),
       readTextFile('test/commands/kysely-migration/fixtures/migrations/add-products-diff.ts')
+    )
+  })
+
+  it('Given --previous-migration and --no-embedded-snapshot, When the command executes, Then the diff output omits the embedded snapshot', () => {
+    const initialMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-no-snapshot-v1.ts')
+    const { exitCode: initialExitCode, stderr: initialStderr } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+        '--output',
+        initialMigrationFilePath
+      ])
+    )
+
+    assert.equal(initialExitCode, 0)
+    assert.equal(initialStderr.join(''), '')
+
+    const diffMigrationFilePath = joinFilePath(temporaryDirectoryPath, 'diff-without-embedded-snapshot.ts')
+    const {
+      exitCode: diffExitCode,
+      stdout: diffStdout,
+      stderr: diffStderr
+    } = runCommandAndCapture(() =>
+      executeKyselyMigration([
+        'test/commands/kysely-migration/fixtures/sketches/online-shop-with-products.valid.yaml',
+        '--output',
+        diffMigrationFilePath,
+        '--previous-migration',
+        initialMigrationFilePath,
+        '--no-embedded-snapshot'
+      ])
+    )
+
+    assert.equal(diffExitCode, 0)
+    assert.deepEqual(diffStdout, migrationGeneratedStdout)
+    assert.equal(diffStderr.join(''), '')
+    assert.equal(
+      readTextFile(diffMigrationFilePath),
+      readTextFile('test/commands/kysely-migration/fixtures/migrations/add-products-diff-without-embedded-snapshot.ts')
     )
   })
 
@@ -645,6 +736,95 @@ describe('kysely-migration CLI', () => {
     assert.equal(
       normalizeGeneratedAt(readTextFile(diffMigrationFilePath)),
       readTextFile('test/commands/kysely-migration/fixtures/migrations/typed-v2-diff.ts')
+    )
+  })
+})
+
+// ─── Library contract ──────────────────────────────────────────────────────────
+
+describe('renderKyselyMigration library contract', () => {
+  it('Given an online shop projection, When renderKyselyMigration is called, Then it renders an initial migration with an embedded snapshot', () => {
+    const validated = validate({
+      specFilePath: 'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+      validators: [openApiValidator]
+    })
+
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
+
+    assert.equal(
+      normalizeGeneratedAt(renderKyselyMigration({ after: projection })),
+      readTextFile('test/commands/kysely-migration/fixtures/migrations/types-output.ts')
+    )
+  })
+
+  it('Given includeEmbeddedSnapshot is false, When renderKyselyMigration is called, Then it renders an initial migration without an embedded snapshot', () => {
+    const validated = validate({
+      specFilePath: 'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+      validators: [openApiValidator]
+    })
+
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
+
+    assert.equal(
+      renderKyselyMigration({ after: projection, includeEmbeddedSnapshot: false }),
+      readTextFile('test/commands/kysely-migration/fixtures/migrations/initial-without-embedded-snapshot.ts')
+    )
+  })
+
+  it('Given before and after projections with includeEmbeddedSnapshot false, When renderKyselyMigration is called, Then it renders a diff migration without an embedded snapshot', () => {
+    const beforeValidated = validate({
+      specFilePath: 'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+      validators: [openApiValidator]
+    })
+    const afterValidated = validate({
+      specFilePath: 'test/commands/kysely-migration/fixtures/sketches/online-shop-with-products.valid.yaml',
+      validators: [openApiValidator]
+    })
+
+    const beforeProjection = project(beforeValidated, [relationalDbProjector]).get<RelationalDbProjection>(
+      'relational-db'
+    )
+    const afterProjection = project(afterValidated, [relationalDbProjector]).get<RelationalDbProjection>(
+      'relational-db'
+    )
+
+    assert.equal(
+      renderKyselyMigration({
+        before: beforeProjection,
+        after: afterProjection,
+        includeEmbeddedSnapshot: false
+      }),
+      readTextFile(
+        'test/commands/kysely-migration/fixtures/migrations/add-products-direct-diff-without-embedded-snapshot.ts'
+      )
+    )
+  })
+
+  it('Given an online shop projection, When renderKyselyDatabaseTypes is called, Then it renders Database types with an embedded snapshot', () => {
+    const validated = validate({
+      specFilePath: 'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+      validators: [openApiValidator]
+    })
+
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
+
+    assert.equal(
+      normalizeGeneratedAt(renderKyselyDatabaseTypes(projection)),
+      readTextFile('test/commands/kysely-migration/fixtures/types/types-output.d.ts')
+    )
+  })
+
+  it('Given includeEmbeddedSnapshot is false, When renderKyselyDatabaseTypes is called, Then it renders Database types without an embedded snapshot', () => {
+    const validated = validate({
+      specFilePath: 'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
+      validators: [openApiValidator]
+    })
+
+    const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
+
+    assert.equal(
+      renderKyselyDatabaseTypes(projection, { includeEmbeddedSnapshot: false }),
+      readTextFile('test/commands/kysely-migration/fixtures/types/types-output-without-embedded-snapshot.d.ts')
     )
   })
 })

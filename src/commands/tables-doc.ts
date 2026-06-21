@@ -6,6 +6,10 @@ import { project, relationalDbProjector } from '../core/projector.ts'
 import { getFileName, resolveCwdRelativeFilePath, writeTextFile } from '../core/utils.ts'
 import { openApiValidator, validate } from '../core/validator.ts'
 
+export type RenderTablesDocOptions = {
+  readonly includeFrontMatter?: boolean
+}
+
 const usage = () =>
   [
     'Usage: shot tables-doc [OPTION]... SPEC_FILE',
@@ -14,6 +18,7 @@ const usage = () =>
     '',
     'Options:',
     '  -o, --output TABLES_DOC_FILE  Output Markdown file path',
+    '      --no-front-matter         Write Markdown without YAML front matter',
     '  -h, --help                    Show this help'
   ].join('\n')
 
@@ -25,6 +30,7 @@ export function executeTableDoc(args: readonly string[]) {
       args: [...args],
       options: {
         output: { type: 'string', short: 'o' },
+        'no-front-matter': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' }
       }
     })
@@ -51,7 +57,9 @@ export function executeTableDoc(args: readonly string[]) {
     })
 
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
-    const markdown = renderTablesDoc(validated.spec, projection, getFileName(specFilePath))
+    const markdown = renderTablesDoc(validated.spec, projection, getFileName(specFilePath), {
+      includeFrontMatter: options.values['no-front-matter'] !== true
+    })
 
     writeTextFile(resolveCwdRelativeFilePath(outputFilePath), markdown)
 
@@ -63,16 +71,26 @@ export function executeTableDoc(args: readonly string[]) {
   }
 }
 
-export function renderTablesDoc(spec: Specification, projection: RelationalDbProjection, sourceLabel: string): string {
-  const lines: string[] = [
-    '---',
-    `source: ${sourceLabel}`,
-    `sha256: ${computeSha256(spec)}`,
-    `generated_at: ${new Date().toISOString()}`,
-    '---',
-    '',
-    `# ${spec.info.name}`
-  ]
+export function renderTablesDoc(
+  spec: Specification,
+  projection: RelationalDbProjection,
+  sourceLabel: string,
+  renderOptions: RenderTablesDocOptions = {}
+): string {
+  const lines: string[] = []
+
+  if (renderOptions.includeFrontMatter !== false) {
+    lines.push(
+      '---',
+      `source: ${sourceLabel}`,
+      `sha256: ${computeSha256(spec)}`,
+      `generated_at: ${new Date().toISOString()}`,
+      '---',
+      ''
+    )
+  }
+
+  lines.push(`# ${spec.info.name}`)
 
   lines.push(...renderMarkdownTableSections(spec, projection))
   lines.push(...renderDdlSection(projection))

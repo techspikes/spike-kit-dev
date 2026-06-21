@@ -20,6 +20,7 @@ shot tables-doc [OPTION]... SPEC_FILE -o TABLES_DOC_FILE
 
 - `-o, --output TABLES_DOC_FILE`: output Markdown file path. This option is
   required.
+- `--no-front-matter`: omit the YAML front matter and write only the Markdown body.
 - `-h, --help`: print usage.
 
 ## Behavior
@@ -33,6 +34,8 @@ shot tables-doc [OPTION]... SPEC_FILE -o TABLES_DOC_FILE
 - When `SPEC_FILE` is valid, the command parses and validates it with trace
   validation enabled, builds the Relational DB Projection, renders a Markdown
   table document, writes it to `TABLES_DOC_FILE`, and returns exit code 0.
+- When `--no-front-matter` is provided, the command omits `source`, `sha256`, and
+  `generated_at` front matter from the generated Markdown file.
 - When `TABLES_DOC_FILE` already exists, the command overwrites it.
 - When parsing, validation, projection, rendering, or writing fails, the command
   prints the error message to stderr and returns a non-zero exit code.
@@ -54,10 +57,11 @@ does not apply `x-relational-db-schema` itself.
 
 ## Markdown Output
 
-The Markdown document includes frontmatter, one section per projected table, a
-DDL section, and a Mermaid ER diagram section.
+By default, the Markdown document includes front matter, one section per projected
+table, a DDL section, and a Mermaid ER diagram section. With `--no-front-matter`, the
+document starts at the body heading.
 
-The frontmatter contains:
+The front matter contains:
 
 - `source`: source Data Sketch file basename.
 - `sha256`: SHA-256 digest of the normalized parsed Data Sketch.

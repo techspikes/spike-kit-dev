@@ -1,3 +1,6 @@
+export type { RenderKyselyDatabaseTypesOptions, RenderKyselyMigrationOptions } from './commands/kysely-migration.ts'
+export { renderKyselyDatabaseTypes, renderKyselyMigration } from './commands/kysely-migration.ts'
+export type { RenderTablesDocOptions } from './commands/tables-doc.ts'
 export { renderTablesDoc } from './commands/tables-doc.ts'
 export type { DataSketch, Specification, ValidatedDataSketch } from './core/parser.ts'
 export { parse } from './core/parser.ts'
