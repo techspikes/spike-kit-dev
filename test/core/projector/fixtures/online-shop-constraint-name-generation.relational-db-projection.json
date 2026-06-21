@@ -1,8 +1,8 @@
 {
   "data-sketch/relational-db-projection": "1.0.0-draft.3",
   "tables": {
-    "widget": {
-      "name": "widgets",
+    "shipment": {
+      "name": "shipments",
       "columns": [
         {
           "id": "id",
@@ -10,13 +10,13 @@
           "type": "CHAR(26)"
         },
         {
-          "id": "sku",
-          "name": "sku",
+          "id": "trackingNumber",
+          "name": "tracking_number",
           "type": "VARCHAR(1024)"
         },
         {
-          "id": "category",
-          "name": "category",
+          "id": "carrier",
+          "name": "carrier",
           "type": "VARCHAR(1024)"
         },
         {
@@ -27,7 +27,7 @@
       ],
       "keys": {
         "primary": {
-          "name": "pk_widgets",
+          "name": "pk_shipments",
           "columns": ["id"]
         },
         "foreign": []
@@ -35,24 +35,24 @@
       "constraints": {
         "unique": [
           {
-            "name": "uq_widgets_sku",
-            "columns": ["sku"]
+            "name": "uq_shipments_tracking_number",
+            "columns": ["tracking_number"]
           },
           {
-            "name": "uq_widgets_category_status",
-            "columns": ["category", "status"]
+            "name": "uq_shipments_carrier_status",
+            "columns": ["carrier", "status"]
           }
         ],
         "check": [
           {
-            "name": "ck_widgets_status",
+            "name": "ck_shipments_status",
             "column": "status",
-            "enum": ["active", "retired"]
+            "enum": ["pending", "shipped"]
           },
           {
-            "name": "ck_widgets_explicit_status",
-            "column": "category",
-            "enum": ["tools", "parts"]
+            "name": "ck_shipments_explicit_carrier",
+            "column": "carrier",
+            "enum": ["ground", "express"]
           }
         ]
       }

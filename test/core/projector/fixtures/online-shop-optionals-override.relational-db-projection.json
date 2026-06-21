@@ -1,8 +1,8 @@
 {
   "data-sketch/relational-db-projection": "1.0.0-draft.3",
   "tables": {
-    "widget": {
-      "name": "widgets",
+    "shipment": {
+      "name": "shipments",
       "columns": [
         {
           "id": "id",
@@ -10,20 +10,20 @@
           "type": "CHAR(26)"
         },
         {
-          "id": "requiredField",
-          "name": "required_field",
+          "id": "trackingNumber",
+          "name": "tracking_number",
           "type": "VARCHAR(40)",
           "nullable": true
         },
         {
-          "id": "optionalField",
-          "name": "optional_field",
+          "id": "deliveryInstructions",
+          "name": "delivery_instructions",
           "type": "VARCHAR(40)"
         }
       ],
       "keys": {
         "primary": {
-          "name": "pk_widgets",
+          "name": "pk_shipments",
           "columns": ["id"]
         },
         "foreign": []

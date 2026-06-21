@@ -1,36 +1,36 @@
 ---
 source: test/commands/tables-doc/fixtures/sketches/online-shop-optionals-override.valid.yaml
-sha256: 55651791caaad943a351dcc53a0701b4fc3da4f43742f907f1803cd148a2509e
+sha256: 9d982bf401544bf66b36011d8978c2d4324434e9d8816178849a9b6d90d5deb2
 generated_at: <generated_at>
 ---
 
 # online-shop
 
-## widgets
+## shipments
 
-Widget information is needed after creation so the service can confirm
-the widget was registered.
+Shipment information is needed after creation so the service can confirm
+the shipment was registered.
 
 | Column | Data Type | Nullable | Description |
 | --- | --- | --- | --- |
 | id | CHAR(26) | no | Auto-assigned surrogate key |
-| required\_field | VARCHAR(40) | yes | - |
-| optional\_field | VARCHAR(40) | no | - |
+| tracking\_number | VARCHAR(40) | yes | - |
+| delivery\_instructions | VARCHAR(40) | no | - |
 
 ### Primary Key
 
 | Constraint Name | Columns |
 | --- | --- |
-| pk\_widgets | id |
+| pk\_shipments | id |
 
 ## DDL
 
 ```sql
-CREATE TABLE widgets (
+CREATE TABLE shipments (
   id CHAR(26) NOT NULL,
-  required_field VARCHAR(40),
-  optional_field VARCHAR(40) NOT NULL,
-  CONSTRAINT pk_widgets PRIMARY KEY (id)
+  tracking_number VARCHAR(40),
+  delivery_instructions VARCHAR(40) NOT NULL,
+  CONSTRAINT pk_shipments PRIMARY KEY (id)
 );
 ```
 
@@ -38,9 +38,9 @@ CREATE TABLE widgets (
 
 ```mermaid
 erDiagram
-  widgets {
+  shipments {
     CHAR_26 id PK
-    VARCHAR_40 required_field
-    VARCHAR_40 optional_field
+    VARCHAR_40 tracking_number
+    VARCHAR_40 delivery_instructions
   }
 ```

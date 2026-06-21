@@ -157,26 +157,26 @@ claims:
       keys:
         foreign: not-an-array
 
-  widget:
-    name: widgets
+  shipment:
+    name: shipments
     reason: |-
-      Widget records are needed for the widget catalog.
+      Shipment records are needed for the fulfillment workflow.
     traces:
       operations:
-        - listWidgets
+        - listShipments
     details:
-      - label
+      - trackingNumber
     x-relational-db-schema: not-an-object
 
-  gadget:
-    name: gadgets
+  payment:
+    name: payments
     reason: |-
-      Gadget records are needed for the gadget catalog.
+      Payment records are needed for checkout reconciliation.
     traces:
       operations:
-        - listGadgets
+        - listPayments
     details:
-      - title
+      - transactionId
     x-relational-db-schema:
       unsupportedTopMember: true
       types: not-an-object
@@ -185,35 +185,35 @@ claims:
       indexes: not-an-array
       names: not-an-object
 
-  doohickey:
-    name: doohickeys
+  returnRequest:
+    name: return_requests
     reason: |-
-      Doohickey records are needed for the doohickey catalog.
+      Return request records are needed for customer returns.
     traces:
       operations:
-        - listDoohickeys
+        - listReturnRequests
     details:
-      - title
+      - requestNumber
     x-relational-db-schema:
       keys:
         unknownMember: true
 
-  thingamajig:
-    name: thingamajigs
+  coupon:
+    name: coupons
     reason: |-
-      Thingamajig records are needed for the thingamajig catalog.
+      Coupon records are needed for promotions.
     traces:
       operations:
-        - listThingamajigs
+        - listCoupons
     details:
-      - title
+      - code
     x-relational-db-schema:
       constraints:
         check: not-an-array
         unique:
           - name: ""
             columns:
-              - title
+              - code
           - columns: []
           - columns:
               - doesNotExist
@@ -221,16 +221,16 @@ claims:
         tables: not-an-object
         columns: not-an-object
 
-  whatsit:
-    name: whatsits
+  warehouse:
+    name: warehouses
     reason: |-
-      Whatsit records are needed for the whatsit catalog.
+      Warehouse records are needed for fulfillment locations.
     traces:
       operations:
-        - listWhatsits
+        - listWarehouses
     details:
-      - title
+      - locationCode
     x-relational-db-schema:
       names:
         tables:
-          whatsit: ""
+          warehouse: ""

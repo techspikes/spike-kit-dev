@@ -4,32 +4,32 @@ info:
   name: online-shop
 
 claims:
-  widget:
-    name: widgets
+  shipment:
+    name: shipments
     reason: |-
-      Widget records are needed for the widget catalog.
+      Shipment records are needed for the fulfillment workflow.
     traces:
       operations:
-        - createWidget
+        - createShipment
     details:
-      - sku
-      - category
+      - trackingNumber
+      - carrier
       - status
     x-relational-db-schema:
       constraints:
         unique:
           - columns:
-              - sku
+              - trackingNumber
           - columns:
-              - category
+              - carrier
               - status
         check:
           - column: status
             enum:
-              - active
-              - retired
-          - name: ck_widgets_explicit_status
-            column: category
+              - pending
+              - shipped
+          - name: ck_shipments_explicit_carrier
+            column: carrier
             enum:
-              - tools
-              - parts
+              - ground
+              - express

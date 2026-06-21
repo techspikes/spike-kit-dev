@@ -7,17 +7,17 @@ sources:
   openapi: ../openapi/optionals-override.yaml
 
 claims:
-  widget:
-    name: widgets
+  shipment:
+    name: shipments
     reason: |-
-      Widget information is needed after creation so the service can confirm
-      the widget was registered.
+      Shipment information is needed after creation so the service can confirm
+      the shipment was registered.
     traces:
       operations:
-        - createWidget
+        - createShipment
     details:
-      - requiredField
-      - optionalField
+      - trackingNumber
+      - deliveryInstructions
     optionals:
-      requiredField: true
-      optionalField: false
+      trackingNumber: true
+      deliveryInstructions: false

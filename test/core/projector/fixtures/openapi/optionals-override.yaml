@@ -5,9 +5,9 @@ info:
   version: 1.0.0
 
 paths:
-  /widgets:
+  /shipments:
     post:
-      operationId: createWidget
+      operationId: createShipment
       requestBody:
         required: true
         content:
@@ -15,14 +15,14 @@ paths:
             schema:
               type: object
               required:
-                - requiredField
+                - trackingNumber
               properties:
-                requiredField:
+                trackingNumber:
                   type: string
                   maxLength: 40
-                optionalField:
+                deliveryInstructions:
                   type: string
                   maxLength: 40
       responses:
         '201':
-          description: Created widget
+          description: Created shipment
