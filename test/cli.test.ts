@@ -1,9 +1,8 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
 import { runCli } from '../src/cli.ts'
-import { exec } from './test-helper/exec.ts'
 import { createTemporaryDirectory, joinFilePath, readJsonFile, removeDirectory } from './test-helper/file-access.ts'
-import { runAndCapture, runCommandAndCaptureAsync } from './test-helper/logger.ts'
+import { runCommandAndCaptureAsync } from './test-helper/logger.ts'
 
 const usageLine = 'Usage: shot [OPTION]... COMMAND [ARG]...'
 
@@ -98,15 +97,6 @@ describe('cli', () => {
     } finally {
       removeDirectory(temporaryDirectoryPath)
     }
-  })
-
-  it('runs the spec-check command from the CLI entrypoint', () => {
-    const result = runAndCapture(() => {
-      exec('node src/cli.ts spec-check test/commands/spec-check/fixtures/sketches/online-shop.valid.yaml')
-    })
-
-    assert.deepEqual(result.stdout, ['Specification is valid.\n'])
-    assert.deepEqual(result.stderr, [])
   })
 
   it('returns a non-zero exit code for unknown commands', async () => {

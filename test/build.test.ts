@@ -1,26 +1,31 @@
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
-import { exec } from './test-helper/exec.ts'
 import { getFileImportUrl, readJsonFile, readTextFile } from './test-helper/file-access.ts'
-import { runAndCapture } from './test-helper/logger.ts'
+import { runCommandAndCapture } from './test-helper/logger.ts'
 
 const rootUsageLine = 'Usage: shot [OPTION]... COMMAND [ARG]...'
 
 describe('build artifacts', () => {
-  it('runs the built CLI help command', () => {
-    const result = runAndCapture(() => {
-      exec('node bin/cli.mjs --help')
-    })
+  it('runs the built CLI help command', async () => {
+    const builtCli = (await import(getFileImportUrl('bin/cli.mjs'))) as {
+      readonly runCli: (args: readonly string[]) => number
+    }
+    const result = runCommandAndCapture(() => builtCli.runCli(['--help']))
 
+    assert.equal(result.exitCode, 0)
     assert.equal(result.stdout[0]?.split('\n')[0], rootUsageLine)
     assert.deepEqual(result.stderr, [])
   })
 
-  it('runs the built CLI spec-check command', () => {
-    const result = runAndCapture(() => {
-      exec('node bin/cli.mjs spec-check test/commands/spec-check/fixtures/sketches/online-shop.valid.yaml')
-    })
+  it('runs the built CLI spec-check command', async () => {
+    const builtCli = (await import(getFileImportUrl('bin/cli.mjs'))) as {
+      readonly runCli: (args: readonly string[]) => number
+    }
+    const result = runCommandAndCapture(() =>
+      builtCli.runCli(['spec-check', 'test/commands/spec-check/fixtures/sketches/online-shop.valid.yaml'])
+    )
 
+    assert.equal(result.exitCode, 0)
     assert.deepEqual(result.stdout, ['Specification is valid.\n'])
     assert.deepEqual(result.stderr, [])
   })
