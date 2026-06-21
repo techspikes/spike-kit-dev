@@ -74,6 +74,16 @@ export function renderTablesDoc(spec: Specification, projection: RelationalDbPro
     `# ${spec.info.name}`
   ]
 
+  lines.push(...renderMarkdownTableSections(spec, projection))
+  lines.push(...renderDdlSection(projection))
+  lines.push(...renderMermaidErDiagramSection(projection))
+
+  return `${lines.join('\n')}\n`
+}
+
+function renderMarkdownTableSections(spec: Specification, projection: RelationalDbProjection): string[] {
+  const lines: string[] = []
+
   for (const [tableId, table] of Object.entries(projection.tables)) {
     const claimId = tableId.split('.')[0]
     const claim = spec.claims[claimId]
@@ -143,6 +153,12 @@ export function renderTablesDoc(spec: Specification, projection: RelationalDbPro
     }
   }
 
+  return lines
+}
+
+function renderDdlSection(projection: RelationalDbProjection): string[] {
+  const lines: string[] = []
+
   const indexStatements = Object.values(projection.tables).flatMap(table =>
     (table.indexes ?? []).map(index => `CREATE INDEX ${index.name} ON ${table.name} (${index.columns.join(', ')});`)
   )
@@ -165,7 +181,42 @@ export function renderTablesDoc(spec: Specification, projection: RelationalDbPro
 
   lines.push('```')
 
-  return `${lines.join('\n')}\n`
+  return lines
+}
+
+function renderMermaidErDiagramSection(projection: RelationalDbProjection): string[] {
+  const lines = ['', '## ER Diagram', '', '```mermaid', 'erDiagram']
+  const tables = Object.values(projection.tables)
+
+  for (const table of tables) {
+    lines.push(`  ${getMermaidIdentifier(table.name)} {`)
+
+    const primaryKeyColumns = new Set(table.keys.primary.columns)
+    const foreignKeyColumns = new Set(table.keys.foreign.map(foreignKey => foreignKey.column))
+
+    for (const column of table.columns) {
+      const key = primaryKeyColumns.has(column.name) ? ' PK' : foreignKeyColumns.has(column.name) ? ' FK' : ''
+
+      lines.push(`    ${getMermaidIdentifier(column.type)} ${getMermaidIdentifier(column.name)}${key}`)
+    }
+
+    lines.push('  }')
+  }
+
+  for (const table of tables) {
+    for (const foreignKey of table.keys.foreign) {
+      const foreignKeyColumn = table.columns.find(column => column.name === foreignKey.column)
+      const sourceCardinality = foreignKeyColumn?.nullable === true ? 'o{' : '|{'
+
+      lines.push(
+        `  ${getMermaidIdentifier(foreignKey.target.table)} ||--${sourceCardinality} ${getMermaidIdentifier(table.name)} : ${getMermaidIdentifier(foreignKey.name)}`
+      )
+    }
+  }
+
+  lines.push('```')
+
+  return lines
 }
 
 function renderCreateTable(table: RelationalDbProjection['tables'][string]): string[] {
@@ -220,6 +271,19 @@ function computeSha256(spec: unknown): string {
 
 function esc(value: string): string {
   return value.replaceAll('\\', '\\\\').replaceAll('|', '\\|').replaceAll('_', '\\_')
+}
+
+function getMermaidIdentifier(value: string): string {
+  const identifier = value
+    .replaceAll(/[^A-Za-z0-9_]/g, '_')
+    .replaceAll(/_+/g, '_')
+    .replaceAll(/^_+|_+$/g, '')
+
+  if (/^[0-9]/.test(identifier)) {
+    return `_${identifier}`
+  }
+
+  return identifier
 }
 
 function sqlStr(value: string): string {

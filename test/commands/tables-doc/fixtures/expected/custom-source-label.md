@@ -116,3 +116,26 @@ CREATE TABLE order_items (
 
 CREATE INDEX idx_orders_status ON orders (status);
 ```
+
+## ER Diagram
+
+```mermaid
+erDiagram
+  customers {
+    CHAR_26 id PK
+    VARCHAR_100 name
+    VARCHAR_1024 phone
+  }
+  orders {
+    CHAR_26 id PK
+    VARCHAR_20 status
+    CHAR_26 customer FK
+  }
+  order_items {
+    CHAR_26 id PK
+    CHAR_26 order FK
+    INTEGER quantity
+  }
+  customers ||--|{ orders : fk_orders_customer
+  orders ||--|{ order_items : fk_order_items_order
+```

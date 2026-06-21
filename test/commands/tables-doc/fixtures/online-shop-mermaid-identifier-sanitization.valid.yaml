@@ -1,0 +1,28 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  customer:
+    name: customers
+    reason: Customer records are needed to review optional Mermaid relationships.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+
+  order:
+    name: 2026Orders
+    reason: Customer metadata is needed to review Mermaid identifier sanitization.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - 123Code
+      - customer
+    optionals:
+      customer: true
+    relations:
+      customer: customer

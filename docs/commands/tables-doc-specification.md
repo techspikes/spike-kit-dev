@@ -7,7 +7,7 @@ Sketch Specification v1 YAML or JSON file and writes a Markdown table document.
 
 The command is a renderer for the validated Data Sketch Relational DB
 Projection. It documents the projected tables, columns, primary keys, foreign
-keys, and SQL DDL that can be used for review.
+keys, SQL DDL, and a Mermaid ER diagram that can be used for review.
 
 ## Usage
 
@@ -54,8 +54,8 @@ does not apply `x-relational-db-schema` itself.
 
 ## Markdown Output
 
-The Markdown document includes frontmatter, one section per projected table, and
-a DDL section.
+The Markdown document includes frontmatter, one section per projected table, a
+DDL section, and a Mermaid ER diagram section.
 
 The frontmatter contains:
 
@@ -203,7 +203,7 @@ Rules:
 
 ## DDL Section
 
-The document ends with:
+After the projected table sections, the document includes:
 
 ````md
 ## DDL
@@ -227,8 +227,8 @@ Rules:
   `CONSTRAINT <name> CHECK (<column> IN (<enum values, single-quoted and
   comma-separated>))`.
 - Foreign key DDL references the projected target table and target column.
-- The DDL does not render indexes in this version; `indexes` are part of the
-  Relational DB Projection but are not rendered as `CREATE INDEX` statements.
+- Indexes are rendered as `CREATE INDEX` statements after all `CREATE TABLE`
+  statements.
 
 > [!CAUTION]
 > Projected table, column, and constraint names are derived directly from claim
@@ -239,6 +239,38 @@ Rules:
 > RDBMS. Use `x-relational-db-schema` (see x-relational-db-schema Extension in
 > the Relational DB Projection Specification) to rename or retype the affected
 > columns and constraints for the target RDBMS.
+
+## ER Diagram Section
+
+After the DDL section, the document ends with a Mermaid ER diagram:
+
+````md
+## ER Diagram
+
+```mermaid
+erDiagram
+...
+```
+````
+
+Rules:
+
+- The diagram uses the Relational DB Projection.
+- Every projected table is rendered as one Mermaid entity.
+- Every projected column is rendered in its entity.
+- Column SQL type strings are converted to Mermaid-safe identifiers by replacing
+  non-alphanumeric characters with underscores.
+- Table names, column names, and relationship labels are converted with the same
+  Mermaid-safe identifier rule.
+- Primary key columns are marked with `PK`.
+- Foreign key columns are marked with `FK`.
+- Each projected foreign key is rendered as a relationship from the referenced
+  table to the table containing the foreign key.
+- Foreign key relationships use the foreign key constraint name as the Mermaid
+  relationship label.
+- The referenced table side is always `||`.
+- The table containing the foreign key uses `|{` when the foreign key column is
+  not nullable and `o{` when the foreign key column has `nullable: true`.
 
 ## Override Warnings
 
@@ -473,5 +505,23 @@ CREATE TABLE order_items (
   CONSTRAINT pk_order_items PRIMARY KEY (id),
   CONSTRAINT fk_order_items_order FOREIGN KEY (order) REFERENCES orders (id)
 );
+```
+
+## ER Diagram
+
+```mermaid
+erDiagram
+  orders {
+    CHAR_26 id PK
+    VARCHAR_20 status
+    CHAR_26 customer FK
+  }
+  order_items {
+    CHAR_26 id PK
+    CHAR_26 order FK
+    INTEGER quantity
+  }
+  customers ||--|{ orders : fk_orders_customer
+  orders ||--|{ order_items : fk_order_items_order
 ```
 ````

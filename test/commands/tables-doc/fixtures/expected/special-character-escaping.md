@@ -39,3 +39,14 @@ CREATE TABLE items (
   CONSTRAINT ck_items_status CHECK (status IN ('O''Brien', 'pipe|enum'))
 );
 ```
+
+## ER Diagram
+
+```mermaid
+erDiagram
+  items {
+    CHAR_26 id PK
+    VARCHAR_1024 status
+    VARCHAR_1024 note
+  }
+```

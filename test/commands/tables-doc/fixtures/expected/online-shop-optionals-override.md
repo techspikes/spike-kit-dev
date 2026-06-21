@@ -33,3 +33,14 @@ CREATE TABLE widgets (
   CONSTRAINT pk_widgets PRIMARY KEY (id)
 );
 ```
+
+## ER Diagram
+
+```mermaid
+erDiagram
+  widgets {
+    CHAR_26 id PK
+    VARCHAR_40 required_field
+    VARCHAR_40 optional_field
+  }
+```

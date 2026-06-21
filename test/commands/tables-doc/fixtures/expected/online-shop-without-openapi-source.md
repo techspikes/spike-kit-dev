@@ -32,3 +32,14 @@ CREATE TABLE customers (
   CONSTRAINT pk_customers PRIMARY KEY (id)
 );
 ```
+
+## ER Diagram
+
+```mermaid
+erDiagram
+  customers {
+    CHAR_26 id PK
+    VARCHAR_1024 name
+    VARCHAR_1024 email
+  }
+```

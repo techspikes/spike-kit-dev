@@ -19,6 +19,9 @@ const specialCharacterEscapingSpecFilePath = 'test/commands/tables-doc/fixtures/
 const specialCharacterEscapingReorderedSpecFilePath =
   'test/commands/tables-doc/fixtures/special-character-escaping-reordered.valid.yaml'
 
+const mermaidIdentifierSanitizationSpecFilePath =
+  'test/commands/tables-doc/fixtures/online-shop-mermaid-identifier-sanitization.valid.yaml'
+
 const expectedTablesDocFixtureDirectoryPath = 'test/commands/tables-doc/fixtures/expected'
 
 // ─── CLI behaviour ─────────────────────────────────────────────────────────────
@@ -164,6 +167,20 @@ describe('tables-doc CLI', () => {
     const content = readTextFile(outputFilePath)
 
     assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('special-character-escaping.md'))
+  })
+
+  it('Given a spec with Mermaid-unsafe identifiers, When the command executes, Then the ER diagram uses sanitized identifiers', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'mermaid-identifiers.md')
+    const { exitCode, stderr } = runCommandAndCapture(() =>
+      executeTableDoc([mermaidIdentifierSanitizationSpecFilePath, '--output', outputFilePath])
+    )
+
+    assert.equal(exitCode, 0)
+    assert.deepEqual(stderr, [])
+
+    const content = readTextFile(outputFilePath)
+
+    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-mermaid-identifier-sanitization.md'))
   })
 
   it('Given a non-existent spec file, When the command executes, Then it prints an error to stderr and returns a non-zero exit code', () => {
