@@ -1,7 +1,7 @@
 import { load, YAMLException } from 'js-yaml'
 import type { OASDocument } from 'oas/types'
 import { dereferenceRefDeep } from 'oas/utils'
-import type { Specification } from './parser.ts'
+import type { DataSketch, Specification } from './parser.ts'
 import {
   buildExtensionProjection,
   buildRelationalDbProjection,
@@ -9,7 +9,6 @@ import {
   type RelationalDbProjection,
   useProjectors
 } from './projector.ts'
-import type { DataSketch } from './spec.ts'
 import { readBaseRelativeTextFile } from './utils.ts'
 
 export function validate<P extends Record<string, (() => unknown) | undefined>>(

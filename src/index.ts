@@ -1,6 +1,5 @@
 export { renderTablesDoc } from './commands/tables-doc.ts'
-export type { Specification } from './core/parser.ts'
+export type { DataSketch, Specification } from './core/parser.ts'
 export { parse } from './core/parser.ts'
 export type { RelationalDbProjection } from './core/projector.ts'
-export type { DataSketch } from './core/spec.ts'
 export { validate } from './core/validator.ts'

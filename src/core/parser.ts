@@ -1,48 +1,12 @@
 import { load, YAMLException } from 'js-yaml'
 import * as v from 'valibot'
-import type { DataSketch } from './spec.ts'
 import { readCwdRelativeTextFile, resolveCwdRelativeDirectoryPath } from './utils.ts'
+
+// ! Parser validation stays local to document shape.
+// ! Cross-claim references and external sources are checked by validator.ts.
 
 const nonEmptyString = v.pipe(v.string(), v.nonEmpty())
 const nonEmptyStringList = v.pipe(v.array(nonEmptyString), v.nonEmpty())
-const implementationName = v.pipe(nonEmptyString, v.regex(/^\S+$/, 'must not contain whitespace'))
-const reservedIdentityDetailPaths = new Set(['id', '_id'])
-const invalidClaimIdPattern = /[.[\]]/u
-const validDetailPathSegmentPattern = /^[^[\]]+(?:\[\])?$/u
-const rootFields = new Set(['data-sketch', 'info', 'sources', 'claims'])
-const infoFields = new Set(['name'])
-const sourcesFields = new Set(['openapi', 'arazzo', 'asyncapi'])
-const claimFields = new Set([
-  'name',
-  'reason',
-  'traces',
-  'details',
-  'optionals',
-  'aliases',
-  'relations',
-  'tentative'
-])
-const tracesFields = new Set(['operations', 'workflows', 'channels'])
-
-const tracesSchema = v.looseObject({
-  operations: nonEmptyStringList,
-  workflows: v.optional(nonEmptyStringList),
-  channels: v.optional(nonEmptyStringList)
-})
-
-const aliasesSchema = v.pipe(v.record(v.string(), nonEmptyStringList), v.minEntries(1))
-const optionalsSchema = v.pipe(v.record(v.string(), v.boolean()), v.minEntries(1))
-
-const claimSchema = v.looseObject({
-  name: implementationName,
-  reason: nonEmptyString,
-  traces: tracesSchema,
-  details: v.optional(nonEmptyStringList),
-  optionals: v.optional(optionalsSchema),
-  aliases: v.optional(aliasesSchema),
-  relations: v.optional(v.record(v.string(), nonEmptyString)),
-  tentative: v.optional(v.boolean())
-})
 
 const specificationSchema = v.looseObject({
   'data-sketch': v.literal('1.0.0-draft.2'),
@@ -56,10 +20,47 @@ const specificationSchema = v.looseObject({
       asyncapi: v.optional(nonEmptyString)
     })
   ),
-  claims: v.pipe(v.record(v.string(), claimSchema), v.minEntries(1))
+  claims: v.pipe(
+    v.record(
+      v.string(),
+      v.looseObject({
+        name: v.pipe(nonEmptyString, v.regex(/^\S+$/, 'must not contain whitespace')),
+        reason: nonEmptyString,
+        traces: v.looseObject({
+          operations: nonEmptyStringList,
+          workflows: v.optional(nonEmptyStringList),
+          channels: v.optional(nonEmptyStringList)
+        }),
+        details: v.optional(nonEmptyStringList),
+        optionals: v.optional(v.pipe(v.record(v.string(), v.boolean()), v.minEntries(1))),
+        aliases: v.optional(v.pipe(v.record(v.string(), nonEmptyStringList), v.minEntries(1))),
+        relations: v.optional(v.record(v.string(), nonEmptyString)),
+        tentative: v.optional(v.boolean())
+      })
+    ),
+    v.minEntries(1)
+  )
 })
 
 export type Specification = v.InferOutput<typeof specificationSchema>
+
+export type DataSketch<
+  P extends Record<string, (() => unknown) | undefined> = Record<
+    string,
+    (() => unknown) | undefined
+  >
+> = {
+  readonly spec: Specification
+  readonly sources?: {
+    readonly openapi?: unknown
+  }
+  readonly metadata: {
+    readonly version: string
+    readonly basePath: string
+    readonly validated?: boolean
+  }
+  readonly projections: P
+}
 
 export function parse(options: { readonly path: string } | { readonly input: string }): DataSketch {
   let source: string
@@ -81,7 +82,7 @@ export function parse(options: { readonly path: string } | { readonly input: str
     }
 
     const parsed = result.output
-    const issues = [...validateExtensionFields(parsed), ...validateLocalClaimShape(parsed)]
+    const issues = [...validateExtensionFields(parsed), ...validateClaims(parsed)]
 
     if (issues.length > 0) {
       throw new Error(issues.join('\n'))
@@ -104,52 +105,12 @@ export function parse(options: { readonly path: string } | { readonly input: str
   }
 }
 
-function validateExtensionFields(spec: Specification): string[] {
-  const issues: string[] = []
-
-  issues.push(...validateExtensibleObjectFields('', spec, rootFields))
-  issues.push(...validateExtensibleObjectFields('info', spec.info, infoFields))
-
-  if (spec.sources) {
-    issues.push(...validateExtensibleObjectFields('sources', spec.sources, sourcesFields))
-  }
-
-  for (const [claimId, claim] of Object.entries(spec.claims)) {
-    issues.push(...validateExtensibleObjectFields(`claims.${claimId}`, claim, claimFields))
-    issues.push(
-      ...validateExtensibleObjectFields(`claims.${claimId}.traces`, claim.traces, tracesFields)
-    )
-  }
-
-  return issues
-}
-
-function validateExtensibleObjectFields(
-  path: string,
-  object: Record<string, unknown>,
-  knownFields: ReadonlySet<string>
-) {
-  const issues: string[] = []
-
-  for (const field of Object.keys(object)) {
-    if (!knownFields.has(field) && !field.startsWith('x-')) {
-      const fieldPath = path ? `${path}.${field}` : field
-
-      issues.push(`${fieldPath} is not supported; use x-* for extension fields`)
-    }
-  }
-
-  return issues
-}
-
-// Parser-level validation stays local to the document shape. Cross-claim references and
-// external sources are checked by validator.ts.
-function validateLocalClaimShape(spec: Specification): string[] {
+function validateClaims(spec: Specification): string[] {
   const issues: string[] = []
   const claimNames = new Set<string>()
 
   for (const [claimId, claim] of Object.entries(spec.claims)) {
-    if (invalidClaimIdPattern.test(claimId)) {
+    if (/[.[\]]/u.test(claimId)) {
       issues.push(`claims.${claimId} must not contain . or []`)
     }
 
@@ -167,51 +128,44 @@ function validateLocalClaimShape(spec: Specification): string[] {
     const relationIds = Object.keys(claim.relations ?? {})
 
     if (claim.details) {
-      issues.push(...validateLocalDetailShape(claimId, detailIds))
+      issues.push(...validateDetailIds(claimId, detailIds))
     }
 
     if (claim.relations) {
-      issues.push(...validateRelationSourceShape(claimId, relationIds))
+      issues.push(...validateRelationIds(claimId, relationIds))
     }
 
     if (claim.details && claim.aliases) {
-      issues.push(...validateAliasShape(claimId, detailIds, claim.aliases))
+      issues.push(...validateAliases(claimId, detailIds, claim.aliases))
     }
 
     if (claim.details && claim.optionals) {
-      issues.push(...validateOptionalsShape(claimId, detailIds, claim.optionals))
+      issues.push(...validateOptionals(claimId, detailIds, claim.optionals))
     }
 
     const effectiveDetailIds = [...new Set([...detailIds, ...relationIds])]
-    const effectiveDetailFields = getEffectiveDetailFields(detailIds, relationIds)
 
     if (effectiveDetailIds.length > 0) {
-      issues.push(
-        ...validateDetailPathConflicts(claimId, effectiveDetailIds, effectiveDetailFields)
-      )
+      const detailFields = new Map<string, 'details' | 'relations'>()
+
+      for (const detailId of detailIds) {
+        detailFields.set(detailId, 'details')
+      }
+
+      for (const relationId of relationIds) {
+        if (!detailFields.has(relationId)) {
+          detailFields.set(relationId, 'relations')
+        }
+      }
+
+      issues.push(...validateDetailPathConflicts(claimId, effectiveDetailIds, detailFields))
     }
   }
 
   return issues
 }
 
-function getEffectiveDetailFields(detailIds: readonly string[], relationIds: readonly string[]) {
-  const fields = new Map<string, 'details' | 'relations'>()
-
-  for (const detailId of detailIds) {
-    fields.set(detailId, 'details')
-  }
-
-  for (const relationId of relationIds) {
-    if (!fields.has(relationId)) {
-      fields.set(relationId, 'relations')
-    }
-  }
-
-  return fields
-}
-
-function validateLocalDetailShape(
+function validateDetailIds(
   claimId: string,
   details: NonNullable<Specification['claims'][string]['details']>
 ): string[] {
@@ -219,7 +173,7 @@ function validateLocalDetailShape(
   const detailIds = new Set<string>()
 
   for (const detailId of details) {
-    if (reservedIdentityDetailPaths.has(detailId)) {
+    if (detailId === 'id' || detailId === '_id') {
       issues.push(`claims.${claimId}.details.${detailId} is a reserved identity detail path`)
     }
 
@@ -235,11 +189,11 @@ function validateLocalDetailShape(
   return issues
 }
 
-function validateRelationSourceShape(claimId: string, relationIds: string[]): string[] {
+function validateRelationIds(claimId: string, relationIds: string[]): string[] {
   const issues: string[] = []
 
   for (const relationId of relationIds) {
-    if (reservedIdentityDetailPaths.has(relationId)) {
+    if (relationId === 'id' || relationId === '_id') {
       issues.push(`claims.${claimId}.relations.${relationId} is a reserved identity detail path`)
     }
   }
@@ -249,7 +203,7 @@ function validateRelationSourceShape(claimId: string, relationIds: string[]): st
   return issues
 }
 
-function validateAliasShape(
+function validateAliases(
   claimId: string,
   details: NonNullable<Specification['claims'][string]['details']>,
   aliases: NonNullable<Specification['claims'][string]['aliases']>
@@ -263,7 +217,7 @@ function validateAliasShape(
   )
 }
 
-function validateOptionalsShape(
+function validateOptionals(
   claimId: string,
   details: NonNullable<Specification['claims'][string]['details']>,
   optionals: NonNullable<Specification['claims'][string]['optionals']>
@@ -283,6 +237,7 @@ function validateDetailPathSyntax(
   detailIds: string[]
 ): string[] {
   const issues: string[] = []
+
   const detailPaths = detailIds.map(detailId => ({
     detailId,
     segments: detailId.split('.')
@@ -296,7 +251,7 @@ function validateDetailPathSyntax(
     }
 
     const invalidSegment = detailPath.segments.find(
-      segment => segment !== '' && !validDetailPathSegmentPattern.test(segment)
+      segment => segment !== '' && !/^[^[\]]+(?:\[\])?$/u.test(segment)
     )
 
     if (invalidSegment) {
@@ -315,21 +270,70 @@ function validateDetailPathConflicts(
   detailFields: ReadonlyMap<string, 'details' | 'relations'>
 ): string[] {
   const issues: string[] = []
+
   const detailPaths = detailIds.map(detailId => ({
     detailId,
     segments: detailId.split('.')
   }))
+
+  function getDetailPathIssuePath(detailId: string) {
+    const detailField = detailFields.get(detailId) as 'details' | 'relations'
+
+    return `claims.${claimId}.${detailField}.${detailId}`
+  }
+
+  function isStrictDetailPathPrefix(
+    prefixSegments: readonly string[],
+    prefixedSegments: readonly string[]
+  ) {
+    return (
+      prefixSegments.length < prefixedSegments.length &&
+      prefixSegments.every((segment, index) => segment === prefixedSegments[index])
+    )
+  }
+
+  function getArrayObjectConflictSegment(
+    leftSegments: readonly string[],
+    rightSegments: readonly string[]
+  ) {
+    const segmentCount = Math.min(leftSegments.length, rightSegments.length)
+
+    for (let index = 0; index < segmentCount; index += 1) {
+      const leftSegment = leftSegments[index]
+      const rightSegment = rightSegments[index]
+
+      if (leftSegment === rightSegment) {
+        continue
+      }
+
+      const leftName = leftSegment.replace(/\[\]$/u, '')
+      const rightName = rightSegment.replace(/\[\]$/u, '')
+
+      if (leftName === rightName) {
+        return leftName
+      }
+
+      return undefined
+    }
+
+    return undefined
+  }
 
   for (let index = 0; index < detailPaths.length; index += 1) {
     const left = detailPaths[index]
 
     for (let otherIndex = index + 1; otherIndex < detailPaths.length; otherIndex += 1) {
       const right = detailPaths[otherIndex]
-      const prefixPair = getStrictPrefixPair(left, right)
 
-      if (prefixPair) {
+      if (isStrictDetailPathPrefix(left.segments, right.segments)) {
         issues.push(
-          `${getDetailPathIssuePath(claimId, prefixPair.prefix.detailId, detailFields)} must not be a strict prefix of ${prefixPair.prefixed.detailId}`
+          `${getDetailPathIssuePath(left.detailId)} must not be a strict prefix of ${right.detailId}`
+        )
+      }
+
+      if (isStrictDetailPathPrefix(right.segments, left.segments)) {
+        issues.push(
+          `${getDetailPathIssuePath(right.detailId)} must not be a strict prefix of ${left.detailId}`
         )
       }
 
@@ -337,7 +341,7 @@ function validateDetailPathConflicts(
 
       if (conflictSegment) {
         issues.push(
-          `${getDetailPathIssuePath(claimId, left.detailId, detailFields)} conflicts with ${right.detailId} because segment ${conflictSegment} uses both object and array form`
+          `${getDetailPathIssuePath(left.detailId)} conflicts with ${right.detailId} because segment ${conflictSegment} uses both object and array form`
         )
       }
     }
@@ -346,76 +350,61 @@ function validateDetailPathConflicts(
   return issues
 }
 
-function getDetailPathIssuePath(
-  claimId: string,
-  detailId: string,
-  detailFields: ReadonlyMap<string, 'details' | 'relations'>
-) {
-  const detailField = detailFields.get(detailId) as 'details' | 'relations'
+function validateExtensionFields(spec: Specification): string[] {
+  const issues: string[] = []
 
-  return `claims.${claimId}.${detailField}.${detailId}`
-}
-
-function getStrictPrefixPair(
-  left: { readonly detailId: string; readonly segments: readonly string[] },
-  right: { readonly detailId: string; readonly segments: readonly string[] }
-) {
-  if (isStrictDetailPathPrefix(left.segments, right.segments)) {
-    return {
-      prefix: left,
-      prefixed: right
-    }
-  }
-
-  if (isStrictDetailPathPrefix(right.segments, left.segments)) {
-    return {
-      prefix: right,
-      prefixed: left
-    }
-  }
-
-  return undefined
-}
-
-function isStrictDetailPathPrefix(
-  prefixSegments: readonly string[],
-  prefixedSegments: readonly string[]
-) {
-  return (
-    prefixSegments.length < prefixedSegments.length &&
-    prefixSegments.every((segment, index) => segment === prefixedSegments[index])
+  issues.push(
+    ...validateExtensibleObjectFields('', spec, ['data-sketch', 'info', 'sources', 'claims'])
   )
-}
+  issues.push(...validateExtensibleObjectFields('info', spec.info, ['name']))
 
-function getArrayObjectConflictSegment(
-  leftSegments: readonly string[],
-  rightSegments: readonly string[]
-) {
-  const segmentCount = Math.min(leftSegments.length, rightSegments.length)
-
-  for (let index = 0; index < segmentCount; index += 1) {
-    const leftSegment = leftSegments[index]
-    const rightSegment = rightSegments[index]
-
-    if (leftSegment === rightSegment) {
-      continue
-    }
-
-    const leftName = getDetailPathSegmentName(leftSegment)
-    const rightName = getDetailPathSegmentName(rightSegment)
-
-    if (leftName === rightName) {
-      return leftName
-    }
-
-    return undefined
+  if (spec.sources) {
+    issues.push(
+      ...validateExtensibleObjectFields('sources', spec.sources, ['openapi', 'arazzo', 'asyncapi'])
+    )
   }
 
-  return undefined
+  for (const [claimId, claim] of Object.entries(spec.claims)) {
+    issues.push(
+      ...validateExtensibleObjectFields(`claims.${claimId}`, claim, [
+        'name',
+        'reason',
+        'traces',
+        'details',
+        'optionals',
+        'aliases',
+        'relations',
+        'tentative'
+      ])
+    )
+    issues.push(
+      ...validateExtensibleObjectFields(`claims.${claimId}.traces`, claim.traces, [
+        'operations',
+        'workflows',
+        'channels'
+      ])
+    )
+  }
+
+  return issues
 }
 
-function getDetailPathSegmentName(segment: string) {
-  return segment.endsWith('[]') ? segment.slice(0, -2) : segment
+function validateExtensibleObjectFields(
+  path: string,
+  object: Record<string, unknown>,
+  knownFields: readonly string[]
+) {
+  const issues: string[] = []
+
+  for (const field of Object.keys(object)) {
+    if (!knownFields.includes(field) && !field.startsWith('x-')) {
+      const fieldPath = path ? `${path}.${field}` : field
+
+      issues.push(`${fieldPath} is not supported; use x-* for extension fields`)
+    }
+  }
+
+  return issues
 }
 
 function formatValibotIssues(issues: readonly v.InferIssue<typeof specificationSchema>[]) {

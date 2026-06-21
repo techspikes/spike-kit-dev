@@ -1,5 +1,4 @@
-import type { Specification } from './parser.ts'
-import type { DataSketch } from './spec.ts'
+import type { DataSketch, Specification } from './parser.ts'
 
 export type RelationalDbProjection = {
   readonly 'data-sketch/relational-db-projection': '1.0.0-draft.3'
