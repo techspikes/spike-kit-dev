@@ -46,10 +46,11 @@ The command uses:
 - the Relational DB Projection for projected tables, columns, keys,
   constraints, indexes, SQL types, and nullability.
 
-The Relational DB Projection already has any `x-relational-db-schema` overrides
-applied by the projector (see x-relational-db-schema Extension in the
-Relational DB Projection Specification). `tables-doc` renders the Relational DB
-Projection directly and does not apply `x-relational-db-schema` itself.
+The Relational DB Projection already has OpenAPI type inference and any
+`x-relational-db-schema` overrides applied by the projector (see
+x-relational-db-schema Extension in the Relational DB Projection
+Specification). `tables-doc` renders the Relational DB Projection directly and
+does not apply `x-relational-db-schema` itself.
 
 ## Markdown Output
 

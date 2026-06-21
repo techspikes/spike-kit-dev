@@ -76,6 +76,16 @@
           "type": "DECIMAL(10, 2)"
         },
         {
+          "id": "stockCount",
+          "name": "stock_count",
+          "type": "BIGINT"
+        },
+        {
+          "id": "relevanceScore",
+          "name": "relevance_score",
+          "type": "DOUBLE PRECISION"
+        },
+        {
           "id": "inventoryStatus",
           "name": "inventory_status",
           "type": "VARCHAR(1024)"

@@ -32,8 +32,14 @@ claims:
     details:
       - displayName
       - sku
+      - serialNumber
+      - batchCode
       - price
+      - discountRate
+      - legacyMetric
       - stock
+      - stockLimit
+      - quantityScore
       - discontinued
       - optionalNote
       - rating

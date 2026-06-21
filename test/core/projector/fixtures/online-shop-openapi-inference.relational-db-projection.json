@@ -1,0 +1,198 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "category": {
+      "name": "categories",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(60)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_categories",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "product": {
+      "name": "products",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "displayName",
+          "name": "display_name",
+          "type": "VARCHAR(80)"
+        },
+        {
+          "id": "sku",
+          "name": "sku",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "serialNumber",
+          "name": "serial_number",
+          "type": "CHAR(12)"
+        },
+        {
+          "id": "batchCode",
+          "name": "batch_code",
+          "type": "VARCHAR(10)"
+        },
+        {
+          "id": "price",
+          "name": "price",
+          "type": "DOUBLE PRECISION"
+        },
+        {
+          "id": "discountRate",
+          "name": "discount_rate",
+          "type": "DOUBLE PRECISION"
+        },
+        {
+          "id": "legacyMetric",
+          "name": "legacy_metric",
+          "type": "DOUBLE PRECISION"
+        },
+        {
+          "id": "stock",
+          "name": "stock",
+          "type": "INTEGER"
+        },
+        {
+          "id": "stockLimit",
+          "name": "stock_limit",
+          "type": "BIGINT"
+        },
+        {
+          "id": "quantityScore",
+          "name": "quantity_score",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "discontinued",
+          "name": "discontinued",
+          "type": "BOOLEAN"
+        },
+        {
+          "id": "optionalNote",
+          "name": "optional_note",
+          "type": "VARCHAR(120)",
+          "nullable": true
+        },
+        {
+          "id": "rating",
+          "name": "rating",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "internalCode",
+          "name": "internal_code",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "tags[]",
+          "name": "tags",
+          "type": "CHAR(15)"
+        },
+        {
+          "id": "legacyCode",
+          "name": "legacy_code",
+          "type": "VARCHAR(25)"
+        },
+        {
+          "id": "metadata",
+          "name": "metadata",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "markers[]",
+          "name": "markers",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "unknownUnion",
+          "name": "unknown_union",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "looseObject.code",
+          "name": "loose_object_code",
+          "type": "VARCHAR(10)",
+          "nullable": true
+        },
+        {
+          "id": "category",
+          "name": "category",
+          "type": "CHAR(26)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_products",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_products_category",
+            "column": "category",
+            "target": {
+              "table": "categories",
+              "column": "id"
+            },
+            "kind": "explicit"
+          }
+        ]
+      }
+    },
+    "product.variants[]": {
+      "name": "product_variants",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "product",
+          "name": "product",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "variants[].name",
+          "name": "name",
+          "type": "VARCHAR(30)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_product_variants",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_product_variants_product",
+            "column": "product",
+            "target": {
+              "table": "products",
+              "column": "id"
+            },
+            "kind": "structural"
+          }
+        ]
+      }
+    }
+  }
+}

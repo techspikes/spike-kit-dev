@@ -1,0 +1,74 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "event": {
+      "name": "events",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "occurredAt",
+          "name": "occurred_at",
+          "type": "CHAR(25)"
+        },
+        {
+          "id": "scheduledDate",
+          "name": "scheduled_date",
+          "type": "CHAR(10)",
+          "nullable": true
+        },
+        {
+          "id": "alarmTime",
+          "name": "alarm_time",
+          "type": "CHAR(14)",
+          "nullable": true
+        },
+        {
+          "id": "occurrences[]",
+          "name": "occurrences",
+          "type": "CHAR(25)",
+          "nullable": true
+        },
+        {
+          "id": "recordedAt",
+          "name": "recorded_at",
+          "type": "VARCHAR(30)",
+          "nullable": true
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_events",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "eventConflict": {
+      "name": "event_conflicts",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "occurredAt",
+          "name": "occurred_at",
+          "type": "VARCHAR(1024)",
+          "nullable": true
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_event_conflicts",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    }
+  }
+}

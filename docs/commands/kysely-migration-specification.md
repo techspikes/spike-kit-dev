@@ -64,9 +64,10 @@ The command uses:
 - the Relational DB Projection for projected tables, columns, keys, constraints,
   indexes, SQL types, and nullability.
 
-The Relational DB Projection already has any `x-relational-db-schema` overrides
-applied by the projector. `kysely-migration` renders the Relational DB Projection
-directly and does not apply `x-relational-db-schema` itself.
+The Relational DB Projection already has OpenAPI type inference and any
+`x-relational-db-schema` overrides applied by the projector. `kysely-migration`
+renders the Relational DB Projection directly and does not apply
+`x-relational-db-schema` itself.
 
 ### Tentative Claims
 
@@ -342,7 +343,7 @@ SQL type to TypeScript type mapping:
 | SQL type pattern | TypeScript type |
 | --- | --- |
 | `CHAR(n)`, `VARCHAR(n)`, `TEXT`, `DATE`, `TIME`, `TIMESTAMP` | `string` |
-| `INTEGER`, `BIGINT`, `SMALLINT`, `DECIMAL(p,s)`, `NUMERIC(p,s)` | `number` |
+| `INTEGER`, `BIGINT`, `SMALLINT`, `DOUBLE PRECISION`, `DECIMAL(p,s)`, `NUMERIC(p,s)` | `number` |
 | `BOOLEAN` | `boolean` |
 
 Nullable columns (`nullable: true`) append ` | null` to the TypeScript type.

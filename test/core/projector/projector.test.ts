@@ -67,6 +67,7 @@ describe('core projector', () => {
 
     const projections = project(sketch, [customProjector])
 
+    // Projectors are built only on first lookup and reuse the cached projection after that.
     assert.equal(buildCount, 0)
     assert.equal(projections.get('custom'), 'custom projection')
     assert.equal(projections.get('custom'), 'custom projection')
@@ -167,43 +168,11 @@ describe('core projector', () => {
       trace: false
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-relation-only.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.customer?.columns[4], {
-      id: 'tags[]',
-      name: 'tags',
-      type: 'VARCHAR(1024)'
-    })
-
-    assert.deepEqual(projection.tables.order?.columns, [
-      {
-        id: 'id',
-        name: 'id',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'status',
-        name: 'status',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'customer',
-        name: 'customer',
-        type: 'CHAR(26)'
-      }
-    ])
-
-    assert.deepEqual(projection.tables.order?.keys.foreign, [
-      {
-        name: 'fk_orders_customer',
-        column: 'customer',
-        target: {
-          table: 'customers',
-          column: 'id'
-        },
-        kind: 'explicit'
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection projects claim ID exact-match details as marked foreign keys', () => {
@@ -212,61 +181,11 @@ describe('core projector', () => {
       trace: false
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-claim-id-exact-match.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.order?.keys.foreign, [
-      {
-        name: 'fk_orders_customer',
-        column: 'customer',
-        target: {
-          table: 'customers',
-          column: 'id'
-        },
-        kind: 'inferred'
-      }
-    ])
-
-    assert.deepEqual(projection.tables['order.items[]']?.keys.foreign, [
-      {
-        name: 'fk_order_items_order',
-        column: 'order',
-        target: {
-          table: 'orders',
-          column: 'id'
-        },
-        kind: 'structural'
-      },
-      {
-        name: 'fk_order_items_product',
-        column: 'product',
-        target: {
-          table: 'products',
-          column: 'id'
-        },
-        kind: 'inferred'
-      }
-    ])
-
-    assert.deepEqual(projection.tables.productCategory?.keys.foreign, [
-      {
-        name: 'fk_product_categories_product',
-        column: 'product',
-        target: {
-          table: 'products',
-          column: 'id'
-        },
-        kind: 'inferred'
-      },
-      {
-        name: 'fk_product_categories_category',
-        column: 'category',
-        target: {
-          table: 'categories',
-          column: 'id'
-        },
-        kind: 'inferred'
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection skips claim ID exact-match inference when the claim has any explicit relation', () => {
@@ -275,19 +194,11 @@ describe('core projector', () => {
       trace: false
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-relations-disable-inferred.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.order?.keys.foreign, [
-      {
-        name: 'fk_orders_assigned_category',
-        column: 'assigned_category',
-        target: {
-          table: 'categories',
-          column: 'id'
-        },
-        kind: 'explicit'
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection projects relation-only source paths into child tables', () => {
@@ -298,51 +209,11 @@ describe('core projector', () => {
       trace: false
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-nested-relation-source-only.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables['order.items[]']?.columns, [
-      {
-        id: 'id',
-        name: 'id',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'order',
-        name: 'order',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'items[].quantity',
-        name: 'quantity',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'items[].product',
-        name: 'product',
-        type: 'CHAR(26)'
-      }
-    ])
-
-    assert.deepEqual(projection.tables['order.items[]']?.keys.foreign, [
-      {
-        name: 'fk_order_items_order',
-        column: 'order',
-        target: {
-          table: 'orders',
-          column: 'id'
-        },
-        kind: 'structural'
-      },
-      {
-        name: 'fk_order_items_product',
-        column: 'product',
-        target: {
-          table: 'products',
-          column: 'id'
-        },
-        kind: 'explicit'
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection infers SQL types and nullability from traced OpenAPI fields', () => {
@@ -351,122 +222,11 @@ describe('core projector', () => {
       validators: [openApiValidator]
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-openapi-inference.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.product?.columns, [
-      {
-        id: 'id',
-        name: 'id',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'displayName',
-        name: 'display_name',
-        type: 'VARCHAR(80)'
-      },
-      {
-        id: 'sku',
-        name: 'sku',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'price',
-        name: 'price',
-        type: 'INTEGER'
-      },
-      {
-        id: 'stock',
-        name: 'stock',
-        type: 'INTEGER'
-      },
-      {
-        id: 'discontinued',
-        name: 'discontinued',
-        type: 'BOOLEAN'
-      },
-      {
-        id: 'optionalNote',
-        name: 'optional_note',
-        type: 'VARCHAR(120)',
-        nullable: true
-      },
-      {
-        id: 'rating',
-        name: 'rating',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'internalCode',
-        name: 'internal_code',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'tags[]',
-        name: 'tags',
-        type: 'VARCHAR(15)'
-      },
-      {
-        id: 'legacyCode',
-        name: 'legacy_code',
-        type: 'VARCHAR(25)'
-      },
-      {
-        id: 'metadata',
-        name: 'metadata',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'markers[]',
-        name: 'markers',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'unknownUnion',
-        name: 'unknown_union',
-        type: 'VARCHAR(1024)'
-      },
-      {
-        id: 'looseObject.code',
-        name: 'loose_object_code',
-        type: 'VARCHAR(10)',
-        nullable: true
-      },
-      {
-        id: 'category',
-        name: 'category',
-        type: 'CHAR(26)'
-      }
-    ])
-
-    assert.deepEqual(projection.tables['product.variants[]']?.columns, [
-      {
-        id: 'id',
-        name: 'id',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'product',
-        name: 'product',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'variants[].name',
-        name: 'name',
-        type: 'VARCHAR(30)'
-      }
-    ])
-
-    assert.deepEqual(projection.tables.product?.keys.foreign, [
-      {
-        name: 'fk_products_category',
-        column: 'category',
-        target: {
-          table: 'categories',
-          column: 'id'
-        },
-        kind: 'explicit'
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection lets optionals override OpenAPI-inferred nullability', () => {
@@ -475,26 +235,11 @@ describe('core projector', () => {
       validators: [openApiValidator]
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-optionals-override.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.widget?.columns, [
-      {
-        id: 'id',
-        name: 'id',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'requiredField',
-        name: 'required_field',
-        type: 'VARCHAR(40)',
-        nullable: true
-      },
-      {
-        id: 'optionalField',
-        name: 'optional_field',
-        type: 'VARCHAR(40)'
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection infers fixed-length CHAR types from OpenAPI date/time string formats', () => {
@@ -503,58 +248,11 @@ describe('core projector', () => {
       validators: [openApiValidator]
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-string-format-inference.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.event?.columns, [
-      {
-        id: 'id',
-        name: 'id',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'occurredAt',
-        name: 'occurred_at',
-        type: 'CHAR(25)'
-      },
-      {
-        id: 'scheduledDate',
-        name: 'scheduled_date',
-        type: 'CHAR(10)',
-        nullable: true
-      },
-      {
-        id: 'alarmTime',
-        name: 'alarm_time',
-        type: 'CHAR(14)',
-        nullable: true
-      },
-      {
-        id: 'occurrences[]',
-        name: 'occurrences',
-        type: 'CHAR(25)',
-        nullable: true
-      },
-      {
-        id: 'recordedAt',
-        name: 'recorded_at',
-        type: 'VARCHAR(30)',
-        nullable: true
-      }
-    ])
-
-    assert.deepEqual(projection.tables.eventConflict?.columns, [
-      {
-        id: 'id',
-        name: 'id',
-        type: 'CHAR(26)'
-      },
-      {
-        id: 'occurredAt',
-        name: 'occurred_at',
-        type: 'VARCHAR(1024)',
-        nullable: true
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection projects nested array details into child tables', () => {
@@ -629,6 +327,7 @@ describe('core projector', () => {
           'claims.customer.x-relational-db-schema.types.phoneNumber must specify a positive integer length for type CHAR',
           'claims.customer.x-relational-db-schema.types.email must specify a positive integer precision and a non-negative integer scale for type DECIMAL',
           'claims.customer.x-relational-db-schema.types.name.type NUMERIC is not supported',
+          'claims.customer.x-relational-db-schema.types.loyaltyFlag.type BIT is not supported',
           'claims.customer.x-relational-db-schema.types.id must be an object with a type',
           'claims.customer.x-relational-db-schema.constraints.unknownConstraintMember is not a supported x-relational-db-schema member',
           'claims.customer.x-relational-db-schema.constraints.unique must be an array',
@@ -708,28 +407,11 @@ describe('core projector', () => {
       trace: false
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-foreign-key-name-generation.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.order?.keys.foreign, [
-      {
-        name: 'fk_orders_customer',
-        column: 'customer',
-        target: {
-          table: 'customers',
-          column: 'id'
-        },
-        kind: 'explicit'
-      },
-      {
-        name: 'fk_orders_product',
-        column: 'product',
-        target: {
-          table: 'products',
-          column: 'id'
-        },
-        kind: 'extension'
-      }
-    ])
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 
   it('buildRelationalDbProjection rejects foreign key override name conflicts', () => {
@@ -765,32 +447,11 @@ describe('core projector', () => {
       trace: false
     })
 
-    const projection = buildRelationalDbProjectionWithProjector(sketch)
+    const expected = readJsonFile<RelationalDbProjection>(
+      'test/core/projector/fixtures/online-shop-constraint-name-generation.relational-db-projection.json'
+    )
 
-    assert.deepEqual(projection.tables.widget?.constraints, {
-      unique: [
-        {
-          name: 'uq_widgets_sku',
-          columns: ['sku']
-        },
-        {
-          name: 'uq_widgets_category_status',
-          columns: ['category', 'status']
-        }
-      ],
-      check: [
-        {
-          name: 'ck_widgets_status',
-          column: 'status',
-          enum: ['active', 'retired']
-        },
-        {
-          name: 'ck_widgets_explicit_status',
-          column: 'category',
-          enum: ['tools', 'parts']
-        }
-      ]
-    })
+    assert.deepEqual(buildRelationalDbProjectionWithProjector(sketch), expected)
   })
 })
 

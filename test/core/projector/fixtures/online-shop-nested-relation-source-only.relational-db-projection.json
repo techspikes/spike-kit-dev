@@ -1,0 +1,100 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "product": {
+      "name": "products",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_products",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "order": {
+      "name": "orders",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "status",
+          "name": "status",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_orders",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "order.items[]": {
+      "name": "order_items",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "order",
+          "name": "order",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "items[].quantity",
+          "name": "quantity",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "items[].product",
+          "name": "product",
+          "type": "CHAR(26)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_order_items",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_order_items_order",
+            "column": "order",
+            "target": {
+              "table": "orders",
+              "column": "id"
+            },
+            "kind": "structural"
+          },
+          {
+            "name": "fk_order_items_product",
+            "column": "product",
+            "target": {
+              "table": "products",
+              "column": "id"
+            },
+            "kind": "explicit"
+          }
+        ]
+      }
+    }
+  }
+}

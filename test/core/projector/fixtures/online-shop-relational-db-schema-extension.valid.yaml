@@ -52,6 +52,8 @@ claims:
     details:
       - name
       - price
+      - stockCount
+      - relevanceScore
       - inventoryStatus
       - discontinued
     x-relational-db-schema:
@@ -60,6 +62,10 @@ claims:
           type: DECIMAL
           precision: 10
           scale: 2
+        stockCount:
+          type: BIGINT
+        relevanceScore:
+          type: DOUBLE PRECISION
         discontinued:
           type: BOOLEAN
       indexes:

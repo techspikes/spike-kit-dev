@@ -224,17 +224,21 @@ becomes `price`.
 
 Rules:
 
+- Projected SQL type names use a SQL:1999-compatible generic type set. `BIT`
+  is intentionally unsupported.
 - If no OpenAPI source is loaded on the validated Data Sketch, detail columns use
   `VARCHAR(1024)`.
 - If an OpenAPI source is loaded, the projector uses only the claim's traced
   OpenAPI operations.
 - OpenAPI field paths must exactly match Data Sketch detail paths to influence
   a column type.
+- OpenAPI `string` with the same positive `minLength` and `maxLength` in every
+  matching schema becomes `CHAR(length)`.
 - OpenAPI `string` with `maxLength` becomes `VARCHAR(maxLength)`.
 - When multiple matching OpenAPI strings specify `maxLength`, the largest
   specified value is used.
-- `maxLength` takes precedence over `format`, even when the same field
-  specifies both.
+- Fixed length takes precedence over `maxLength`, and `maxLength` takes
+  precedence over `format`, even when the same field specifies all of them.
 - When no matching OpenAPI string specifies `maxLength`, OpenAPI `string` with
   `format: date-time` becomes `CHAR(25)`, `format: date` becomes `CHAR(10)`,
   and `format: time` becomes `CHAR(14)`.
@@ -242,7 +246,10 @@ Rules:
   some of them specify a `format`), the format rules above do not apply.
 - When no matching OpenAPI string specifies `maxLength` or a recognized
   `format`, the column type falls back to `VARCHAR(1024)`.
-- OpenAPI `integer` and `number` become `INTEGER`.
+- OpenAPI `integer` with `format: int64` becomes `BIGINT`.
+- OpenAPI `integer` without `format: int64` becomes `INTEGER`.
+- OpenAPI `number` becomes `DOUBLE PRECISION`; the `number` format is not used
+  to select a different projected type.
 - OpenAPI `boolean` becomes `BOOLEAN`.
 - Conflicting OpenAPI types fall back to `VARCHAR(1024)`.
 - Data Sketch details without matching traced OpenAPI fields fall back to
@@ -254,8 +261,12 @@ Rules:
   `CHAR(26)`.
 - Structural parent foreign key columns use `CHAR(26)`.
 - SQL type strings are written in uppercase.
-- OpenAPI `number` is projected as `INTEGER`; decimals should be scaled up or
-  represented as strings, or overridden with renderer-specific schema metadata.
+- OpenAPI `string` with `format: date-time` remains a fixed-length text value.
+  To model UNIX time, prefer OpenAPI `type: integer`, `format: int64`, or use
+  `x-relational-db-schema.types` to override the projected column to `BIGINT`.
+- For exact decimal values, prefer scaling the value up to an integer in the
+  API model when that is practical, or use `x-relational-db-schema.types` to
+  override the projected column to `DECIMAL`.
 
 ---
 
@@ -426,11 +437,11 @@ choices that are outside the core Data Sketch vocabulary: data type overrides,
 foreign key overrides, unique and check constraints, indexes, and table and
 column name overrides.
 
-The projector reads `x-relational-db-schema` from the built-in Extension
-Projection and applies it while building that claim's projected table(s), so
-the Relational DB Projection already reflects these overrides (see Application
-Order). Renderers such as `tables-doc` read the Relational DB Projection
-directly and do not apply `x-relational-db-schema` themselves.
+The projector reads claim-level `x-relational-db-schema` directly and applies
+it while building that claim's projected table(s), so the Relational DB
+Projection already reflects these overrides (see Application Order). Renderers
+such as `tables-doc` read the Relational DB Projection directly and do not
+apply `x-relational-db-schema` themselves.
 
 ### Placement
 
@@ -592,6 +603,8 @@ uppercase:
 | `CHAR` | `length` (required) | `CHAR(length)` |
 | `VARCHAR` | `length` (required) | `VARCHAR(length)` |
 | `INTEGER` | — | `INTEGER` |
+| `BIGINT` | — | `BIGINT` |
+| `DOUBLE PRECISION` | — | `DOUBLE PRECISION` |
 | `BOOLEAN` | — | `BOOLEAN` |
 | `DECIMAL` | `precision`, `scale` (both required) | `DECIMAL(precision, scale)` |
 
@@ -601,13 +614,15 @@ Rules:
   Rules.
 - Missing detail paths continue to use the type produced by Type Rules.
 - `CHAR` and `VARCHAR` require `length`.
+- `INTEGER`, `BIGINT`, `DOUBLE PRECISION`, and `BOOLEAN` have no parameters.
 - `DECIMAL` requires both `precision` and `scale`. A `DECIMAL` without `scale`
   is a validation error.
 - `NUMERIC` is not accepted, even as an alias for `DECIMAL`.
 - Any other `type` value (including `NUMERIC`, `SMALLINT`, `FLOAT`, `REAL`,
-  `DOUBLE PRECISION`, `DATE`, `TIME`, `TIMESTAMP`, `BIT`, and long-form aliases
-  such as `CHARACTER`, `CHARACTER VARYING`, or `INT`), or a missing or invalid
-  parameter for the matched `type`, is a validation error.
+  `DATE`, `TIME`, `TIMESTAMP`, `BIT`, and long-form aliases such as
+  `CHARACTER`, `CHARACTER VARYING`, or `INT`), or a missing or invalid
+  parameter for the matched `type`, is a validation error. `BIT` remains
+  unsupported even though the projection's type set is SQL:1999-oriented.
 
 ### Foreign Key Overrides
 

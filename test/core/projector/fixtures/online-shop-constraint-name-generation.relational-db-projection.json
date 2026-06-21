@@ -1,0 +1,61 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "widget": {
+      "name": "widgets",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "sku",
+          "name": "sku",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "category",
+          "name": "category",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "status",
+          "name": "status",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_widgets",
+          "columns": ["id"]
+        },
+        "foreign": []
+      },
+      "constraints": {
+        "unique": [
+          {
+            "name": "uq_widgets_sku",
+            "columns": ["sku"]
+          },
+          {
+            "name": "uq_widgets_category_status",
+            "columns": ["category", "status"]
+          }
+        ],
+        "check": [
+          {
+            "name": "ck_widgets_status",
+            "column": "status",
+            "enum": ["active", "retired"]
+          },
+          {
+            "name": "ck_widgets_explicit_status",
+            "column": "category",
+            "enum": ["tools", "parts"]
+          }
+        ]
+      }
+    }
+  }
+}

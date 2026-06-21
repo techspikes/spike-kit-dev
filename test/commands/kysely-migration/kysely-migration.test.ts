@@ -25,6 +25,7 @@ const onlineShopWithTentativeOrderSpecFilePath =
 const simpleSpec = 'test/commands/kysely-migration/fixtures/simple.valid.yaml'
 const simpleV2Spec = 'test/commands/kysely-migration/fixtures/simple-v2.valid.yaml'
 const typedSpec = 'test/commands/kysely-migration/fixtures/typed.valid.yaml'
+const typedDoublePrecisionSpec = 'test/commands/kysely-migration/fixtures/typed-double-precision.valid.yaml'
 const typedV2Spec = 'test/commands/kysely-migration/fixtures/typed-v2.valid.yaml'
 const simpleV3Spec = 'test/commands/kysely-migration/fixtures/simple-v3.valid.yaml'
 const onlineShopNoPhoneSpec = 'test/commands/kysely-migration/fixtures/online-shop-no-phone.valid.yaml'
@@ -620,6 +621,21 @@ describe('kysely-migration CLI', () => {
     assert.match(content, /\.addUniqueConstraint\('uq_products_sku'/)
     // Index is present
     assert.match(content, /\.createIndex\('idx_products_sku'\)/)
+  })
+
+  it('Given typed-double-precision.valid.yaml with a DOUBLE PRECISION column, When the command executes, Then it maps the type correctly in the migration', () => {
+    const outputFilePath = joinFilePath(temporaryDirectoryPath, 'typed-double-precision-initial.ts')
+
+    const { exitCode } = runCommandAndCapture(() =>
+      executeKyselyMigration([typedDoublePrecisionSpec, '--output', outputFilePath])
+    )
+
+    assert.equal(exitCode, 0)
+
+    const content = readTextFile(outputFilePath)
+
+    assert.match(content, /'rating': number/) // Static fixture is impractical because the migration embeds a generated timestamp and snapshot payload.
+    assert.match(content, /\.addColumn\('rating', 'double precision'/) // Static fixture is impractical because the migration embeds a generated timestamp and snapshot payload.
   })
 
   it('Given simple.valid.yaml to simple-v3.valid.yaml diff, When the command executes, Then it adds a column to an existing table and a new table with a UQ', () => {

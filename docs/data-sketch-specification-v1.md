@@ -416,8 +416,9 @@ Rules:
 - Tools must not infer from similar names.
 - Core parsing and validation must not turn OpenAPI schemas into Data Sketch
   details or aliases.
-- Built-in relational projection may use OpenAPI schemas and required lists as
-  advisory input for projected SQL column types and nullability.
+- Built-in relational projection may use OpenAPI schemas, `type`, `format`,
+  string lengths, and required lists as advisory input for projected SQL column
+  types and nullability.
 - AI tools and renderers may use OpenAPI schemas, enums, formats, and required
   lists as advisory input when proposing storage-specific constraints, but core
   parsing and validation do not turn those hints into Data Sketch details,
@@ -444,10 +445,10 @@ Rules:
 - Fields that are not part of this specification and do not start with `x-` are
   invalid on extensible objects.
 - Core validation must not assign meaning to `x-*`.
-- The renderer or consuming tool decides how to interpret supported `x-*`
-  fields.
-- The built-in Extension Projection preserves `x-*` values for tools that need
-  them after parsing and validation.
+- The projector, renderer, or consuming tool decides how to interpret
+  documented `x-*` fields it supports.
+- The built-in relational projector interprets claim-level
+  `x-relational-db-schema` during projection.
 - `claims` and `relations` are maps whose keys are logical IDs or paths; they
   are not extension containers.
 - `details`, `optionals`, `aliases`, and `relations` are not extension

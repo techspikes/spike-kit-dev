@@ -135,9 +135,9 @@ Validated Data Sketches can be projected into intermediate models for renderers
 and database-facing commands.
 
 - The Relational DB Projection maps claims and details to projected tables,
-  columns, primary keys, and foreign keys.
-- The Extension Projection preserves `x-*` extension fields for tools that need
-  renderer-specific metadata.
+  columns, primary keys, and foreign keys. It infers SQL:1999-compatible
+  column types and nullability from traced OpenAPI fields, then applies
+  claim-level `x-relational-db-schema` overrides.
 
 ## Development
 
@@ -154,4 +154,3 @@ npm test
 - [`spec-check` command specification](docs/commands/spec-check-specification.md)
 - [`tables-doc` command specification](docs/commands/tables-doc-specification.md)
 - [Relational DB Projection Specification](docs/projections/relational-db-projection.md)
-- [Extension Projection Specification](docs/projections/extension-projection.md)

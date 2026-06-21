@@ -33,6 +33,12 @@ paths:
               type: object
               required:
                 - displayName
+                - serialNumber
+                - batchCode
+                - discountRate
+                - legacyMetric
+                - stockLimit
+                - quantityScore
                 - optionalNote
                 - rating
                 - category
@@ -40,6 +46,25 @@ paths:
                 displayName:
                   type: string
                   maxLength: 40
+                serialNumber:
+                  type: string
+                  minLength: 12
+                  maxLength: 12
+                batchCode:
+                  type: string
+                  minLength: 8
+                  maxLength: 8
+                discountRate:
+                  type: number
+                  format: float
+                legacyMetric:
+                  type: number
+                  format: int64
+                stockLimit:
+                  type: integer
+                  format: int64
+                quantityScore:
+                  type: integer
                 optionalNote:
                   type: string
                   maxLength: 120
@@ -59,8 +84,14 @@ paths:
                 required:
                   - displayName
                   - sku
+                  - serialNumber
+                  - batchCode
                   - price
+                  - discountRate
+                  - legacyMetric
                   - stock
+                  - stockLimit
+                  - quantityScore
                   - discontinued
                   - rating
                   - category
@@ -78,10 +109,29 @@ paths:
                     maxLength: 80
                   sku:
                     type: string
+                  serialNumber:
+                    type: string
+                    minLength: 12
+                    maxLength: 12
+                  batchCode:
+                    type: string
+                    minLength: 10
+                    maxLength: 10
                   price:
                     type: number
+                  discountRate:
+                    type: number
+                    format: double
+                  legacyMetric:
+                    type: number
+                    format: int64
                   stock:
                     type: integer
+                  stockLimit:
+                    type: integer
+                    format: int64
+                  quantityScore:
+                    type: number
                   discontinued:
                     type: boolean
                   optionalNote:
@@ -96,6 +146,7 @@ paths:
                     type: array
                     items:
                       type: string
+                      minLength: 15
                       maxLength: 15
                   variants:
                     type: array
@@ -176,8 +227,14 @@ paths:
                 required:
                   - displayName
                   - sku
+                  - serialNumber
+                  - batchCode
                   - price
+                  - discountRate
+                  - legacyMetric
                   - stock
+                  - stockLimit
+                  - quantityScore
                   - discontinued
                   - rating
                   - category
@@ -195,10 +252,29 @@ paths:
                     maxLength: 70
                   sku:
                     type: string
+                  serialNumber:
+                    type: string
+                    minLength: 12
+                    maxLength: 12
+                  batchCode:
+                    type: string
+                    minLength: 10
+                    maxLength: 10
                   price:
                     type: number
+                  discountRate:
+                    type: number
+                    format: double
+                  legacyMetric:
+                    type: number
+                    format: int64
                   stock:
                     type: integer
+                  stockLimit:
+                    type: integer
+                    format: int64
+                  quantityScore:
+                    type: number
                   discontinued:
                     type: boolean
                   optionalNote:
@@ -213,6 +289,7 @@ paths:
                     type: array
                     items:
                       type: string
+                      minLength: 15
                       maxLength: 15
                   variants:
                     type: array

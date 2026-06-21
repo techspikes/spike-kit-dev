@@ -1,0 +1,200 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "customer": {
+      "name": "customers",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_customers",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "product": {
+      "name": "products",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_products",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "category": {
+      "name": "categories",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_categories",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "order": {
+      "name": "orders",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "customer",
+          "name": "customer",
+          "type": "CHAR(26)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_orders",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_orders_customer",
+            "column": "customer",
+            "target": {
+              "table": "customers",
+              "column": "id"
+            },
+            "kind": "inferred"
+          }
+        ]
+      }
+    },
+    "order.items[]": {
+      "name": "order_items",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "order",
+          "name": "order",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "items[].product",
+          "name": "product",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "items[].quantity",
+          "name": "quantity",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_order_items",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_order_items_order",
+            "column": "order",
+            "target": {
+              "table": "orders",
+              "column": "id"
+            },
+            "kind": "structural"
+          },
+          {
+            "name": "fk_order_items_product",
+            "column": "product",
+            "target": {
+              "table": "products",
+              "column": "id"
+            },
+            "kind": "inferred"
+          }
+        ]
+      }
+    },
+    "productCategory": {
+      "name": "product_categories",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "product",
+          "name": "product",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "category",
+          "name": "category",
+          "type": "CHAR(26)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_product_categories",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_product_categories_product",
+            "column": "product",
+            "target": {
+              "table": "products",
+              "column": "id"
+            },
+            "kind": "inferred"
+          },
+          {
+            "name": "fk_product_categories_category",
+            "column": "category",
+            "target": {
+              "table": "categories",
+              "column": "id"
+            },
+            "kind": "inferred"
+          }
+        ]
+      }
+    }
+  }
+}

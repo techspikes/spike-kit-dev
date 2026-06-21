@@ -30,6 +30,8 @@ type RelationalDbProjectionColumnType =
   | 'VARCHAR(1024)'
   | `VARCHAR(${number})`
   | 'INTEGER'
+  | 'BIGINT'
+  | 'DOUBLE PRECISION'
   | 'BOOLEAN'
   | `DECIMAL(${number}, ${number})`
 
@@ -97,6 +99,7 @@ type DetailProjectionInput = {
 type OpenApiFieldProjectionInput = {
   readonly path: string
   readonly schemaType: string
+  readonly minLength?: number
   readonly maxLength?: number
   readonly format?: string
   readonly required: boolean
@@ -539,23 +542,39 @@ function toSnakeCase(value: string) {
 }
 
 function getInferredColumnType(matches: readonly OpenApiFieldProjectionInput[]): RelationalDbProjectionColumnType {
-  const fieldTypes = new Set(matches.map(match => getOpenApiTypeCategory(match.schemaType)))
+  const schemaTypes = new Set(matches.map(match => match.schemaType))
 
-  if (fieldTypes.size !== 1) {
+  if (schemaTypes.size !== 1) {
     return 'VARCHAR(1024)'
   }
 
-  const [fieldType] = fieldTypes
+  const [schemaType] = schemaTypes
 
-  if (fieldType === 'number') {
-    return 'INTEGER'
+  if (schemaType === 'integer') {
+    return matches.every(match => match.format === 'int64') ? 'BIGINT' : 'INTEGER'
   }
 
-  if (fieldType === 'boolean') {
+  if (schemaType === 'number') {
+    return 'DOUBLE PRECISION'
+  }
+
+  if (schemaType === 'boolean') {
     return 'BOOLEAN'
   }
 
-  if (fieldType === 'string') {
+  if (schemaType === 'string') {
+    const fixedLengths = matches.flatMap(match =>
+      match.minLength !== undefined && match.maxLength !== undefined && match.minLength === match.maxLength
+        ? [match.maxLength]
+        : []
+    )
+
+    if (fixedLengths.length === matches.length && fixedLengths[0] !== undefined && new Set(fixedLengths).size === 1) {
+      const fixedLength = fixedLengths[0]
+
+      return `CHAR(${fixedLength})`
+    }
+
     const maxLengths = matches
       .map(match => match.maxLength)
       .filter((maxLength): maxLength is number => typeof maxLength === 'number')
@@ -598,18 +617,6 @@ function getInferredStringFormatType(
   }
 
   return undefined
-}
-
-function getOpenApiTypeCategory(schemaType: string) {
-  if (schemaType === 'integer' || schemaType === 'number') {
-    return 'number'
-  }
-
-  if (schemaType === 'string' || schemaType === 'boolean') {
-    return schemaType
-  }
-
-  return 'unknown'
 }
 
 function collectOpenApiFieldProjectionInputs(
@@ -718,12 +725,17 @@ function collectSchemaFieldProjectionInputs(
   }
 
   if (pathPrefix) {
+    const minLength = getMinLength(schema)
+    const maxLength = getMaxLength(schema)
+    const format = getFormat(schema)
+
     return [
       {
         path: pathPrefix,
         schemaType,
-        ...(getMaxLength(schema) !== undefined ? { maxLength: getMaxLength(schema) } : {}),
-        ...(getFormat(schema) !== undefined ? { format: getFormat(schema) } : {}),
+        ...(minLength !== undefined ? { minLength } : {}),
+        ...(maxLength !== undefined ? { maxLength } : {}),
+        ...(format !== undefined ? { format } : {}),
         required: ancestorsRequired
       }
     ]
@@ -764,12 +776,17 @@ function collectArraySchemaFieldProjectionInputs(
     return collectSchemaFieldProjectionInputs(items, arrayPath, ancestorsRequired)
   }
 
+  const minLength = getMinLength(items)
+  const maxLength = getMaxLength(items)
+  const format = getFormat(items)
+
   return [
     {
       path: arrayPath,
       schemaType: itemType,
-      ...(getMaxLength(items) !== undefined ? { maxLength: getMaxLength(items) } : {}),
-      ...(getFormat(items) !== undefined ? { format: getFormat(items) } : {}),
+      ...(minLength !== undefined ? { minLength } : {}),
+      ...(maxLength !== undefined ? { maxLength } : {}),
+      ...(format !== undefined ? { format } : {}),
       required: ancestorsRequired
     }
   ]
@@ -781,6 +798,10 @@ function getSchemaType(schema: Record<string, unknown>) {
   }
 
   return typeof schema.type === 'string' ? schema.type : 'unknown'
+}
+
+function getMinLength(schema: Record<string, unknown>) {
+  return Number.isInteger(schema.minLength) && Number(schema.minLength) >= 0 ? Number(schema.minLength) : undefined
 }
 
 function getMaxLength(schema: Record<string, unknown>) {
@@ -903,7 +924,7 @@ function resolveColumnTypeOverride(
     return `${type}(${length})` as RelationalDbProjectionColumnType
   }
 
-  if (type === 'INTEGER' || type === 'BOOLEAN') {
+  if (type === 'INTEGER' || type === 'BIGINT' || type === 'DOUBLE PRECISION' || type === 'BOOLEAN') {
     return type
   }
 

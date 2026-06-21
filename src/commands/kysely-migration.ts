@@ -906,6 +906,7 @@ function sqlTypeToTs(sqlType: string, nullable: boolean): string {
     upper === 'INTEGER' ||
     upper === 'BIGINT' ||
     upper === 'SMALLINT' ||
+    upper === 'DOUBLE PRECISION' ||
     upper.startsWith('DECIMAL(') ||
     /* c8 ignore next */
     upper.startsWith('NUMERIC(')

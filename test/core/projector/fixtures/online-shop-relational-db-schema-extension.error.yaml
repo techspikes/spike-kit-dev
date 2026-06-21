@@ -16,6 +16,7 @@ claims:
       - name
       - email
       - phoneNumber
+      - loyaltyFlag
     x-relational-db-schema:
       types:
         doesNotExist:
@@ -28,6 +29,8 @@ claims:
           precision: 5
         name:
           type: NUMERIC
+        loyaltyFlag:
+          type: BIT
         id: not-an-object
       constraints:
         unknownConstraintMember: true

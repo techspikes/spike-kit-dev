@@ -1,0 +1,33 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "widget": {
+      "name": "widgets",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "requiredField",
+          "name": "required_field",
+          "type": "VARCHAR(40)",
+          "nullable": true
+        },
+        {
+          "id": "optionalField",
+          "name": "optional_field",
+          "type": "VARCHAR(40)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_widgets",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    }
+  }
+}
