@@ -15,6 +15,7 @@
       "!node_modules",
       "!.tmp",
       "!bin",
+      "!lib",
       "!dist",
       "!coverage",
       "!test/commands/kysely-migration/fixtures/migrations/*.ts",

@@ -47,7 +47,41 @@ const specificationSchema = v.looseObject({
   )
 })
 
-export type Specification = v.InferOutput<typeof specificationSchema>
+export type Specification = {
+  readonly 'data-sketch': '1.0.0-draft.2'
+  readonly info: {
+    readonly name: string
+    readonly [extensionField: string]: unknown
+  }
+  readonly sources?: {
+    readonly openapi?: string
+    readonly arazzo?: string
+    readonly asyncapi?: string
+    readonly [extensionField: string]: unknown
+  }
+  readonly claims: Readonly<
+    Record<
+      string,
+      {
+        readonly name: string
+        readonly reason: string
+        readonly traces: {
+          readonly operations: readonly string[]
+          readonly workflows?: readonly string[]
+          readonly channels?: readonly string[]
+          readonly [extensionField: string]: unknown
+        }
+        readonly details?: readonly string[]
+        readonly optionals?: Readonly<Record<string, boolean>>
+        readonly aliases?: Readonly<Record<string, readonly string[]>>
+        readonly relations?: Readonly<Record<string, string>>
+        readonly tentative?: boolean
+        readonly [extensionField: string]: unknown
+      }
+    >
+  >
+  readonly [extensionField: string]: unknown
+}
 
 export type DataSketch = {
   readonly spec: Specification

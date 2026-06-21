@@ -4,7 +4,7 @@ import type { Linter } from 'eslint'
 
 export default [
   {
-    ignores: ['.backup/**', 'bin/**', 'coverage/**', 'node_modules/**']
+    ignores: ['.backup/**', 'bin/**', 'coverage/**', 'lib/**', 'node_modules/**']
   },
   {
     files: ['**/*.ts'],

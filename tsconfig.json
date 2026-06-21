@@ -10,6 +10,7 @@
     ".backup",
     "bin",
     "coverage",
+    "lib",
     "node_modules",
     "test/commands/kysely-migration/fixtures/migrations/**/*.ts"
   ]

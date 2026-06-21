@@ -1,6 +1,6 @@
-# Spike Kit
+# Spike Kit Dev
 
-[![Node.js CI](https://github.com/techspikes/spike-kit/actions/workflows/node.js.yml/badge.svg)](https://github.com/techspikes/spike-kit/actions/workflows/node.js.yml)
+[![Node.js CI](https://github.com/techspikes/spike-kit-dev/actions/workflows/node.js.yml/badge.svg)](https://github.com/techspikes/spike-kit-dev/actions/workflows/node.js.yml)
 
 Specification and tools for agile teams to quickly sketch disposable data
 stores for user stories.
@@ -19,7 +19,7 @@ revise or discard as the team learns.
 ## Setup
 
 ```sh
-npm install --save-dev git+https://github.com/techspikes/spike-kit.git
+npm install --save-dev git+https://github.com/techspikes/spike-kit-dev.git
 ```
 
 The CLI is installed as `shot`, named after the shot used when making espresso.
