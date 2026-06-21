@@ -1,0 +1,87 @@
+data-sketch: 1.0.0-draft.2
+info:
+  name: online-shop
+
+claims:
+  customer:
+    name: clients
+    reason: Customer profile information is needed when orders are created.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+      - email
+    x-relational-db-schema:
+      constraints:
+        unique:
+          - name: uq_clients_email
+            columns:
+              - email
+      indexes:
+        - name: idx_clients_name
+          columns:
+            - name
+      names:
+        columns:
+          customer:
+            email: email_address
+  product:
+    name: products
+    reason: Product information is needed so users can select products for orders.
+    traces:
+      operations:
+        - createProduct
+    details:
+      - sku
+      - price
+      - active
+      - inventoryCount
+    optionals:
+      active: true
+    x-relational-db-schema:
+      types:
+        price:
+          type: DECIMAL
+          precision: 10
+          scale: 4
+        active:
+          type: BOOLEAN
+        inventoryCount:
+          type: BIGINT
+      constraints:
+        unique:
+          - name: uq_products_sku
+            columns:
+              - sku
+              - price
+      indexes:
+        - name: idx_products_sku
+          columns:
+            - sku
+            - price
+  order:
+    name: purchases
+    reason: Order state is needed after checkout.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - status
+      - customer
+      - product
+      - notes
+    relations:
+      customer: customer
+      product: product
+    optionals:
+      product: true
+    x-relational-db-schema:
+      types:
+        status:
+          type: VARCHAR
+          length: 20
+      names:
+        columns:
+          order:
+            customer: customer_ref

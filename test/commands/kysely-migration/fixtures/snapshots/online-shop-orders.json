@@ -1,0 +1,64 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "customer": {
+      "name": "customers",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "name",
+          "name": "name",
+          "type": "VARCHAR(1024)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_customers",
+          "columns": ["id"]
+        },
+        "foreign": []
+      }
+    },
+    "order": {
+      "name": "orders",
+      "columns": [
+        {
+          "id": "id",
+          "name": "id",
+          "type": "CHAR(26)"
+        },
+        {
+          "id": "status",
+          "name": "status",
+          "type": "VARCHAR(1024)"
+        },
+        {
+          "id": "customer",
+          "name": "customer",
+          "type": "CHAR(26)"
+        }
+      ],
+      "keys": {
+        "primary": {
+          "name": "pk_orders",
+          "columns": ["id"]
+        },
+        "foreign": [
+          {
+            "name": "fk_orders_customer",
+            "column": "customer",
+            "target": {
+              "table": "customers",
+              "column": "id"
+            },
+            "kind": "explicit"
+          }
+        ]
+      }
+    }
+  }
+}

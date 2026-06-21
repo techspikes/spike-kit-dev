@@ -1,0 +1,24 @@
+data-sketch: 1.0.0-draft.2
+info:
+  name: online-shop
+
+claims:
+  customer:
+    name: customers
+    reason: Customer profile information is needed when orders are created.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+  order:
+    name: orders
+    reason: Order state is needed after checkout.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - status
+      - customer
+    relations:
+      customer: customer

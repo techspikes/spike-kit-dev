@@ -1,0 +1,23 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "category": {
+      "name": "categories",
+      "columns": [
+        { "id": "id", "name": "id", "type": "CHAR(26)" },
+        { "id": "parent", "name": "parent", "type": "CHAR(26)", "nullable": true }
+      ],
+      "keys": {
+        "primary": { "name": "pk_categories", "columns": ["id"] },
+        "foreign": [
+          {
+            "name": "fk_categories_parent",
+            "column": "parent",
+            "target": { "table": "categories", "column": "id" },
+            "kind": "explicit"
+          }
+        ]
+      }
+    }
+  }
+}

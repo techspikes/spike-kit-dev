@@ -1,0 +1,26 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+  x-owner: shop team
+
+sources:
+  openapi: ../openapi/openapi.yaml
+  x-source-kind: contract
+
+claims:
+  customer:
+    name: customers
+    reason: |-
+      Customer profile information is needed when customers are created and
+      later looked up for ordering and support context.
+    traces:
+      operations:
+        - createCustomer
+      x-trace-source: shopping journey
+    details:
+      - name
+      - email
+    x-relational-db-schema: customer overrides
+
+x-note: used by an external tool

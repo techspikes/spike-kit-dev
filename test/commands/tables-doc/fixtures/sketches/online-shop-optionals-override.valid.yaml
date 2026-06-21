@@ -1,0 +1,23 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+sources:
+  openapi: ../openapi/optionals-override.yaml
+
+claims:
+  widget:
+    name: widgets
+    reason: |-
+      Widget information is needed after creation so the service can confirm
+      the widget was registered.
+    traces:
+      operations:
+        - createWidget
+    details:
+      - requiredField
+      - optionalField
+    optionals:
+      requiredField: true
+      optionalField: false

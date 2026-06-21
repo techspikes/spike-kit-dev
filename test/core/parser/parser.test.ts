@@ -9,69 +9,73 @@ import {
 
 describe('core parser', () => {
   it('parse reads a valid YAML Data Sketch file into a DataSketch', () => {
-    const specFilePath = 'test/core/parser/fixtures/online-shop.valid.yaml'
-    const sketch = parse({ specFilePath: specFilePath })
+    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop.valid.yaml' })
 
     assert.equal(sketch.spec.info.name, 'online-shop')
     assert.equal(sketch.spec.claims.product.name, 'products')
     assert.equal(sketch.metadata.version, '1.0.0-draft.2')
-    assert.equal(sketch.metadata.baseDirectoryPath, resolveCwdRelativeDirectoryPath(specFilePath))
+    assert.equal(
+      sketch.metadata.baseDirectoryPath,
+      resolveCwdRelativeDirectoryPath('test/core/parser/fixtures/sketches/online-shop.valid.yaml')
+    )
     assert.equal(sketch.metadata.validated, undefined)
   })
 
   it('parse reads a valid JSON Data Sketch file into a DataSketch', () => {
-    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/online-shop.valid.json' })
+    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop.valid.json' })
 
     assert.equal(sketch.spec.info.name, 'online-shop')
     assert.equal(sketch.spec.claims.customer.name, 'customers')
   })
 
   it('parse accepts source text and uses the current working directory as metadata base path', () => {
-    const specFilePath = 'test/core/parser/fixtures/online-shop.valid.yaml'
-    const sketch = parse({ specSourceText: readTextFile(specFilePath) })
+    const sketch = parse({
+      specSourceText: readTextFile('test/core/parser/fixtures/sketches/online-shop.valid.yaml')
+    })
 
     assert.equal(sketch.spec.info.name, 'online-shop')
     assert.equal(sketch.metadata.baseDirectoryPath, process.cwd())
   })
 
   it('parse accepts an absolute specification path for metadata', () => {
-    const specFilePath = resolveCwdRelativeFilePath('test/core/parser/fixtures/online-shop.valid.yaml')
-    const sketch = parse({ specFilePath: specFilePath })
+    const sketch = parse({
+      specFilePath: resolveCwdRelativeFilePath('test/core/parser/fixtures/sketches/online-shop.valid.yaml')
+    })
 
-    assert.equal(sketch.metadata.baseDirectoryPath, resolveCwdRelativeFilePath('test/core/parser/fixtures'))
+    assert.equal(sketch.metadata.baseDirectoryPath, resolveCwdRelativeFilePath('test/core/parser/fixtures/sketches'))
   })
 
   it('parse rejects invalid YAML syntax', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-invalid-syntax.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-invalid-syntax.invalid.yaml' }),
       /Failed to parse:/
     )
   })
 
   it('parse rejects unsupported Data Sketch versions', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-unsupported-version.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-unsupported-version.invalid.yaml' }),
       /data-sketch/
     )
   })
 
   it('parse rejects a claim without details', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-empty-claim.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-empty-claim.invalid.yaml' }),
       /claims\.customer must include details/
     )
   })
 
   it('parse rejects duplicate claim logical IDs', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-duplicate-claim-id.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-duplicate-claim-id.invalid.yaml' }),
       /Failed to parse: duplicated mapping key/
     )
   })
 
   it('parse rejects duplicate claim implementation names', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-duplicate-claim-name.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-duplicate-claim-name.invalid.yaml' }),
       /claims\.shopper\.name customers is duplicated/
     )
   })
@@ -80,7 +84,8 @@ describe('core parser', () => {
     assert.throws(
       () =>
         parse({
-          specFilePath: 'test/core/parser/fixtures/online-shop-claim-id-with-projection-separators.invalid.yaml'
+          specFilePath:
+            'test/core/parser/fixtures/sketches/online-shop-claim-id-with-projection-separators.invalid.yaml'
         }),
       /claims\.customer\.profile must not contain \. or \[\]\nclaims\.order\[\] must not contain \. or \[\]/
     )
@@ -88,13 +93,18 @@ describe('core parser', () => {
 
   it('parse rejects a claim implementation name that contains whitespace', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-claim-name-with-whitespace.invalid.yaml' }),
+      () =>
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-claim-name-with-whitespace.invalid.yaml'
+        }),
       /claims\.customer\.name: must not contain whitespace/
     )
   })
 
   it('parse accepts double underscores in claim IDs, details, and relations', () => {
-    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/online-shop-double-underscore.valid.yaml' })
+    const sketch = parse({
+      specFilePath: 'test/core/parser/fixtures/sketches/online-shop-double-underscore.valid.yaml'
+    })
 
     assert.deepEqual(sketch.spec.claims.customer__profile.details, ['address__city'])
     assert.deepEqual(sketch.spec.claims.order.details, ['items__product'])
@@ -102,7 +112,7 @@ describe('core parser', () => {
   })
 
   it('parse accepts claim-level detail aliases', () => {
-    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/online-shop-detail-aliases.valid.yaml' })
+    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-detail-aliases.valid.yaml' })
 
     assert.deepEqual(sketch.spec.claims.product.details, ['name', 'discontinued'])
     assert.deepEqual(sketch.spec.claims.product.aliases, {
@@ -112,7 +122,7 @@ describe('core parser', () => {
   })
 
   it('parse accepts claim-level detail optionals overrides', () => {
-    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/online-shop-detail-optionals.valid.yaml' })
+    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-detail-optionals.valid.yaml' })
 
     assert.deepEqual(sketch.spec.claims.product.details, ['name', 'discontinued'])
     assert.deepEqual(sketch.spec.claims.product.optionals, {
@@ -122,7 +132,7 @@ describe('core parser', () => {
   })
 
   it('parse accepts x-* extension fields on extensible objects', () => {
-    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/online-shop-extension-fields.valid.yaml' })
+    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-extension-fields.valid.yaml' })
 
     assert.equal((sketch.spec as Record<string, unknown>)['x-note'], 'used by an external tool')
     assert.equal((sketch.spec.info as Record<string, unknown>)['x-owner'], 'shop team')
@@ -136,28 +146,34 @@ describe('core parser', () => {
 
   it('parse rejects unsupported root fields that are not x-* extensions', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-unsupported-root-field.invalid.yaml' }),
+      () =>
+        parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-unsupported-root-field.invalid.yaml' }),
       /summary is not supported; use x-\* for extension fields/
     )
   })
 
   it('parse rejects unsupported claim fields that are not x-* extensions', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-unsupported-claim-field.invalid.yaml' }),
+      () =>
+        parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-unsupported-claim-field.invalid.yaml' }),
       /claims\.customer\.displayLabel is not supported; use x-\* for extension fields/
     )
   })
 
   it('parse rejects duplicate list-form detail IDs', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-duplicate-list-detail-id.invalid.yaml' }),
+      () =>
+        parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-duplicate-list-detail-id.invalid.yaml' }),
       /claims\.customer\.details\.email is duplicated/
     )
   })
 
   it('parse rejects list-form detail paths with empty segments', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-list-detail-empty-segment.invalid.yaml' }),
+      () =>
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-list-detail-empty-segment.invalid.yaml'
+        }),
       /claims\.order\.details\.carrier\.\.name must not contain empty path segments/
     )
   })
@@ -165,14 +181,19 @@ describe('core parser', () => {
   it('parse rejects list-form detail paths with array markers that have no segment name', () => {
     assert.throws(
       () =>
-        parse({ specFilePath: 'test/core/parser/fixtures/online-shop-list-detail-empty-array-segment.invalid.yaml' }),
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-list-detail-empty-array-segment.invalid.yaml'
+        }),
       /claims\.order\.details\.\[\]\.product segment \[\] must be either <name> or <name>\[\]/
     )
   })
 
   it('parse rejects list-form detail paths where one path is a strict prefix of another', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-list-detail-strict-prefix.invalid.yaml' }),
+      () =>
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-list-detail-strict-prefix.invalid.yaml'
+        }),
       /claims\.order\.details\.carrier must not be a strict prefix of carrier\.name/
     )
   })
@@ -180,7 +201,9 @@ describe('core parser', () => {
   it('parse rejects list-form detail paths where a later path is a strict prefix of an earlier path', () => {
     assert.throws(
       () =>
-        parse({ specFilePath: 'test/core/parser/fixtures/online-shop-list-detail-reverse-strict-prefix.invalid.yaml' }),
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-list-detail-reverse-strict-prefix.invalid.yaml'
+        }),
       /claims\.order\.details\.carrier must not be a strict prefix of carrier\.name/
     )
   })
@@ -188,21 +211,24 @@ describe('core parser', () => {
   it('parse rejects list-form detail paths that mix object and array form for a segment', () => {
     assert.throws(
       () =>
-        parse({ specFilePath: 'test/core/parser/fixtures/online-shop-list-detail-array-object-conflict.invalid.yaml' }),
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-list-detail-array-object-conflict.invalid.yaml'
+        }),
       /claims\.order\.details\.items\.product conflicts with items\[\]\.product because segment items uses both object and array form/
     )
   })
 
   it('parse rejects list-form identity detail paths', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-list-detail-reserved-id.invalid.yaml' }),
+      () =>
+        parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-list-detail-reserved-id.invalid.yaml' }),
       /claims\.customer\.details\.id is a reserved identity detail path/
     )
   })
 
   it('parse accepts list-form details with the same terminal path segment', () => {
     const sketch = parse({
-      specFilePath: 'test/core/parser/fixtures/online-shop-list-form-detail-terminal-name-overlap.valid.yaml'
+      specFilePath: 'test/core/parser/fixtures/sketches/online-shop-list-form-detail-terminal-name-overlap.valid.yaml'
     })
 
     assert.deepEqual(sketch.spec.claims.customer.details, ['billing.name', 'shipping.name'])
@@ -210,7 +236,7 @@ describe('core parser', () => {
 
   it('parse accepts a relation source path that is also listed in details', () => {
     const sketch = parse({
-      specFilePath: 'test/core/parser/fixtures/online-shop-relation-source-detail-overlap.valid.yaml'
+      specFilePath: 'test/core/parser/fixtures/sketches/online-shop-relation-source-detail-overlap.valid.yaml'
     })
 
     assert.deepEqual(sketch.spec.claims.order.details, ['customer'])
@@ -218,7 +244,9 @@ describe('core parser', () => {
   })
 
   it('parse accepts a relation source path that is listed only in relations', () => {
-    const sketch = parse({ specFilePath: 'test/core/parser/fixtures/online-shop-relation-source-only.valid.yaml' })
+    const sketch = parse({
+      specFilePath: 'test/core/parser/fixtures/sketches/online-shop-relation-source-only.valid.yaml'
+    })
 
     assert.deepEqual(sketch.spec.claims.order.details, ['status'])
     assert.deepEqual(sketch.spec.claims.order.relations, { customer: 'customer' })
@@ -226,28 +254,40 @@ describe('core parser', () => {
 
   it('parse rejects relation source paths with empty segments', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-relation-source-empty-segment.invalid.yaml' }),
+      () =>
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-relation-source-empty-segment.invalid.yaml'
+        }),
       /claims\.order\.relations\.customer\.\.profile must not contain empty path segments/
     )
   })
 
   it('parse rejects relation source identity paths', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-relation-source-reserved-id.invalid.yaml' }),
+      () =>
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-relation-source-reserved-id.invalid.yaml'
+        }),
       /claims\.order\.relations\.id is a reserved identity detail path/
     )
   })
 
   it('parse rejects relation source paths that use array-of-scalars', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-array-scalar-relation-source.invalid.yaml' }),
+      () =>
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-array-scalar-relation-source.invalid.yaml'
+        }),
       /claims\.order\.relations\.products\[\] must not use an array-of-scalars detail as a relation source/
     )
   })
 
   it('parse rejects effective detail paths where a relation source path is a strict prefix', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-relation-source-strict-prefix.invalid.yaml' }),
+      () =>
+        parse({
+          specFilePath: 'test/core/parser/fixtures/sketches/online-shop-relation-source-strict-prefix.invalid.yaml'
+        }),
       /claims\.order\.relations\.customer must not be a strict prefix of customer\.name/
     )
   })
@@ -256,7 +296,8 @@ describe('core parser', () => {
     assert.throws(
       () =>
         parse({
-          specFilePath: 'test/core/parser/fixtures/online-shop-relation-source-array-object-conflict.invalid.yaml'
+          specFilePath:
+            'test/core/parser/fixtures/sketches/online-shop-relation-source-array-object-conflict.invalid.yaml'
         }),
       /claims\.order\.relations\.items\.product conflicts with items\[\]\.product because segment items uses both object and array form/
     )
@@ -264,56 +305,59 @@ describe('core parser', () => {
 
   it('parse rejects relation targets that are not claim IDs', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-relation-target-detail.invalid.yaml' }),
+      () =>
+        parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-relation-target-detail.invalid.yaml' }),
       /claims\.order\.relations\.items\[\]\.productSku target product\.sku must be a claim ID/
     )
   })
 
   it('parse rejects relation targets that include the target identity path', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-relation-target-identity.invalid.yaml' }),
+      () =>
+        parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-relation-target-identity.invalid.yaml' }),
       /claims\.order\.relations\.items\[\]\.product target product\.id must be a claim ID; do not write \.id/
     )
   })
 
   it('parse rejects object-form details', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-object-form-details.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-object-form-details.invalid.yaml' }),
       /claims\.customer\.details: Invalid type/
     )
   })
 
   it('parse rejects aliases for paths that are not listed in details', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-unknown-detail-alias.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-unknown-detail-alias.invalid.yaml' }),
       /claims\.product\.aliases\.sku must also be listed in details/
     )
   })
 
   it('parse rejects empty alias lists', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-empty-detail-alias.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-empty-detail-alias.invalid.yaml' }),
       /claims\.product\.aliases\.name: Invalid length/
     )
   })
 
   it('parse rejects optionals for paths that are not listed in details', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-unknown-detail-optional.invalid.yaml' }),
+      () =>
+        parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-unknown-detail-optional.invalid.yaml' }),
       /claims\.product\.optionals\.sku must also be listed in details/
     )
   })
 
   it('parse rejects object-form relations', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/online-shop-object-form-relation.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/online-shop-object-form-relation.invalid.yaml' }),
       /claims\.order\.relations\.customer: Invalid type/
     )
   })
 
   it('parse rejects root values that are not objects', () => {
     assert.throws(
-      () => parse({ specFilePath: 'test/core/parser/fixtures/root-null.invalid.yaml' }),
+      () => parse({ specFilePath: 'test/core/parser/fixtures/sketches/root-null.invalid.yaml' }),
       /Invalid type: Expected Object but received null/
     )
   })

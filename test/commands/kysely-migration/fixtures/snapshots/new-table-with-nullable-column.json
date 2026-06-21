@@ -1,0 +1,17 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "coupon": {
+      "name": "coupons",
+      "columns": [
+        { "id": "id", "name": "id", "type": "CHAR(26)" },
+        { "id": "code", "name": "code", "type": "VARCHAR(40)", "nullable": true }
+      ],
+      "keys": {
+        "primary": { "name": "pk_coupons", "columns": ["id"] },
+        "foreign": []
+      },
+      "indexes": [{ "name": "idx_coupons_code", "columns": ["code"] }]
+    }
+  }
+}

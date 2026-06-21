@@ -1,0 +1,18 @@
+data-sketch: 1.0.0-draft.2
+
+info:
+  name: online-shop
+
+claims:
+  product:
+    name: products
+    reason: Product information is needed so users can select products for orders.
+    traces:
+      operations:
+        - createProduct
+    details:
+      - rating
+    x-relational-db-schema:
+      types:
+        rating:
+          type: DOUBLE PRECISION

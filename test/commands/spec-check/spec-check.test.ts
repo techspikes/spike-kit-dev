@@ -8,7 +8,7 @@ const usageLine = 'Usage: shot spec-check [OPTION]... SPEC_FILE'
 describe('spec-check command', () => {
   it('Given a valid Data Sketch specification, When the command executes, Then it prints a success message', () => {
     const result = runCommandAndCapture(() =>
-      executeSpecCheck(['test/commands/spec-check/fixtures/online-shop.valid.yaml'])
+      executeSpecCheck(['test/commands/spec-check/fixtures/sketches/online-shop.valid.yaml'])
     )
 
     assert.equal(result.exitCode, 0)
@@ -42,7 +42,7 @@ describe('spec-check command', () => {
 
   it('Given an invalid Data Sketch specification, When the command executes, Then it prints a parse error and returns a non-zero exit code', () => {
     const result = runCommandAndCapture(() =>
-      executeSpecCheck(['test/commands/spec-check/fixtures/online-shop-unsupported-version.invalid.yaml'])
+      executeSpecCheck(['test/commands/spec-check/fixtures/sketches/online-shop-unsupported-version.invalid.yaml'])
     )
 
     assert.equal(result.exitCode, 1)
@@ -55,7 +55,7 @@ describe('spec-check command', () => {
 
   it('Given a Data Sketch specification with a missing traced operation, When the command executes, Then it prints a trace validation error and returns a non-zero exit code', () => {
     const result = runCommandAndCapture(() =>
-      executeSpecCheck(['test/commands/spec-check/fixtures/online-shop-missing-operation.invalid.yaml'])
+      executeSpecCheck(['test/commands/spec-check/fixtures/sketches/online-shop-missing-operation.invalid.yaml'])
     )
 
     assert.equal(result.exitCode, 1)

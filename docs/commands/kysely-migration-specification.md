@@ -27,8 +27,6 @@ shot kysely-migration [OPTION]... SPEC_FILE -p PREV_FILE --output MIGRATION_FILE
   Without this option, the command generates an initial migration.
 - `--types-output TYPES_FILE`: write a separate TypeScript declaration file containing
   `export interface Database`. The path must end with `.d.ts`.
-- `--include-tentative`: explicitly include tables from claims with `tentative: true`.
-  Without this option, tentative claims are excluded and reported as warnings.
 - `--dry-run`: perform read, parse, validation, projection, previous snapshot reading,
   and render validation, but write no files. Exits with status `0` on success.
 - `-h, --help`: print usage to stdout and exit with status `0`.
@@ -50,7 +48,7 @@ shot kysely-migration [OPTION]... SPEC_FILE -p PREV_FILE --output MIGRATION_FILE
   declaration file after writing `MIGRATION_FILE`. In diff migration mode,
   `--types-output` renders the type file from the after (current) projection snapshot.
 - When `--dry-run` is provided, the command performs all steps except writing files.
-  On success it prints `Dry run completed` and exits with status 0.
+  On success it exits with status 0.
 - When parsing, validation, projection, previous snapshot reading, or rendering fails,
   the command prints the error message to stderr and returns a non-zero exit code. No
   partial file is written.
@@ -69,66 +67,64 @@ The Relational DB Projection already has OpenAPI type inference and any
 renders the Relational DB Projection directly and does not apply
 `x-relational-db-schema` itself.
 
-### Tentative Claims
+### Tentative Tables
 
-Without `--include-tentative`, projected tables whose source claim has `tentative: true`
-are excluded from the migration. For each excluded table, the command writes a warning
-to stderr:
+Projected tables whose source claim has `tentative: true` are included in the
+migration. For each tentative table, the command writes a warning to stderr:
 
 ```
-Warning: Tentative claim excluded from migration: <table-name>
+Warning: Tentative table included in migration and needs review: <table-name>
 ```
 
-## DB Projection Snapshot
+## Embedded Relational DB Projection
 
-The DB Projection Snapshot is a normalized JSON model of the Relational DB Projection
-state. It is embedded in every generated migration file and type file for use as the
-`--previous-migration` before snapshot in a future diff migration.
+The command embeds the normalized Relational DB Projection in every generated migration
+file and type file for use as the `--previous-migration` before projection in a future
+diff migration.
 
 ```ts
-type DbProjectionSnapshot = {
-  'data-sketch/db-projection-snapshot': '1.0.0-draft.0'
-  tables: SnapshotTable[]
+type EmbeddedRelationalDbProjection = {
+  'data-sketch/relational-db-projection': '1.0.0-draft.3'
+  tables: Record<string, RelationalDbProjectionTable>
 }
 
-type SnapshotTable = {
-  id: string                       // projection table key: claim ID, or "claimId.path" for child tables
-  name: string                     // projected physical table name
-  columns: SnapshotColumn[]
-  primaryKey: SnapshotNamedColumns // always present (surrogate id)
-  uniqueConstraints: SnapshotNamedColumns[]
-  foreignKeys: SnapshotForeignKey[]
-  indexes: SnapshotIndex[]
-  checkConstraints: SnapshotCheckConstraint[]
+type RelationalDbProjectionTable = {
+  name: string
+  columns: RelationalDbProjectionColumn[]
+  keys: {
+    primary: NamedColumns
+    foreign: ForeignKey[]
+  }
+  constraints?: {
+    unique?: NamedColumns[]
+    check?: CheckConstraint[]
+  }
+  indexes?: NamedColumns[]
 }
 
-type SnapshotColumn = {
+type RelationalDbProjectionColumn = {
   id: string      // detail path string (e.g., 'status', 'items[].quantity'); 'id' for the surrogate key
   name: string    // projected physical column name
   type: string    // SQL type string from projection (e.g., 'CHAR(26)', 'VARCHAR(20)')
-  nullable: boolean
+  nullable?: true
 }
 
-type SnapshotNamedColumns = {
+type NamedColumns = {
   name: string
   columns: string[]  // physical column names
 }
 
-type SnapshotForeignKey = {
+type ForeignKey = {
   name: string
   column: string  // physical column name
   target: {
     table: string   // physical table name
     column: string  // physical column name
   }
+  kind: 'explicit' | 'structural' | 'inferred' | 'extension'
 }
 
-type SnapshotIndex = {
-  name: string
-  columns: string[]  // physical column names
-}
-
-type SnapshotCheckConstraint = {
+type CheckConstraint = {
   name: string
   column: string   // physical column name
   enum: string[]
@@ -137,21 +133,23 @@ type SnapshotCheckConstraint = {
 
 Rules:
 
-- `tables` are listed in dependency order (same order as `up`).
+- `tables` is a map keyed by Relational DB Projection table ID. For root tables this
+  is the claim ID. For child tables generated from array-of-objects detail paths this
+  is `"<claimId>.<path>"`.
+- The embedded payload uses Relational DB Projection version `1.0.0-draft.3`.
+- Rendered migration statements use dependency order derived from the `tables` map.
 - `columns` are listed in projected order, with `id` first.
-- Table `id` values use the Relational DB Projection table key. For root tables this is
-  the claim ID. For child tables generated from array-of-objects detail paths this is
-  `"<claimId>.<path>"`.
 - Column `id` values use the canonical detail path string from the Data Sketch. The
   surrogate key column always uses `'id'`.
 - Table and column references (in constraints, FKs, and indexes) use resolved physical
   names, not logical IDs.
-- Empty collections are represented as empty arrays, not omitted.
+- Optional projection collections such as `constraints` and `indexes` follow the
+  Relational DB Projection shape and may be omitted when empty.
 
 ## Embedded Snapshot
 
-Every generated migration file and type file begins with an embedded DB Projection
-Snapshot metadata block, encoding the after snapshot.
+Every generated migration file and type file begins with an embedded Relational DB
+Projection metadata block, encoding the after projection.
 
 Encoding:
 
@@ -166,7 +164,7 @@ Encoding:
 
 ```ts
 // ---
-// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0
+// data-sketch/relational-db-projection/embedded: 1.0.0-draft.3
 // generated_at: <UTC ISO 8601>
 // payload: |
 //   <base64 chunk>
@@ -175,16 +173,17 @@ Encoding:
 ```
 
 `generated_at` is the UTC ISO 8601 generation timestamp.
-`data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0` is the fixed embedded
-snapshot identifier. Version `1.0.0-draft.0` uses gzip+base64 as its fixed payload
+`data-sketch/relational-db-projection/embedded: 1.0.0-draft.3` is the fixed embedded
+projection identifier. Version `1.0.0-draft.3` uses gzip+base64 as its fixed payload
 encoding.
 
 When reading a `--previous-migration` file, the snapshot reader scans the full source
 for line-commented YAML front matter blocks delimited by `// ---`, strips the leading
 `// ` comment marker, and parses each candidate block as YAML. The first block with
-`data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0` and a string `payload`
-value is the embedded snapshot. Other comments before or after the block are ignored.
-The command accepts only snapshots with the `1.0.0-draft.0` identifier.
+`data-sketch/relational-db-projection/embedded: 1.0.0-draft.3` and a string `payload`
+value is the embedded projection. Other comments before or after the block are ignored.
+The decoded payload must contain `data-sketch/relational-db-projection:
+1.0.0-draft.3`. Older embedded DB projection snapshot versions are rejected.
 
 ## Diff Migration
 
@@ -231,9 +230,10 @@ The embedded snapshot in the generated diff migration file contains the after sn
 `up` renders diff operations in this fixed order:
 
 1. Drop non-unique indexes that are removed or changed.
-2. Drop unique constraints, foreign keys, and primary keys that are removed or changed,
-   using `alterTable(...).dropConstraint(name)`.
-3. Rename tables using `renameTable(oldName, newName)`.
+2. Drop foreign keys, unique constraints, and primary keys that are removed or changed,
+   using `alterTable(...).dropConstraint(name)`. Foreign keys are dropped before
+   referenced keys.
+3. Rename tables using `alterTable(oldName).renameTo(newName)`.
 4. Rename columns using `alterTable(...).renameColumn(oldName, newName)`.
 5. Drop columns that are removed, using `alterTable(...).dropColumn(name)`.
 6. Drop tables that are removed, in reverse dependency order.
@@ -260,7 +260,7 @@ export async function up(db: Kysely<MigrationDatabase>): Promise<void> {
   await db.schema.alterTable('<table>').dropConstraint('<constraint-name>').execute()
 
   // Step 3-4: renames
-  await db.schema.renameTable('<old-table>', '<new-table>').execute()
+  await db.schema.alterTable('<old-table>').renameTo('<new-table>').execute()
   await db.schema.alterTable('<table>').renameColumn('<old-col>', '<new-col>').execute()
 
   // Step 5-6: drops
@@ -270,7 +270,12 @@ export async function up(db: Kysely<MigrationDatabase>): Promise<void> {
   // Step 7: alter columns
   await db.schema
     .alterTable('<table>')
-    .alterColumn('<col>', col => col.setDataType('<new-type>').setNotNull())
+    .alterColumn('<col>', col => col.setDataType('<new-type>'))
+    .execute()
+
+  await db.schema
+    .alterTable('<table>')
+    .alterColumn('<col>', col => col.dropNotNull())
     .execute()
 
   // Step 8: add new tables (same form as initial migration)
@@ -308,7 +313,7 @@ functions.
 
 ```ts
 // ---
-// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0
+// data-sketch/relational-db-projection/embedded: 1.0.0-draft.3
 // generated_at: <UTC ISO 8601>
 // payload: |
 //   <base64 line>
@@ -342,8 +347,9 @@ SQL type to TypeScript type mapping:
 
 | SQL type pattern | TypeScript type |
 | --- | --- |
-| `CHAR(n)`, `VARCHAR(n)`, `TEXT`, `DATE`, `TIME`, `TIMESTAMP` | `string` |
-| `INTEGER`, `BIGINT`, `SMALLINT`, `DOUBLE PRECISION`, `DECIMAL(p,s)`, `NUMERIC(p,s)` | `number` |
+| `CHAR(n)`, `VARCHAR(n)` | `string` |
+| `INTEGER`, `DOUBLE PRECISION` | `number` |
+| `BIGINT`, `DECIMAL(p,s)` | `string` |
 | `BOOLEAN` | `boolean` |
 
 Nullable columns (`nullable: true`) append ` | null` to the TypeScript type.
@@ -450,60 +456,26 @@ file from the after (current) projection snapshot.
 
 Generated migrations target SQL92-compatible DDL through Kysely schema builder APIs.
 
-The command does not use the Kysely `sql` template tag. Diff migrations that cannot be
-expressed through Kysely schema builder APIs are rejected during rendering with a
-non-zero exit code.
+The command does not use the Kysely `sql` template tag. Column type changes use
+`alterColumn(..., col => col.setDataType(...))`. Nullability changes use
+`alterColumn(..., col => col.setNotNull())` or
+`alterColumn(..., col => col.dropNotNull())`. When type and nullability both change,
+the command emits separate `alterColumn` statements.
+
+Before rendering a current or embedded previous projection, the command validates it
+with `validateRelationalDbProjection`.
 
 Rejected in this version:
 
-- Column `alterColumn` type or nullable changes that Kysely cannot express portably
-  (these are generated but flagged as requiring dialect-specific support in the
-  rendered comment).
+- Snapshot foreign keys whose source column, target table, or target column does not
+  exist in the rendered snapshot.
 - Any diff operation that requires raw SQL.
 
-## Progress Output
+## Command Output
 
-Successful initial migration generation reports to stdout:
-
-```
-Data Sketch read
-Validating Data Sketch
-Building Relational DB Projection
-Rendering migration
-Migration written
-Type definitions written
-Migration generated
-```
-
-`Type definitions written` is emitted only when `--types-output` is used.
-
-Successful diff migration generation also reports these steps after reading `PREV_FILE`:
-
-```
-Data Sketch read
-Validating Data Sketch
-Building Relational DB Projection
-Previous migration read
-Previous DB projection snapshot parsed
-Rendering diff migration
-Migration written
-Type definitions written
-Migration generated
-```
-
-Successful dry-run reports:
-
-```
-Data Sketch read
-Validating Data Sketch
-Building Relational DB Projection
-[Previous migration read]
-[Previous DB projection snapshot parsed]
-Rendering migration
-Dry run completed
-```
-
-Lines in brackets are emitted only when `--previous-migration` is used.
+Successful runs write `Migration generated` to stdout. Successful dry runs write
+`Dry run completed` to stdout. Warnings are written to stderr and do not change the
+exit code.
 
 Argument errors write `Error: <reason>`, a blank line, and usage text to stderr.
 
@@ -523,7 +495,7 @@ Output:
 
 ```ts
 // ---
-// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0
+// data-sketch/relational-db-projection/embedded: 1.0.0-draft.3
 // generated_at: 2026-06-16T00:00:00.000Z
 // payload: |
 //   <base64>
@@ -604,7 +576,7 @@ Output excerpt:
 
 ```ts
 // ---
-// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0
+// data-sketch/relational-db-projection/embedded: 1.0.0-draft.3
 // generated_at: 2026-06-16T01:00:00.000Z
 // payload: |
 //   <base64>

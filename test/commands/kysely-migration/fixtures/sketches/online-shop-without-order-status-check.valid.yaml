@@ -1,0 +1,13 @@
+data-sketch: 1.0.0-draft.2
+info:
+  name: online-shop
+
+claims:
+  order:
+    name: orders
+    reason: Order state is needed after checkout.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - status

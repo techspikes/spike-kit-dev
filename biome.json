@@ -17,7 +17,8 @@
       "!bin",
       "!dist",
       "!coverage",
-      "!test/commands/kysely-migration/fixtures/expected/*.ts"
+      "!test/commands/kysely-migration/fixtures/migrations/*.ts",
+      "!test/commands/kysely-migration/fixtures/types/*.d.ts"
     ]
   },
   "formatter": {

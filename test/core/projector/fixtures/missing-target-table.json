@@ -1,0 +1,23 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "order": {
+      "name": "orders",
+      "columns": [
+        { "id": "id", "name": "id", "type": "CHAR(26)" },
+        { "id": "customer", "name": "customer", "type": "CHAR(26)" }
+      ],
+      "keys": {
+        "primary": { "name": "pk_orders", "columns": ["id"] },
+        "foreign": [
+          {
+            "name": "fk_orders_customer",
+            "column": "customer",
+            "target": { "table": "customers", "column": "id" },
+            "kind": "explicit"
+          }
+        ]
+      }
+    }
+  }
+}

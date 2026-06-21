@@ -1,0 +1,22 @@
+data-sketch: 1.0.0-draft.2
+info:
+  name: online-shop
+
+claims:
+  order:
+    name: orders
+    reason: Order state is needed after checkout.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - status
+    x-relational-db-schema:
+      constraints:
+        check:
+          - name: ck_orders_status
+            column: status
+            enum:
+              - pending
+              - shipped
+              - delivered

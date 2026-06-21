@@ -11,6 +11,9 @@ domain entities. Array-of-objects paths imply structural parent-child
 relationships between generated tables. Detail paths whose final segment exactly
 matches a claim ID imply claim-to-claim relationships by convention.
 
+`validateRelationalDbProjection` validates an existing Relational DB Projection
+against this specification before a command or renderer consumes it.
+
 ---
 
 ## Root Shape
@@ -117,6 +120,8 @@ Rules:
   parent foreign key.
 - A top-level child table references the claim parent table.
 - A nested child table references the nearest generated parent child table.
+- Circular foreign-key dependencies across multiple tables are projection errors.
+  Self-referencing foreign keys are allowed.
 - A projected table name conflict is a projection error.
 - The projector must not split a claim into additional parent entities unless
   the split is required by array projection rules.

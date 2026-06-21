@@ -253,10 +253,60 @@ export function buildRelationalDbProjection(sketch: DataSketch): RelationalDbPro
 
   applyForeignKeyTargetRenames(tables, tableNameRenames, columnNameRenames)
 
-  return {
+  const projection: RelationalDbProjection = {
     'data-sketch/relational-db-projection': '1.0.0-draft.3',
     tables
   }
+
+  validateRelationalDbProjection(projection)
+
+  return projection
+}
+
+export function validateRelationalDbProjection(projection: RelationalDbProjection): void {
+  if (projection['data-sketch/relational-db-projection'] !== '1.0.0-draft.3') {
+    throw new Error('Invalid relational DB projection: unsupported projection version')
+  }
+
+  const tableByName = new Map<string, RelationalDbProjectionTable>()
+
+  for (const table of Object.values(projection.tables)) {
+    if (tableByName.has(table.name)) {
+      throw new Error(`Invalid relational DB projection: table name ${table.name} is duplicated`)
+    }
+
+    tableByName.set(table.name, table)
+  }
+
+  for (const table of Object.values(projection.tables)) {
+    const sourceColumns = new Set(table.columns.map(column => column.name))
+
+    for (const foreignKey of table.keys.foreign) {
+      if (!sourceColumns.has(foreignKey.column)) {
+        throw new Error(
+          `Invalid relational DB projection: foreign key ${table.name}.${foreignKey.name} references missing source column ${foreignKey.column}`
+        )
+      }
+
+      const targetTable = tableByName.get(foreignKey.target.table)
+
+      if (targetTable === undefined) {
+        throw new Error(
+          `Invalid relational DB projection: foreign key ${table.name}.${foreignKey.name} references missing table ${foreignKey.target.table}`
+        )
+      }
+
+      const targetColumns = new Set(targetTable.columns.map(column => column.name))
+
+      if (!targetColumns.has(foreignKey.target.column)) {
+        throw new Error(
+          `Invalid relational DB projection: foreign key ${table.name}.${foreignKey.name} references missing target column ${foreignKey.target.table}.${foreignKey.target.column}`
+        )
+      }
+    }
+  }
+
+  validateNoCircularForeignKeyDependencies(projection.tables)
 }
 
 function ensureProjectionTable(
@@ -1477,6 +1527,47 @@ function applyForeignKeyTargetRenames(
         }
       }
     })
+  }
+}
+
+function validateNoCircularForeignKeyDependencies(tables: RelationalDbProjection['tables']) {
+  const tableByName = new Map(Object.values(tables).map(table => [table.name, table]))
+  const visitedTableNames = new Set<string>()
+  const visitingTableNames = new Set<string>()
+  const tableNameStack: string[] = []
+
+  const visit = (tableName: string) => {
+    if (visitingTableNames.has(tableName)) {
+      const cycleStartIndex = tableNameStack.indexOf(tableName)
+      const cycle = [...tableNameStack.slice(cycleStartIndex), tableName]
+
+      throw new Error(
+        `Invalid relational DB projection: foreign key dependency cycle is not allowed: ${cycle.join(' -> ')}`
+      )
+    }
+
+    if (visitedTableNames.has(tableName)) {
+      return
+    }
+
+    const table = tableByName.get(tableName) as RelationalDbProjectionTable
+
+    visitingTableNames.add(tableName)
+    tableNameStack.push(tableName)
+
+    for (const foreignKey of table.keys.foreign) {
+      if (foreignKey.target.table !== tableName) {
+        visit(foreignKey.target.table)
+      }
+    }
+
+    tableNameStack.pop()
+    visitingTableNames.delete(tableName)
+    visitedTableNames.add(tableName)
+  }
+
+  for (const table of Object.values(tables)) {
+    visit(table.name)
   }
 }
 

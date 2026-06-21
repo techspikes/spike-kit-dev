@@ -1,0 +1,20 @@
+{
+  "data-sketch/relational-db-projection": "1.0.0-draft.3",
+  "tables": {
+    "customer": {
+      "name": "customer's",
+      "columns": [
+        { "id": "id", "name": "id", "type": "CHAR(26)" },
+        { "id": "name", "name": "display\\name", "type": "VARCHAR(100)" }
+      ],
+      "keys": {
+        "primary": { "name": "pk_customer's", "columns": ["id"] },
+        "foreign": []
+      },
+      "constraints": {
+        "unique": [{ "name": "uq_customer_display\\name", "columns": ["display\\name"] }]
+      },
+      "indexes": [{ "name": "idx_customer's_name", "columns": ["display\\name"] }]
+    }
+  }
+}

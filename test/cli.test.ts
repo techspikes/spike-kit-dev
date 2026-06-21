@@ -36,7 +36,7 @@ describe('cli', () => {
 
   it('dispatches the spec-check command', async () => {
     const result = await runCommandAndCaptureAsync(() =>
-      runCli(['spec-check', 'test/commands/spec-check/fixtures/online-shop.valid.yaml'])
+      runCli(['spec-check', 'test/commands/spec-check/fixtures/sketches/online-shop.valid.yaml'])
     )
 
     assert.equal(result.exitCode, 0)
@@ -66,7 +66,7 @@ describe('cli', () => {
       const result = await runCommandAndCaptureAsync(() =>
         runCli([
           'tables-doc',
-          'test/commands/tables-doc/fixtures/online-shop-with-tentative-order.valid.yaml',
+          'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
           '--output',
           outputFilePath
         ])
@@ -88,7 +88,7 @@ describe('cli', () => {
       const result = await runCommandAndCaptureAsync(() =>
         runCli([
           'kysely-migration',
-          'test/commands/kysely-migration/fixtures/simple.valid.yaml',
+          'test/commands/kysely-migration/fixtures/sketches/online-shop-orders.valid.yaml',
           '--output',
           outputFilePath
         ])
@@ -102,7 +102,7 @@ describe('cli', () => {
 
   it('runs the spec-check command from the CLI entrypoint', () => {
     const result = runAndCapture(() => {
-      exec('node src/cli.ts spec-check test/commands/spec-check/fixtures/online-shop.valid.yaml')
+      exec('node src/cli.ts spec-check test/commands/spec-check/fixtures/sketches/online-shop.valid.yaml')
     })
 
     assert.deepEqual(result.stdout, ['Specification is valid.\n'])

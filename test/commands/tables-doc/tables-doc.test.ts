@@ -8,22 +8,6 @@ import { runCommandAndCapture } from '../../test-helper/logger.ts'
 
 const usageLine = 'Usage: shot tables-doc [OPTION]... SPEC_FILE'
 
-const onlineShopWithOpenApiSpecFilePath =
-  'test/commands/tables-doc/fixtures/online-shop-with-tentative-order.valid.yaml'
-
-const onlineShopWithoutOpenApiSpecFilePath =
-  'test/commands/tables-doc/fixtures/online-shop-without-openapi-source.valid.yaml'
-
-const specialCharacterEscapingSpecFilePath = 'test/commands/tables-doc/fixtures/special-character-escaping.valid.yaml'
-
-const specialCharacterEscapingReorderedSpecFilePath =
-  'test/commands/tables-doc/fixtures/special-character-escaping-reordered.valid.yaml'
-
-const mermaidIdentifierSanitizationSpecFilePath =
-  'test/commands/tables-doc/fixtures/online-shop-mermaid-identifier-sanitization.valid.yaml'
-
-const expectedTablesDocFixtureDirectoryPath = 'test/commands/tables-doc/fixtures/expected'
-
 // ─── CLI behaviour ─────────────────────────────────────────────────────────────
 
 describe('tables-doc CLI', () => {
@@ -63,7 +47,7 @@ describe('tables-doc CLI', () => {
 
   it('Given no --output is provided, When the command executes, Then it prints usage and returns a non-zero exit code', () => {
     const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
-      executeTableDoc([onlineShopWithOpenApiSpecFilePath])
+      executeTableDoc(['test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml'])
     )
 
     assert.equal(exitCode, 1)
@@ -74,7 +58,11 @@ describe('tables-doc CLI', () => {
   it('Given a valid spec file, When the command executes, Then it writes a complete Markdown document', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'output.md')
     const { exitCode, stdout, stderr } = runCommandAndCapture(() =>
-      executeTableDoc([onlineShopWithOpenApiSpecFilePath, '--output', outputFilePath])
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+        '--output',
+        outputFilePath
+      ])
     )
 
     assert.equal(exitCode, 0)
@@ -83,13 +71,20 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-with-tentative-order.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/online-shop-with-tentative-order.md')
+    )
   })
 
   it('Given a valid spec file, When the command executes with -o, Then it writes to the output file', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'short-flag.md')
     const { exitCode, stderr } = runCommandAndCapture(() =>
-      executeTableDoc([onlineShopWithOpenApiSpecFilePath, '-o', outputFilePath])
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+        '-o',
+        outputFilePath
+      ])
     )
 
     assert.equal(exitCode, 0)
@@ -97,26 +92,56 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-with-tentative-order.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/online-shop-with-tentative-order.md')
+    )
   })
 
   it('Given an existing output file, When the command executes, Then it overwrites the file', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'overwrite.md')
 
-    runCommandAndCapture(() => executeTableDoc([onlineShopWithOpenApiSpecFilePath, '-o', outputFilePath]))
-    runCommandAndCapture(() => executeTableDoc([onlineShopWithOpenApiSpecFilePath, '-o', outputFilePath]))
+    runCommandAndCapture(() =>
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+        '-o',
+        outputFilePath
+      ])
+    )
+    runCommandAndCapture(() =>
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+        '-o',
+        outputFilePath
+      ])
+    )
 
     const content = readTextFile(outputFilePath)
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-with-tentative-order.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/online-shop-with-tentative-order.md')
+    )
   })
 
   it('Given the same spec file run twice, When the command executes, Then it produces the same sha256', () => {
     const firstOutputFilePath = joinFilePath(temporaryDirectoryPath, 'sha256-run1.md')
     const secondOutputFilePath = joinFilePath(temporaryDirectoryPath, 'sha256-run2.md')
 
-    runCommandAndCapture(() => executeTableDoc([onlineShopWithOpenApiSpecFilePath, '-o', firstOutputFilePath]))
-    runCommandAndCapture(() => executeTableDoc([onlineShopWithOpenApiSpecFilePath, '-o', secondOutputFilePath]))
+    runCommandAndCapture(() =>
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+        '-o',
+        firstOutputFilePath
+      ])
+    )
+    runCommandAndCapture(() =>
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+        '-o',
+        secondOutputFilePath
+      ])
+    )
 
     const sha1 = getFrontmatterValue(readTextFile(firstOutputFilePath), 'sha256')
     const sha2 = getFrontmatterValue(readTextFile(secondOutputFilePath), 'sha256')
@@ -129,9 +154,19 @@ describe('tables-doc CLI', () => {
     const firstOutputFilePath = joinFilePath(temporaryDirectoryPath, 'sha256-key-ordered.md')
     const secondOutputFilePath = joinFilePath(temporaryDirectoryPath, 'sha256-key-reordered.md')
 
-    runCommandAndCapture(() => executeTableDoc([specialCharacterEscapingSpecFilePath, '-o', firstOutputFilePath]))
     runCommandAndCapture(() =>
-      executeTableDoc([specialCharacterEscapingReorderedSpecFilePath, '-o', secondOutputFilePath])
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/special-character-escaping.valid.yaml',
+        '-o',
+        firstOutputFilePath
+      ])
+    )
+    runCommandAndCapture(() =>
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/special-character-escaping-reordered.valid.yaml',
+        '-o',
+        secondOutputFilePath
+      ])
     )
 
     const sha1 = getFrontmatterValue(readTextFile(firstOutputFilePath), 'sha256')
@@ -144,7 +179,11 @@ describe('tables-doc CLI', () => {
   it('Given a spec without an OpenAPI source, When the command executes, Then detail columns use the VARCHAR(1024) fallback type', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'no-openapi.md')
     const { exitCode, stderr } = runCommandAndCapture(() =>
-      executeTableDoc([onlineShopWithoutOpenApiSpecFilePath, '--output', outputFilePath])
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-without-openapi-source.valid.yaml',
+        '--output',
+        outputFilePath
+      ])
     )
 
     assert.equal(exitCode, 0)
@@ -152,13 +191,20 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-without-openapi-source.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/online-shop-without-openapi-source.md')
+    )
   })
 
   it('Given a spec with special characters in aliases and enum values, When the command executes, Then cell text and DDL are correctly escaped', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'escaping.md')
     const { exitCode, stderr } = runCommandAndCapture(() =>
-      executeTableDoc([specialCharacterEscapingSpecFilePath, '--output', outputFilePath])
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/special-character-escaping.valid.yaml',
+        '--output',
+        outputFilePath
+      ])
     )
 
     assert.equal(exitCode, 0)
@@ -166,13 +212,20 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('special-character-escaping.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/special-character-escaping.md')
+    )
   })
 
   it('Given a spec with Mermaid-unsafe identifiers, When the command executes, Then the ER diagram uses sanitized identifiers', () => {
     const outputFilePath = joinFilePath(temporaryDirectoryPath, 'mermaid-identifiers.md')
     const { exitCode, stderr } = runCommandAndCapture(() =>
-      executeTableDoc([mermaidIdentifierSanitizationSpecFilePath, '--output', outputFilePath])
+      executeTableDoc([
+        'test/commands/tables-doc/fixtures/sketches/online-shop-mermaid-identifier-sanitization.valid.yaml',
+        '--output',
+        outputFilePath
+      ])
     )
 
     assert.equal(exitCode, 0)
@@ -180,7 +233,10 @@ describe('tables-doc CLI', () => {
 
     const content = readTextFile(outputFilePath)
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-mermaid-identifier-sanitization.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/online-shop-mermaid-identifier-sanitization.md')
+    )
   })
 
   it('Given a non-existent spec file, When the command executes, Then it prints an error to stderr and returns a non-zero exit code', () => {
@@ -199,47 +255,69 @@ describe('tables-doc CLI', () => {
 
 describe('renderTablesDoc library contract', () => {
   it('Given an optional OpenAPI field, When renderTablesDoc is called, Then the column shows Nullable: yes', () => {
-    const validated = validate({ specFilePath: onlineShopWithOpenApiSpecFilePath, validators: [openApiValidator] })
+    const validated = validate({
+      specFilePath: 'test/commands/tables-doc/fixtures/sketches/online-shop-with-tentative-order.valid.yaml',
+      validators: [openApiValidator]
+    })
 
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, 'custom/source label')
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('custom-source-label.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/custom-source-label.md')
+    )
   })
 
   it('Given optionals overrides, When renderTablesDoc is called, Then Nullable reflects the override', () => {
-    const optionalsSpec = 'test/core/projector/fixtures/online-shop-optionals-override.valid.yaml'
-
-    const validated = validate({ specFilePath: optionalsSpec, validators: [openApiValidator] })
+    const validated = validate({
+      specFilePath: 'test/commands/tables-doc/fixtures/sketches/online-shop-optionals-override.valid.yaml',
+      validators: [openApiValidator]
+    })
 
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
-    const content = renderTablesDoc(validated.spec, projection, optionalsSpec)
+    const content = renderTablesDoc(
+      validated.spec,
+      projection,
+      'test/commands/tables-doc/fixtures/sketches/online-shop-optionals-override.valid.yaml'
+    )
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('online-shop-optionals-override.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/online-shop-optionals-override.md')
+    )
   })
 
   it('Given aliases with pipe and backslash, When renderTablesDoc is called, Then cell text is escaped', () => {
-    const validated = validate({ specFilePath: specialCharacterEscapingSpecFilePath, validators: [openApiValidator] })
+    const validated = validate({
+      specFilePath: 'test/commands/tables-doc/fixtures/sketches/special-character-escaping.valid.yaml',
+      validators: [openApiValidator]
+    })
 
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, 'special-character-escaping.valid.yaml')
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('special-character-escaping.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/special-character-escaping.md')
+    )
   })
 
   it('Given an enum value with a single quote, When renderTablesDoc is called, Then the DDL uses SQL-escaped literals', () => {
-    const validated = validate({ specFilePath: specialCharacterEscapingSpecFilePath, validators: [openApiValidator] })
+    const validated = validate({
+      specFilePath: 'test/commands/tables-doc/fixtures/sketches/special-character-escaping.valid.yaml',
+      validators: [openApiValidator]
+    })
 
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
     const content = renderTablesDoc(validated.spec, projection, 'special-character-escaping.valid.yaml')
 
-    assert.equal(normalizeGeneratedAt(content), readExpectedTablesDoc('special-character-escaping.md'))
+    assert.equal(
+      normalizeGeneratedAt(content),
+      readTextFile('test/commands/tables-doc/fixtures/markdown/special-character-escaping.md')
+    )
   })
 })
-
-function readExpectedTablesDoc(fileName: string) {
-  return readTextFile(joinFilePath(expectedTablesDocFixtureDirectoryPath, fileName))
-}
 
 function normalizeGeneratedAt(content: string) {
   return content.replace(/^generated_at: .+$/m, 'generated_at: <generated_at>') // generated_at is rendered at runtime.

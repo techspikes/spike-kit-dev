@@ -1,0 +1,42 @@
+data-sketch: 1.0.0-draft.2
+info:
+  name: online-shop
+
+claims:
+  customer:
+    name: customers
+    reason: Customer profile information is needed when orders are created.
+    traces:
+      operations:
+        - createCustomer
+    details:
+      - name
+      - email
+  order:
+    name: orders
+    reason: Order state is needed after checkout.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - status
+      - customer
+    relations:
+      customer: customer
+  orderItem:
+    name: order_items
+    reason: Order item information is needed to list products included in an order.
+    traces:
+      operations:
+        - createOrder
+    details:
+      - sku
+      - order
+    relations:
+      order: order
+    x-relational-db-schema:
+      constraints:
+        unique:
+          - name: uq_order_items_sku
+            columns:
+              - sku

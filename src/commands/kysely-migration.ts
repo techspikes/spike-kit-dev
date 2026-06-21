@@ -2,37 +2,20 @@ import { parseArgs } from 'node:util'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { load as yamlLoad } from 'js-yaml'
 import type { RelationalDbProjection } from '../core/projector.ts'
-import { project, relationalDbProjector } from '../core/projector.ts'
+import { project, relationalDbProjector, validateRelationalDbProjection } from '../core/projector.ts'
 import { readTextFile, resolveCwdRelativeFilePath, writeTextFile } from '../core/utils.ts'
 import { openApiValidator, validate } from '../core/validator.ts'
 
 // ─── Snapshot types ────────────────────────────────────────────────────────────
 
 type DbProjectionSnapshot = {
-  'data-sketch/db-projection-snapshot': '1.0.0-draft.0'
-  tables: SnapshotTable[]
+  readonly 'data-sketch/relational-db-projection': '1.0.0-draft.3'
+  readonly tables: RelationalDbProjection['tables']
 }
 
-type SnapshotTable = {
-  id: string
-  name: string
-  columns: SnapshotColumn[]
-  primaryKey: SnapshotNamedColumns
-  uniqueConstraints: SnapshotNamedColumns[]
-  foreignKeys: SnapshotForeignKey[]
-  indexes: SnapshotIndex[]
-  checkConstraints: SnapshotCheckConstraint[]
-}
-
-type SnapshotColumn = { id: string; name: string; type: string; nullable: boolean }
-type SnapshotNamedColumns = { name: string; columns: string[] }
-type SnapshotForeignKey = {
-  name: string
-  column: string
-  target: { table: string; column: string }
-}
-type SnapshotIndex = { name: string; columns: string[] }
-type SnapshotCheckConstraint = { name: string; column: string; enum: string[] }
+type SnapshotTable = DbProjectionSnapshot['tables'][string]
+type SnapshotCheckConstraint = NonNullable<NonNullable<SnapshotTable['constraints']>['check']>[number]
+type SnapshotTableEntry = { id: string; table: SnapshotTable }
 
 // ─── Usage ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +29,6 @@ const usage = () =>
     '  -o, --output MIGRATION_FILE        Output TypeScript migration file path (required)',
     '  -p, --previous-migration PREV_FILE Read embedded snapshot from PREV_FILE for diff migration',
     '      --types-output TYPES_FILE      Write Database interface declaration file (must end in .d.ts)',
-    '      --include-tentative            Include tables from tentative claims',
     '      --dry-run                      Perform all steps without writing files',
     '  -h, --help                         Show this help'
   ].join('\n')
@@ -63,7 +45,6 @@ export function executeKyselyMigration(args: readonly string[]) {
         output: { type: 'string', short: 'o' },
         'previous-migration': { type: 'string', short: 'p' },
         'types-output': { type: 'string' },
-        'include-tentative': { type: 'boolean' },
         'dry-run': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' }
       }
@@ -79,7 +60,6 @@ export function executeKyselyMigration(args: readonly string[]) {
     const outputFilePath = options.values.output
     const previousMigrationFilePath = options.values['previous-migration']
     const typesOutputFilePath = options.values['types-output']
-    const includeTentative = options.values['include-tentative'] ?? false
     const dryRun = options.values['dry-run'] ?? false
 
     if (!specFilePath || !outputFilePath) {
@@ -94,66 +74,55 @@ export function executeKyselyMigration(args: readonly string[]) {
       return 1
     }
 
-    // Parse and validate
     const validated = validate({
       specFilePath,
       trace: true,
       validators: [openApiValidator]
     })
 
-    console.log('Data Sketch read')
-    console.log('Validating Data Sketch')
-
-    // Build projection
-    console.log('Building Relational DB Projection')
     const projection = project(validated, [relationalDbProjector]).get<RelationalDbProjection>('relational-db')
 
-    // Determine included table IDs (filter tentative unless --include-tentative)
+    // Tentative tables are included, but migration users should review them.
     const allTableIds = Object.keys(projection.tables)
-    const includedTableIds: string[] = []
+    const tentativeWarnings: string[] = []
 
     for (const tableId of allTableIds) {
       const claimId = tableId.split('.')[0]
       const claim = validated.spec.claims[claimId]
 
-      if (claim?.tentative === true && !includeTentative) {
-        process.stderr.write(`Warning: Tentative claim excluded from migration: ${projection.tables[tableId].name}\n`)
-      } else {
-        includedTableIds.push(tableId)
+      if (claim?.tentative === true) {
+        tentativeWarnings.push(
+          `Warning: Tentative table included in migration and needs review: ${projection.tables[tableId].name}`
+        )
       }
     }
 
-    // Build snapshot
-    const afterSnapshot = buildSnapshot(projection, includedTableIds)
+    const afterSnapshot = buildSnapshot(projection, allTableIds)
 
-    // Read previous migration if provided
     let beforeSnapshot: DbProjectionSnapshot | undefined
 
     if (previousMigrationFilePath) {
       const previousMigrationContent = readTextFile(resolveCwdRelativeFilePath(previousMigrationFilePath))
 
-      console.log('Previous migration read')
       beforeSnapshot = parseEmbeddedSnapshot(previousMigrationContent)
-      console.log('Previous DB projection snapshot parsed')
     }
 
-    // Collect check constraint warnings
     const checkWarnings: string[] = []
 
     if (beforeSnapshot) {
       // Diff mode: warn about added/removed check constraints
       const beforeCheckMap = new Map<string, SnapshotCheckConstraint[]>()
 
-      for (const table of beforeSnapshot.tables) {
-        beforeCheckMap.set(table.id, table.checkConstraints)
+      for (const { id, table } of getSnapshotTableEntries(beforeSnapshot)) {
+        beforeCheckMap.set(id, [...getCheckConstraints(table)])
       }
 
-      for (const table of afterSnapshot.tables) {
-        const beforeChecks = beforeCheckMap.get(table.id) ?? []
+      for (const { id, table } of getSnapshotTableEntries(afterSnapshot)) {
+        const beforeChecks = beforeCheckMap.get(id) ?? []
         const beforeCheckNames = new Set(beforeChecks.map(c => c.name))
-        const afterCheckNames = new Set(table.checkConstraints.map(c => c.name))
+        const afterCheckNames = new Set(getCheckConstraints(table).map(c => c.name))
 
-        for (const ck of table.checkConstraints) {
+        for (const ck of getCheckConstraints(table)) {
           if (!beforeCheckNames.has(ck.name)) {
             checkWarnings.push(`Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`)
           }
@@ -167,22 +136,19 @@ export function executeKyselyMigration(args: readonly string[]) {
       }
     } else {
       // Initial mode: warn about all check constraints in the after snapshot
-      for (const table of afterSnapshot.tables) {
-        for (const ck of table.checkConstraints) {
+      for (const { table } of getSnapshotTableEntries(afterSnapshot)) {
+        for (const ck of getCheckConstraints(table)) {
           checkWarnings.push(`Warning: Check constraint ignored by migration renderer: ${table.name}.${ck.name}`)
         }
       }
     }
 
-    // Render
     let migrationContent: string
     let typesContent: string | undefined
 
     if (beforeSnapshot) {
-      console.log('Rendering diff migration')
       migrationContent = renderDiffMigrationFile(beforeSnapshot, afterSnapshot, checkWarnings)
     } else {
-      console.log('Rendering migration')
       migrationContent = renderInitialMigrationFile(afterSnapshot, checkWarnings)
     }
 
@@ -190,8 +156,7 @@ export function executeKyselyMigration(args: readonly string[]) {
       typesContent = renderTypesFile(afterSnapshot)
     }
 
-    // Emit warnings to stderr before writing
-    for (const warning of checkWarnings) {
+    for (const warning of [...tentativeWarnings, ...checkWarnings]) {
       process.stderr.write(`${warning}\n`)
     }
 
@@ -201,13 +166,10 @@ export function executeKyselyMigration(args: readonly string[]) {
       return 0
     }
 
-    // Write files
     writeTextFile(resolveCwdRelativeFilePath(outputFilePath), migrationContent)
-    console.log('Migration written')
 
     if (typesOutputFilePath && typesContent) {
       writeTextFile(resolveCwdRelativeFilePath(typesOutputFilePath), typesContent)
-      console.log('Type definitions written')
     }
 
     console.log('Migration generated')
@@ -220,93 +182,20 @@ export function executeKyselyMigration(args: readonly string[]) {
   }
 }
 
-// ─── Snapshot building ────────────────────────────────────────────────────────
+function buildSnapshot(projection: RelationalDbProjection, includedTableIds: string[]): DbProjectionSnapshot {
+  const tables: Record<string, SnapshotTable> = {}
 
-export function buildSnapshot(projection: RelationalDbProjection, includedTableIds: string[]): DbProjectionSnapshot {
-  const tables = projection.tables
-
-  // Build name→id map for topological sort
-  const nameToId = new Map<string, string>()
-
-  for (const tableId of includedTableIds) {
-    nameToId.set(tables[tableId].name, tableId)
+  for (const tableId of getDependencySortedTableIds(projection.tables, includedTableIds)) {
+    tables[tableId] = projection.tables[tableId]
   }
-
-  // Topological sort: FK targets before tables that reference them
-  const visited = new Set<string>()
-  const sorted: string[] = []
-
-  function visit(tableId: string) {
-    if (visited.has(tableId)) return
-
-    visited.add(tableId)
-
-    const table = tables[tableId]
-
-    for (const fk of table.keys.foreign) {
-      const depId = nameToId.get(fk.target.table)
-
-      if (depId !== undefined && includedTableIds.includes(depId)) {
-        visit(depId)
-      }
-    }
-
-    sorted.push(tableId)
-  }
-
-  for (const tableId of includedTableIds) {
-    visit(tableId)
-  }
-
-  const snapshotTables: SnapshotTable[] = sorted.map(tableId => {
-    const table = tables[tableId]
-
-    return {
-      id: tableId,
-      name: table.name,
-      columns: table.columns.map(col => ({
-        id: col.id,
-        name: col.name,
-        type: col.type as string,
-        nullable: col.nullable === true
-      })),
-      primaryKey: {
-        name: table.keys.primary.name,
-        columns: [...table.keys.primary.columns]
-      },
-      uniqueConstraints: (table.constraints?.unique ?? []).map(uq => ({
-        name: uq.name,
-        columns: [...uq.columns]
-      })),
-      foreignKeys: table.keys.foreign.map(fk => ({
-        name: fk.name,
-        column: fk.column,
-        target: {
-          table: fk.target.table,
-          column: fk.target.column
-        }
-      })),
-      indexes: (table.indexes ?? []).map(ix => ({
-        name: ix.name,
-        columns: [...ix.columns]
-      })),
-      checkConstraints: (table.constraints?.check ?? []).map(ck => ({
-        name: ck.name,
-        column: ck.column,
-        enum: [...ck.enum]
-      }))
-    }
-  })
 
   return {
-    'data-sketch/db-projection-snapshot': '1.0.0-draft.0',
-    tables: snapshotTables
+    'data-sketch/relational-db-projection': '1.0.0-draft.3',
+    tables
   }
 }
 
-// ─── Snapshot encoding/decoding ───────────────────────────────────────────────
-
-export function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: string): string {
+function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: string): string {
   const json = canonicalizeJson(snapshot)
   const compressed = gzipSync(Buffer.from(json, 'utf-8'))
   const b64 = compressed.toString('base64')
@@ -322,7 +211,7 @@ export function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: stri
 
   return [
     '// ---',
-    '// data-sketch/embedded-db-projection-snapshot: 1.0.0-draft.0',
+    '// data-sketch/relational-db-projection/embedded: 1.0.0-draft.3',
     `// generated_at: ${generatedAt}`,
     '// payload: |',
     payloadLines,
@@ -330,7 +219,7 @@ export function encodeSnapshot(snapshot: DbProjectionSnapshot, generatedAt: stri
   ].join('\n')
 }
 
-export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
+function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot {
   const lines = fileContent.split('\n')
   let inBlock = false
   const blockLines: string[] = []
@@ -348,7 +237,7 @@ export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot
             parsed !== null &&
             typeof parsed === 'object' &&
             !Array.isArray(parsed) &&
-            (parsed as Record<string, unknown>)['data-sketch/embedded-db-projection-snapshot'] === '1.0.0-draft.0' &&
+            (parsed as Record<string, unknown>)['data-sketch/relational-db-projection/embedded'] === '1.0.0-draft.3' &&
             typeof (parsed as Record<string, unknown>).payload === 'string'
           ) {
             const payload = (parsed as Record<string, unknown>).payload as string
@@ -361,7 +250,7 @@ export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot
               snapshot !== null &&
               typeof snapshot === 'object' &&
               !Array.isArray(snapshot) &&
-              (snapshot as Record<string, unknown>)['data-sketch/db-projection-snapshot'] === '1.0.0-draft.0'
+              (snapshot as Record<string, unknown>)['data-sketch/relational-db-projection'] === '1.0.0-draft.3'
             ) {
               return snapshot as DbProjectionSnapshot
             }
@@ -392,18 +281,21 @@ export function parseEmbeddedSnapshot(fileContent: string): DbProjectionSnapshot
     }
   }
 
-  throw new Error('No embedded DB projection snapshot found in previous migration file')
+  throw new Error('No embedded relational DB projection found in previous migration file')
 }
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
-export function renderInitialMigrationFile(snapshot: DbProjectionSnapshot, _warnings: string[]): string {
+function renderInitialMigrationFile(snapshot: DbProjectionSnapshot, _warnings: string[]): string {
+  validateRelationalDbProjection(snapshot)
+
   const generatedAt = new Date().toISOString()
   const embeddedBlock = encodeSnapshot(snapshot, generatedAt)
 
   const lines: string[] = [embeddedBlock, '']
 
-  lines.push("import type { Kysely } from 'kysely'", '')
+  lines.push("import type { Kysely } from 'kysely'")
+  lines.push('')
 
   // MigrationDatabase interface
   lines.push(...renderMigrationDatabase(snapshot))
@@ -426,11 +318,11 @@ export function renderInitialMigrationFile(snapshot: DbProjectionSnapshot, _warn
 function renderMigrationDatabase(snapshot: DbProjectionSnapshot): string[] {
   const lines: string[] = ['interface MigrationDatabase {']
 
-  for (const table of snapshot.tables) {
-    lines.push(`  '${table.name}': {`)
+  for (const { table } of getSnapshotTableEntries(snapshot)) {
+    lines.push(`  ${tsString(table.name)}: {`)
 
     for (const col of table.columns) {
-      lines.push(`    '${col.name}': ${sqlTypeToTs(col.type, col.nullable)}`)
+      lines.push(`    ${tsString(col.name)}: ${sqlTypeToTs(col.type, col.nullable === true)}`)
     }
 
     lines.push('  }')
@@ -444,32 +336,32 @@ function renderMigrationDatabase(snapshot: DbProjectionSnapshot): string[] {
 function renderUpBody(snapshot: DbProjectionSnapshot): string[] {
   const lines: string[] = []
 
-  for (const table of snapshot.tables) {
+  for (const { table } of getSnapshotTableEntries(snapshot)) {
     lines.push(`  await db.schema`)
-    lines.push(`    .createTable('${table.name}')`)
+    lines.push(`    .createTable(${tsString(table.name)})`)
 
     for (const col of table.columns) {
       const typeStr = (col.type as string).toLowerCase()
 
-      if (col.nullable) {
-        lines.push(`    .addColumn('${col.name}', '${typeStr}')`)
+      if (col.nullable === true) {
+        lines.push(`    .addColumn(${tsString(col.name)}, ${tsString(typeStr)})`)
       } else {
-        lines.push(`    .addColumn('${col.name}', '${typeStr}', column => column.notNull())`)
+        lines.push(`    .addColumn(${tsString(col.name)}, ${tsString(typeStr)}, column => column.notNull())`)
       }
     }
 
     lines.push(
-      `    .addPrimaryKeyConstraint('${table.primaryKey.name}', [${table.primaryKey.columns.map(c => `'${c}'`).join(', ')}])`
+      `    .addPrimaryKeyConstraint(${tsString(table.keys.primary.name)}, ${renderStringArray(table.keys.primary.columns)})`
     )
 
-    for (const fk of table.foreignKeys) {
+    for (const fk of table.keys.foreign) {
       lines.push(
-        `    .addForeignKeyConstraint('${fk.name}', ['${fk.column}'], '${fk.target.table}', ['${fk.target.column}'])`
+        `    .addForeignKeyConstraint(${tsString(fk.name)}, ${renderStringArray([fk.column])}, ${tsString(fk.target.table)}, ${renderStringArray([fk.target.column])})`
       )
     }
 
-    for (const uq of table.uniqueConstraints) {
-      lines.push(`    .addUniqueConstraint('${uq.name}', [${uq.columns.map(c => `'${c}'`).join(', ')}])`)
+    for (const uq of getUniqueConstraints(table)) {
+      lines.push(`    .addUniqueConstraint(${tsString(uq.name)}, ${renderStringArray(uq.columns)})`)
     }
 
     lines.push('    .execute()')
@@ -477,12 +369,12 @@ function renderUpBody(snapshot: DbProjectionSnapshot): string[] {
   }
 
   // Indexes after all createTable calls
-  for (const table of snapshot.tables) {
-    for (const ix of table.indexes) {
+  for (const { table } of getSnapshotTableEntries(snapshot)) {
+    for (const ix of getIndexes(table)) {
       lines.push(`  await db.schema`)
-      lines.push(`    .createIndex('${ix.name}')`)
-      lines.push(`    .on('${table.name}')`)
-      lines.push(`    .columns([${ix.columns.map(c => `'${c}'`).join(', ')}])`)
+      lines.push(`    .createIndex(${tsString(ix.name)})`)
+      lines.push(`    .on(${tsString(table.name)})`)
+      lines.push(`    .columns(${renderStringArray(ix.columns)})`)
       lines.push('    .execute()')
       lines.push('')
     }
@@ -502,14 +394,14 @@ function renderDownBody(snapshot: DbProjectionSnapshot): string[] {
   // Drop indexes first (in order)
   const allIndexes: Array<{ tableName: string; indexName: string }> = []
 
-  for (const table of snapshot.tables) {
-    for (const ix of table.indexes) {
+  for (const { table } of getSnapshotTableEntries(snapshot)) {
+    for (const ix of getIndexes(table)) {
       allIndexes.push({ tableName: table.name, indexName: ix.name })
     }
   }
 
   for (const { indexName } of allIndexes) {
-    lines.push(`  await db.schema.dropIndex('${indexName}').execute()`)
+    lines.push(`  await db.schema.dropIndex(${tsString(indexName)}).execute()`)
   }
 
   if (allIndexes.length > 0) {
@@ -517,10 +409,10 @@ function renderDownBody(snapshot: DbProjectionSnapshot): string[] {
   }
 
   // Drop tables in reverse order
-  const reversedTables = [...snapshot.tables].reverse()
+  const reversedTables = getSnapshotTableEntries(snapshot).reverse()
 
-  for (const table of reversedTables) {
-    lines.push(`  await db.schema.dropTable('${table.name}').execute()`)
+  for (const { table } of reversedTables) {
+    lines.push(`  await db.schema.dropTable(${tsString(table.name)}).execute()`)
   }
 
   return lines
@@ -528,17 +420,21 @@ function renderDownBody(snapshot: DbProjectionSnapshot): string[] {
 
 // ─── Diff migration rendering ─────────────────────────────────────────────────
 
-export function renderDiffMigrationFile(
+function renderDiffMigrationFile(
   before: DbProjectionSnapshot,
   after: DbProjectionSnapshot,
   _warnings: string[]
 ): string {
+  validateRelationalDbProjection(before)
+  validateRelationalDbProjection(after)
+
   const generatedAt = new Date().toISOString()
   const embeddedBlock = encodeSnapshot(after, generatedAt)
 
   const lines: string[] = [embeddedBlock, '']
 
-  lines.push("import type { Kysely } from 'kysely'", '')
+  lines.push("import type { Kysely } from 'kysely'")
+  lines.push('')
 
   // MigrationDatabase for up uses after snapshot
   lines.push(...renderMigrationDatabase(after))
@@ -560,196 +456,230 @@ export function renderDiffMigrationFile(
 
 function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot): string[] {
   const lines: string[] = []
-  const beforeById = new Map(before.tables.map(t => [t.id, t]))
-  const afterById = new Map(after.tables.map(t => [t.id, t]))
+  const beforeEntries = getSnapshotTableEntries(before)
+  const afterEntries = getSnapshotTableEntries(after)
+  const beforeById = new Map(beforeEntries.map(({ id, table }) => [id, table]))
+  const afterById = new Map(afterEntries.map(({ id, table }) => [id, table]))
+  const commonTables: Array<{ before: SnapshotTable; after: SnapshotTable }> = []
 
-  // Common tables
-  const commonIds = [...afterById.keys()].filter(id => beforeById.has(id))
+  for (const { id, table: afterTable } of afterEntries) {
+    const beforeTable = beforeById.get(id)
+
+    if (beforeTable !== undefined) {
+      commonTables.push({ before: beforeTable, after: afterTable })
+    }
+  }
 
   // Step 1: Drop removed/changed non-unique indexes
-  for (const bTable of before.tables) {
-    const aTable = afterById.get(bTable.id)
-    const afterIndexNames = new Set(aTable?.indexes.map(ix => ix.name) ?? [])
+  for (const { id, table: beforeTable } of beforeEntries) {
+    const afterTable = afterById.get(id)
+    const afterIndexNames = new Set(afterTable ? getIndexes(afterTable).map(index => index.name) : [])
 
-    for (const ix of bTable.indexes) {
-      if (!afterIndexNames.has(ix.name)) {
-        lines.push(`  await db.schema.dropIndex('${ix.name}').execute()`)
+    for (const index of getIndexes(beforeTable)) {
+      if (!afterIndexNames.has(index.name)) {
+        lines.push(`  await db.schema.dropIndex(${tsString(index.name)}).execute()`)
       } else {
         // Check if changed
-        const aIx = aTable?.indexes.find(x => x.name === ix.name)
+        const afterIndex = getIndexes(afterTable as SnapshotTable).find(candidate => candidate.name === index.name)
 
-        if (aIx && JSON.stringify(aIx.columns) !== JSON.stringify(ix.columns)) {
-          lines.push(`  await db.schema.dropIndex('${ix.name}').execute()`)
+        if (afterIndex && JSON.stringify(afterIndex.columns) !== JSON.stringify(index.columns)) {
+          lines.push(`  await db.schema.dropIndex(${tsString(index.name)}).execute()`)
         }
       }
     }
   }
 
   // Step 2: Drop removed/changed FK, UQ, PK
-  for (const bTable of before.tables) {
-    const aTable = afterById.get(bTable.id)
+  // Drop all FKs first so referenced PKs can be changed safely.
+  for (const { id, table: beforeTable } of beforeEntries) {
+    const afterTable = afterById.get(id)
     // Use before table name for alterTable (renames happen in step 3)
-    const tableName = bTable.name
+    const tableName = beforeTable.name
 
-    // FKs
-    const afterFkNames = new Set(aTable?.foreignKeys.map(fk => fk.name) ?? [])
+    const afterForeignKeyNames = new Set(afterTable?.keys.foreign.map(foreignKey => foreignKey.name) ?? [])
 
-    for (const fk of bTable.foreignKeys) {
-      if (!afterFkNames.has(fk.name)) {
-        lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${fk.name}').execute()`)
+    for (const foreignKey of beforeTable.keys.foreign) {
+      if (!afterForeignKeyNames.has(foreignKey.name)) {
+        lines.push(
+          `  await db.schema.alterTable(${tsString(tableName)}).dropConstraint(${tsString(foreignKey.name)}).execute()`
+        )
       } else {
-        const aFk = aTable?.foreignKeys.find(f => f.name === fk.name)
+        const afterForeignKey = afterTable?.keys.foreign.find(candidate => candidate.name === foreignKey.name)
 
-        if (aFk && (aFk.column !== fk.column || JSON.stringify(aFk.target) !== JSON.stringify(fk.target))) {
-          lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${fk.name}').execute()`)
+        if (
+          afterForeignKey &&
+          (afterForeignKey.column !== foreignKey.column ||
+            JSON.stringify(afterForeignKey.target) !== JSON.stringify(foreignKey.target))
+        ) {
+          lines.push(
+            `  await db.schema.alterTable(${tsString(tableName)}).dropConstraint(${tsString(foreignKey.name)}).execute()`
+          )
         }
       }
     }
+  }
 
-    // UQ
-    const afterUqNames = new Set(aTable?.uniqueConstraints.map(uq => uq.name) ?? [])
+  for (const { id, table: beforeTable } of beforeEntries) {
+    const afterTable = afterById.get(id)
+    const tableName = beforeTable.name
+    const afterUniqueConstraintNames = new Set(
+      afterTable ? getUniqueConstraints(afterTable).map(uniqueConstraint => uniqueConstraint.name) : []
+    )
 
-    for (const uq of bTable.uniqueConstraints) {
-      if (!afterUqNames.has(uq.name)) {
-        lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${uq.name}').execute()`)
+    for (const uniqueConstraint of getUniqueConstraints(beforeTable)) {
+      if (!afterUniqueConstraintNames.has(uniqueConstraint.name)) {
+        lines.push(
+          `  await db.schema.alterTable(${tsString(tableName)}).dropConstraint(${tsString(uniqueConstraint.name)}).execute()`
+        )
       } else {
-        const aUq = aTable?.uniqueConstraints.find(u => u.name === uq.name)
+        const afterUniqueConstraint = getUniqueConstraints(afterTable as SnapshotTable).find(
+          candidate => candidate.name === uniqueConstraint.name
+        )
 
-        if (aUq && JSON.stringify(aUq.columns) !== JSON.stringify(uq.columns)) {
-          lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${uq.name}').execute()`)
+        if (
+          afterUniqueConstraint &&
+          JSON.stringify(afterUniqueConstraint.columns) !== JSON.stringify(uniqueConstraint.columns)
+        ) {
+          lines.push(
+            `  await db.schema.alterTable(${tsString(tableName)}).dropConstraint(${tsString(uniqueConstraint.name)}).execute()`
+          )
         }
       }
     }
+  }
 
-    // PK - check if PK changed (name or columns)
-    if (aTable) {
-      const bPk = bTable.primaryKey
-      const aPk = aTable.primaryKey
+  for (const { id, table: beforeTable } of beforeEntries) {
+    const afterTable = afterById.get(id)
+    const tableName = beforeTable.name
 
-      if (bPk.name !== aPk.name || JSON.stringify(bPk.columns) !== JSON.stringify(aPk.columns)) {
-        lines.push(`  await db.schema.alterTable('${tableName}').dropConstraint('${bPk.name}').execute()`)
+    if (afterTable) {
+      const beforePrimaryKey = beforeTable.keys.primary
+      const afterPrimaryKey = afterTable.keys.primary
+
+      if (
+        beforePrimaryKey.name !== afterPrimaryKey.name ||
+        JSON.stringify(beforePrimaryKey.columns) !== JSON.stringify(afterPrimaryKey.columns)
+      ) {
+        lines.push(
+          `  await db.schema.alterTable(${tsString(tableName)}).dropConstraint(${tsString(beforePrimaryKey.name)}).execute()`
+        )
       }
     }
   }
 
   // Step 3: Rename tables (same id, different name)
-  for (const id of commonIds) {
-    const bTable = beforeById.get(id)!
-    const aTable = afterById.get(id)!
-
-    if (bTable.name !== aTable.name) {
-      lines.push(`  await db.schema.renameTable('${bTable.name}', '${aTable.name}').execute()`)
+  for (const { before: beforeTable, after: afterTable } of commonTables) {
+    if (beforeTable.name !== afterTable.name) {
+      lines.push(
+        `  await db.schema.alterTable(${tsString(beforeTable.name)}).renameTo(${tsString(afterTable.name)}).execute()`
+      )
     }
   }
 
   // Step 4: Rename columns
-  for (const id of commonIds) {
-    const bTable = beforeById.get(id)!
-    const aTable = afterById.get(id)!
-    const tableName = aTable.name // use after name since table rename already happened
-    const bColById = new Map(bTable.columns.map(c => [c.id, c]))
-    const aColById = new Map(aTable.columns.map(c => [c.id, c]))
+  for (const { before: beforeTable, after: afterTable } of commonTables) {
+    const tableName = afterTable.name // use after name since table rename already happened
+    const beforeColumnById = new Map(beforeTable.columns.map(column => [column.id, column]))
+    const afterColumnById = new Map(afterTable.columns.map(column => [column.id, column]))
 
-    for (const [colId, bCol] of bColById) {
-      const aCol = aColById.get(colId)
+    for (const [columnId, beforeColumn] of beforeColumnById) {
+      const afterColumn = afterColumnById.get(columnId)
 
-      if (aCol && bCol.name !== aCol.name) {
+      if (afterColumn && beforeColumn.name !== afterColumn.name) {
         lines.push(
-          `  await db.schema.alterTable('${tableName}').renameColumn('${bCol.name}', '${aCol.name}').execute()`
+          `  await db.schema.alterTable(${tsString(tableName)}).renameColumn(${tsString(beforeColumn.name)}, ${tsString(afterColumn.name)}).execute()`
         )
       }
     }
   }
 
   // Step 5: Drop removed columns
-  for (const id of commonIds) {
-    const bTable = beforeById.get(id)!
-    const aTable = afterById.get(id)!
-    const tableName = aTable.name // use after name
-    const aColIds = new Set(aTable.columns.map(c => c.id))
+  for (const { before: beforeTable, after: afterTable } of commonTables) {
+    const tableName = afterTable.name // use after name
+    const afterColumnIds = new Set(afterTable.columns.map(column => column.id))
 
-    for (const bCol of bTable.columns) {
-      if (!aColIds.has(bCol.id)) {
-        lines.push(`  await db.schema.alterTable('${tableName}').dropColumn('${bCol.name}').execute()`)
+    for (const beforeColumn of beforeTable.columns) {
+      if (!afterColumnIds.has(beforeColumn.id)) {
+        lines.push(
+          `  await db.schema.alterTable(${tsString(tableName)}).dropColumn(${tsString(beforeColumn.name)}).execute()`
+        )
       }
     }
   }
 
   // Step 6: Drop removed tables (reverse topo order of before snapshot)
-  const reversedBefore = [...before.tables].reverse()
+  const reversedBefore = [...beforeEntries].reverse()
 
-  for (const bTable of reversedBefore) {
-    if (!afterById.has(bTable.id)) {
-      lines.push(`  await db.schema.dropTable('${bTable.name}').execute()`)
+  for (const { id, table: beforeTable } of reversedBefore) {
+    if (!afterById.has(id)) {
+      lines.push(`  await db.schema.dropTable(${tsString(beforeTable.name)}).execute()`)
     }
   }
 
   // Step 7: Alter changed column type/nullable
-  for (const id of commonIds) {
-    const bTable = beforeById.get(id)!
-    const aTable = afterById.get(id)!
-    const tableName = aTable.name
-    const bColById = new Map(bTable.columns.map(c => [c.id, c]))
+  for (const { before: beforeTable, after: afterTable } of commonTables) {
+    const tableName = afterTable.name
+    const beforeColumnById = new Map(beforeTable.columns.map(column => [column.id, column]))
 
-    for (const aCol of aTable.columns) {
-      const bCol = bColById.get(aCol.id)
+    for (const afterColumn of afterTable.columns) {
+      const beforeColumn = beforeColumnById.get(afterColumn.id)
 
-      if (!bCol) continue
+      if (!beforeColumn) continue
 
-      const colName = aCol.name
-      const typeChanged = (bCol.type as string).toLowerCase() !== (aCol.type as string).toLowerCase()
-      const nullableChanged = bCol.nullable !== aCol.nullable
+      const columnName = afterColumn.name
+      const typeChanged = (beforeColumn.type as string).toLowerCase() !== (afterColumn.type as string).toLowerCase()
+      const nullableChanged = (beforeColumn.nullable === true) !== (afterColumn.nullable === true)
 
-      if (typeChanged || nullableChanged) {
-        const newType = (aCol.type as string).toLowerCase()
+      if (typeChanged) {
+        const newType = (afterColumn.type as string).toLowerCase()
 
-        if (!aCol.nullable) {
-          lines.push(`  await db.schema`)
-          lines.push(`    .alterTable('${tableName}')`)
-          lines.push(`    .alterColumn('${colName}', col => col.setDataType('${newType}').setNotNull())`)
-          lines.push('    .execute()')
-          /* c8 ignore next 6 */
-        } else {
-          lines.push(`  await db.schema`)
-          lines.push(`    .alterTable('${tableName}')`)
-          lines.push(`    .alterColumn('${colName}', col => col.setDataType('${newType}'))`)
-          lines.push('    .execute()')
-        }
+        lines.push(`  await db.schema`)
+        lines.push(`    .alterTable(${tsString(tableName)})`)
+        lines.push(`    .alterColumn(${tsString(columnName)}, col => col.setDataType(${tsString(newType)}))`)
+        lines.push('    .execute()')
+      }
+
+      if (nullableChanged) {
+        const nullabilityMethod = afterColumn.nullable === true ? 'dropNotNull' : 'setNotNull'
+
+        lines.push(`  await db.schema`)
+        lines.push(`    .alterTable(${tsString(tableName)})`)
+        lines.push(`    .alterColumn(${tsString(columnName)}, col => col.${nullabilityMethod}())`)
+        lines.push('    .execute()')
       }
     }
   }
 
   // Step 8: Add new tables (in after topo order)
-  const beforeIds = new Set(before.tables.map(t => t.id))
+  const beforeIds = new Set(beforeEntries.map(({ id }) => id))
 
-  for (const table of after.tables) {
-    if (!beforeIds.has(table.id)) {
+  for (const { id, table } of afterEntries) {
+    if (!beforeIds.has(id)) {
       lines.push(`  await db.schema`)
-      lines.push(`    .createTable('${table.name}')`)
+      lines.push(`    .createTable(${tsString(table.name)})`)
 
       for (const col of table.columns) {
         const typeStr = (col.type as string).toLowerCase()
 
-        /* c8 ignore next 2 */
-        if (col.nullable) {
-          lines.push(`    .addColumn('${col.name}', '${typeStr}')`)
+        if (col.nullable === true) {
+          lines.push(`    .addColumn(${tsString(col.name)}, ${tsString(typeStr)})`)
         } else {
-          lines.push(`    .addColumn('${col.name}', '${typeStr}', column => column.notNull())`)
+          lines.push(`    .addColumn(${tsString(col.name)}, ${tsString(typeStr)}, column => column.notNull())`)
         }
       }
 
       lines.push(
-        `    .addPrimaryKeyConstraint('${table.primaryKey.name}', [${table.primaryKey.columns.map(c => `'${c}'`).join(', ')}])`
+        `    .addPrimaryKeyConstraint(${tsString(table.keys.primary.name)}, ${renderStringArray(table.keys.primary.columns)})`
       )
 
-      for (const fk of table.foreignKeys) {
+      for (const fk of table.keys.foreign) {
         lines.push(
-          `    .addForeignKeyConstraint('${fk.name}', ['${fk.column}'], '${fk.target.table}', ['${fk.target.column}'])`
+          `    .addForeignKeyConstraint(${tsString(fk.name)}, ${renderStringArray([fk.column])}, ${tsString(fk.target.table)}, ${renderStringArray([fk.target.column])})`
         )
       }
 
-      for (const uq of table.uniqueConstraints) {
-        lines.push(`    .addUniqueConstraint('${uq.name}', [${uq.columns.map(c => `'${c}'`).join(', ')}])`)
+      for (const uq of getUniqueConstraints(table)) {
+        lines.push(`    .addUniqueConstraint(${tsString(uq.name)}, ${renderStringArray(uq.columns)})`)
       }
 
       lines.push('    .execute()')
@@ -758,21 +688,21 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
   }
 
   // Step 9: Add new columns to existing tables
-  for (const id of commonIds) {
-    const bTable = beforeById.get(id)!
-    const aTable = afterById.get(id)!
-    const tableName = aTable.name
-    const bColIds = new Set(bTable.columns.map(c => c.id))
+  for (const { before: beforeTable, after: afterTable } of commonTables) {
+    const tableName = afterTable.name
+    const beforeColumnIds = new Set(beforeTable.columns.map(column => column.id))
 
-    for (const aCol of aTable.columns) {
-      if (!bColIds.has(aCol.id)) {
-        const typeStr = (aCol.type as string).toLowerCase()
+    for (const afterColumn of afterTable.columns) {
+      if (!beforeColumnIds.has(afterColumn.id)) {
+        const typeStr = (afterColumn.type as string).toLowerCase()
 
-        if (aCol.nullable) {
-          lines.push(`  await db.schema.alterTable('${tableName}').addColumn('${aCol.name}', '${typeStr}').execute()`)
+        if (afterColumn.nullable === true) {
+          lines.push(
+            `  await db.schema.alterTable(${tsString(tableName)}).addColumn(${tsString(afterColumn.name)}, ${tsString(typeStr)}).execute()`
+          )
         } else {
           lines.push(
-            `  await db.schema.alterTable('${tableName}').addColumn('${aCol.name}', '${typeStr}', col => col.notNull()).execute()`
+            `  await db.schema.alterTable(${tsString(tableName)}).addColumn(${tsString(afterColumn.name)}, ${tsString(typeStr)}, col => col.notNull()).execute()`
           )
         }
       }
@@ -780,69 +710,80 @@ function renderDiffUp(before: DbProjectionSnapshot, after: DbProjectionSnapshot)
   }
 
   // Step 10: Add new/changed PK, FK, UQ
-  for (const id of commonIds) {
-    const bTable = beforeById.get(id)!
-    const aTable = afterById.get(id)!
-    const tableName = aTable.name
+  for (const { before: beforeTable, after: afterTable } of commonTables) {
+    const tableName = afterTable.name
 
     // PK - add if changed
-    const bPk = bTable.primaryKey
-    const aPk = aTable.primaryKey
+    const beforePrimaryKey = beforeTable.keys.primary
+    const afterPrimaryKey = afterTable.keys.primary
 
-    /* c8 ignore next 5 */
-    if (bPk.name !== aPk.name || JSON.stringify(bPk.columns) !== JSON.stringify(aPk.columns)) {
+    if (
+      beforePrimaryKey.name !== afterPrimaryKey.name ||
+      JSON.stringify(beforePrimaryKey.columns) !== JSON.stringify(afterPrimaryKey.columns)
+    ) {
       lines.push(
-        `  await db.schema.alterTable('${tableName}').addPrimaryKeyConstraint('${aPk.name}', [${aPk.columns.map(c => `'${c}'`).join(', ')}]).execute()`
+        `  await db.schema.alterTable(${tsString(tableName)}).addPrimaryKeyConstraint(${tsString(afterPrimaryKey.name)}, ${renderStringArray(afterPrimaryKey.columns)}).execute()`
       )
     }
 
     // FKs - add new or changed
-    const bFkNames = new Set(bTable.foreignKeys.map(fk => fk.name))
+    const beforeForeignKeyNames = new Set(beforeTable.keys.foreign.map(foreignKey => foreignKey.name))
 
-    for (const aFk of aTable.foreignKeys) {
-      const bFk = bTable.foreignKeys.find(f => f.name === aFk.name)
-      const isNew = !bFkNames.has(aFk.name)
+    for (const afterForeignKey of afterTable.keys.foreign) {
+      const beforeForeignKey = beforeTable.keys.foreign.find(candidate => candidate.name === afterForeignKey.name)
+      const isNew = !beforeForeignKeyNames.has(afterForeignKey.name)
       const isChanged =
-        bFk !== undefined && (bFk.column !== aFk.column || JSON.stringify(bFk.target) !== JSON.stringify(aFk.target))
+        beforeForeignKey !== undefined &&
+        (beforeForeignKey.column !== afterForeignKey.column ||
+          JSON.stringify(beforeForeignKey.target) !== JSON.stringify(afterForeignKey.target))
 
       if (isNew || isChanged) {
         lines.push(
-          `  await db.schema.alterTable('${tableName}').addForeignKeyConstraint('${aFk.name}', ['${aFk.column}'], '${aFk.target.table}', ['${aFk.target.column}']).execute()`
+          `  await db.schema.alterTable(${tsString(tableName)}).addForeignKeyConstraint(${tsString(afterForeignKey.name)}, ${renderStringArray([afterForeignKey.column])}, ${tsString(afterForeignKey.target.table)}, ${renderStringArray([afterForeignKey.target.column])}).execute()`
         )
       }
     }
 
     // UQs - add new or changed
-    const bUqNames = new Set(bTable.uniqueConstraints.map(uq => uq.name))
+    const beforeUniqueConstraintNames = new Set(
+      getUniqueConstraints(beforeTable).map(uniqueConstraint => uniqueConstraint.name)
+    )
 
-    for (const aUq of aTable.uniqueConstraints) {
-      const bUq = bTable.uniqueConstraints.find(u => u.name === aUq.name)
-      const isNew = !bUqNames.has(aUq.name)
-      const isChanged = bUq !== undefined && JSON.stringify(bUq.columns) !== JSON.stringify(aUq.columns)
+    for (const afterUniqueConstraint of getUniqueConstraints(afterTable)) {
+      const beforeUniqueConstraint = getUniqueConstraints(beforeTable).find(
+        candidate => candidate.name === afterUniqueConstraint.name
+      )
+      const isNew = !beforeUniqueConstraintNames.has(afterUniqueConstraint.name)
+      const isChanged =
+        beforeUniqueConstraint !== undefined &&
+        JSON.stringify(beforeUniqueConstraint.columns) !== JSON.stringify(afterUniqueConstraint.columns)
 
       if (isNew || isChanged) {
         lines.push(
-          `  await db.schema.alterTable('${tableName}').addUniqueConstraint('${aUq.name}', [${aUq.columns.map(c => `'${c}'`).join(', ')}]).execute()`
+          `  await db.schema.alterTable(${tsString(tableName)}).addUniqueConstraint(${tsString(afterUniqueConstraint.name)}, ${renderStringArray(afterUniqueConstraint.columns)}).execute()`
         )
       }
     }
   }
 
   // Step 11: Add new/changed indexes
-  for (const aTable of after.tables) {
-    const bTable = beforeById.get(aTable.id)
-    const bIxNames = new Set(bTable?.indexes.map(ix => ix.name) ?? [])
+  for (const { id, table: afterTable } of afterEntries) {
+    const beforeTable = beforeById.get(id)
+    const beforeIndexNames = new Set(beforeTable ? getIndexes(beforeTable).map(index => index.name) : [])
 
-    for (const aIx of aTable.indexes) {
-      const bIx = bTable?.indexes.find(x => x.name === aIx.name)
-      const isNew = !bIxNames.has(aIx.name)
-      const isChanged = bIx !== undefined && JSON.stringify(bIx.columns) !== JSON.stringify(aIx.columns)
+    for (const afterIndex of getIndexes(afterTable)) {
+      const beforeIndex = beforeTable
+        ? getIndexes(beforeTable).find(candidate => candidate.name === afterIndex.name)
+        : undefined
+      const isNew = !beforeIndexNames.has(afterIndex.name)
+      const isChanged =
+        beforeIndex !== undefined && JSON.stringify(beforeIndex.columns) !== JSON.stringify(afterIndex.columns)
 
       if (isNew || isChanged) {
         lines.push(`  await db.schema`)
-        lines.push(`    .createIndex('${aIx.name}')`)
-        lines.push(`    .on('${aTable.name}')`)
-        lines.push(`    .columns([${aIx.columns.map(c => `'${c}'`).join(', ')}])`)
+        lines.push(`    .createIndex(${tsString(afterIndex.name)})`)
+        lines.push(`    .on(${tsString(afterTable.name)})`)
+        lines.push(`    .columns(${renderStringArray(afterIndex.columns)})`)
         lines.push('    .execute()')
         lines.push('')
       }
@@ -864,7 +805,9 @@ function renderDiffDown(before: DbProjectionSnapshot, after: DbProjectionSnapsho
 
 // ─── Types file rendering ─────────────────────────────────────────────────────
 
-export function renderTypesFile(snapshot: DbProjectionSnapshot): string {
+function renderTypesFile(snapshot: DbProjectionSnapshot): string {
+  validateRelationalDbProjection(snapshot)
+
   const generatedAt = new Date().toISOString()
   const embeddedBlock = encodeSnapshot(snapshot, generatedAt)
 
@@ -872,11 +815,11 @@ export function renderTypesFile(snapshot: DbProjectionSnapshot): string {
 
   lines.push('export interface Database {')
 
-  for (const table of snapshot.tables) {
-    lines.push(`  '${table.name}': {`)
+  for (const { table } of getSnapshotTableEntries(snapshot)) {
+    lines.push(`  ${tsString(table.name)}: {`)
 
     for (const col of table.columns) {
-      lines.push(`    '${col.name}': ${sqlTypeToTs(col.type, col.nullable)}`)
+      lines.push(`    ${tsString(col.name)}: ${sqlTypeToTs(col.type, col.nullable === true)}`)
     }
 
     lines.push('  }')
@@ -889,34 +832,85 @@ export function renderTypesFile(snapshot: DbProjectionSnapshot): string {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function sqlTypeToTs(sqlType: string, nullable: boolean): string {
+function getSnapshotTableEntries(snapshot: DbProjectionSnapshot): SnapshotTableEntry[] {
+  return getDependencySortedTableIds(snapshot.tables, Object.keys(snapshot.tables)).map(tableId => ({
+    id: tableId,
+    table: snapshot.tables[tableId]
+  }))
+}
+
+function getDependencySortedTableIds(tables: DbProjectionSnapshot['tables'], tableIds: readonly string[]) {
+  const nameToId = new Map<string, string>()
+
+  for (const tableId of tableIds) {
+    nameToId.set(tables[tableId].name, tableId)
+  }
+
+  const includedIds = new Set(tableIds)
+  const visited = new Set<string>()
+  const sorted: string[] = []
+
+  const visit = (tableId: string) => {
+    if (visited.has(tableId)) {
+      return
+    }
+
+    visited.add(tableId)
+
+    for (const fk of tables[tableId].keys.foreign) {
+      const dependencyId = nameToId.get(fk.target.table)
+
+      if (dependencyId !== undefined && includedIds.has(dependencyId)) {
+        visit(dependencyId)
+      }
+    }
+
+    sorted.push(tableId)
+  }
+
+  for (const tableId of tableIds) {
+    visit(tableId)
+  }
+
+  return sorted
+}
+
+function getUniqueConstraints(table: SnapshotTable) {
+  return table.constraints?.unique ?? []
+}
+
+function getCheckConstraints(table: SnapshotTable) {
+  return table.constraints?.check ?? []
+}
+
+function getIndexes(table: SnapshotTable) {
+  return table.indexes ?? []
+}
+
+function tsString(value: string) {
+  return `'${value.replace(/\\/gu, '\\\\').replace(/'/gu, "\\'")}'`
+}
+
+function renderStringArray(values: readonly string[]) {
+  return `[${values.map(tsString).join(', ')}]`
+}
+
+function sqlTypeToTs(sqlType: SnapshotTable['columns'][number]['type'], nullable: boolean): string {
   const upper = sqlType.toUpperCase()
   let tsType: string
 
-  if (
-    upper.startsWith('CHAR(') ||
-    upper.startsWith('VARCHAR(') ||
-    upper === 'TEXT' ||
-    upper === 'DATE' ||
-    upper === 'TIME' ||
-    upper === 'TIMESTAMP'
-  ) {
+  if (upper.startsWith('CHAR(') || upper.startsWith('VARCHAR(')) {
     tsType = 'string'
-  } else if (
-    upper === 'INTEGER' ||
-    upper === 'BIGINT' ||
-    upper === 'SMALLINT' ||
-    upper === 'DOUBLE PRECISION' ||
-    upper.startsWith('DECIMAL(') ||
-    /* c8 ignore next */
-    upper.startsWith('NUMERIC(')
-  ) {
+  } else if (upper === 'INTEGER' || upper === 'DOUBLE PRECISION') {
     tsType = 'number'
+  } else if (upper === 'BIGINT') {
+    tsType = 'string'
   } else if (upper === 'BOOLEAN') {
     tsType = 'boolean'
-  } /* c8 ignore next 3 */ else {
-    // Defensive fallback for SQL types not generated by the projector
+  } else if (/^DECIMAL\(\d+, \d+\)$/u.test(upper)) {
     tsType = 'string'
+  } /* c8 ignore next 3 */ else {
+    throw new Error(`Unsupported relational DB projection column type: ${sqlType}`)
   }
 
   return nullable ? `${tsType} | null` : tsType

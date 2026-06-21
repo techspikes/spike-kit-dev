@@ -6,5 +6,11 @@
     "strict": true,
     "types": ["node"]
   },
-  "exclude": [".backup", "bin", "coverage", "node_modules"]
+  "exclude": [
+    ".backup",
+    "bin",
+    "coverage",
+    "node_modules",
+    "test/commands/kysely-migration/fixtures/migrations/**/*.ts"
+  ]
 }
